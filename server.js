@@ -49,15 +49,20 @@ const AUTH_SECRET = process.env.IGOR_AUTH_SECRET || (ADMIN_USER && ADMIN_PASS ? 
 const COOKIE_NAME = 'igor_session';
 const COOKIE_DIAS = 30;
 
-function eRotaPublica(pathname) {
+function eRotaPublica(pathname, method) {
     if (pathname === '/' || pathname === '/index.html') return true;
     if (pathname === '/login.html') return true;
     if (pathname.startsWith('/api/auth/')) return true;
     if (pathname.startsWith('/api/ai/publica')) return true;
     if (pathname === '/api/saude') return true;
     if (pathname.startsWith('/api/webhooks/')) return true;
+    // Catálogo de imóveis é público pra leitura (site do Igor mostra leads o catálogo).
+    // Mutações (POST/PUT/PATCH/DELETE) ficam protegidas.
+    if (pathname.startsWith('/api/imoveis') && method === 'GET') return true;
     if (pathname.startsWith('/escritorio/')) return true;
     if (pathname.startsWith('/assets/')) return true;
+    // Fotos dos imóveis ficam em /media/* — público pro site mostrar
+    if (pathname.startsWith('/media/')) return true;
     if (/\.(png|jpe?g|gif|svg|webp|ico|css|mjs|map|woff2?|ttf|json)$/i.test(pathname)) return true;
     return false;
 }
@@ -98,7 +103,7 @@ function parseCookies(req) {
 function authMiddleware(req, res, next) {
     if (!ADMIN_USER || !ADMIN_PASS) return next(); // dev mode
     // req.path = pathname sem querystring (req.url inclui ?next=... e quebra match estrito)
-    if (eRotaPublica(req.path)) return next();
+    if (eRotaPublica(req.path, req.method)) return next();
 
     const cookies = parseCookies(req);
     const sessao = validarToken(cookies[COOKIE_NAME]);
