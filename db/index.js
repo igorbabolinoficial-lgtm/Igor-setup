@@ -2,8 +2,16 @@ const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
 
-const DB_PATH = path.join(__dirname, '..', 'igor.db');
+// Em prod (Coolify), DB_PATH aponta pra /data/igor.db (volume persistente).
+// Em dev, fallback pra ./igor.db na raiz do projeto.
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'igor.db');
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
+
+// Garante que o diretório do banco existe (importante pra volume novo /data vazio)
+const dbDir = path.dirname(DB_PATH);
+if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+}
 
 const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');

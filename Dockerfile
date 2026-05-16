@@ -26,7 +26,13 @@ RUN apk del .build-deps
 
 ENV NODE_ENV=production
 ENV PORT=3003
+ENV DB_PATH=/data/igor.db
+
+# Cria diretório /data pra montagem de volume Coolify (preserva o banco entre redeploys)
+RUN mkdir -p /data
 
 EXPOSE 3003
+
+VOLUME ["/data"]
 
 CMD ["node", "server.js"]
