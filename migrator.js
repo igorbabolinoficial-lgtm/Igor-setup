@@ -120,29 +120,37 @@ async function migrarImovel(url, log, opts = {}) {
     if (!opts.dry) fs.mkdirSync(dir, { recursive: true });
 
     const fotosLocais = [];
-    let erroFoto = 0;
-    let pulouFoto = 0;
-    for (let i = 0; i < data.fotosUrls.length; i++) {
-        const u = data.fotosUrls[i];
-        const ext = (u.match(/\.[a-z]{3,4}(\?|$)/i) || ['.jpg'])[0].split('?')[0];
-        const localFile = path.join(dir, `${i}${ext}`);
-        const localPath = `/assets/imoveis/${data.id}/${i}${ext}`;
-        if (!opts.dry && opts.skipExistentes && fs.existsSync(localFile)) {
-            fotosLocais.push(localPath);
-            pulouFoto++;
-            continue;
-        }
-        try {
-            if (!opts.dry) {
-                const buf = await baixarBinario(u);
-                fs.writeFileSync(localFile, buf);
+    const CONCURRENCY_LIMIT = 5; // Baixa 5 fotos por vez
+    const chunks = [];
+    for (let i = 0; i < data.fotosUrls.length; i += CONCURRENCY_LIMIT) {
+        chunks.push(data.fotosUrls.slice(i, i + CONCURRENCY_LIMIT));
+    }
+
+    let fotoIdx = 0;
+    for (const chunk of chunks) {
+        await Promise.all(chunk.map(async (u) => {
+            const currentIdx = fotoIdx++;
+            const ext = (u.match(/\.[a-z]{3,4}(\?|$)/i) || ['.jpg'])[0].split('?')[0];
+            const localFile = path.join(dir, `${currentIdx}${ext}`);
+            const localPath = `/assets/imoveis/${data.id}/${currentIdx}${ext}`;
+            
+            if (!opts.dry && opts.skipExistentes && fs.existsSync(localFile)) {
+                fotosLocais.push(localPath);
+                return;
             }
-            fotosLocais.push(localPath);
-        } catch (e) {
-            erroFoto++;
-            log.fotosErr.push({ imovel: data.id, url: u, erro: e.message });
-        }
-        await new Promise(r => setTimeout(r, 80));
+
+            try {
+                if (!opts.dry) {
+                    const buf = await baixarBinario(u);
+                    fs.writeFileSync(localFile, buf);
+                }
+                fotosLocais.push(localPath);
+            } catch (e) {
+                log.fotosErr.push({ imovel: data.id, url: u, erro: e.message });
+            }
+        }));
+        // Pequena pausa entre chunks para não ser bloqueado por rate limit do servidor
+        await new Promise(r => setTimeout(r, 150));
     }
 
     if (!opts.dry) {

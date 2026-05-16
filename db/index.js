@@ -34,6 +34,27 @@ adicionarColuna('leads', 'segmento', 'TEXT');                  // segmento princ
 adicionarColuna('aprovacoes', 'expirada_em', 'TEXT');          // marca quando o TTL atingiu
 adicionarColuna('leads', 'arquivado', 'INTEGER DEFAULT 0');    // soft-delete pra esconder sem perder histórico
 
+// === Seed dos 6 novos agentes (Consultores + Marketing expandido) ===
+// Idempotente: INSERT OR IGNORE não duplica se a chave já existe
+db.prepare(`INSERT OR IGNORE INTO agentes (chave, nome, descricao, tipos_aceitos) VALUES (?, ?, ?, ?)`).run(
+    'closer', 'Closer', 'Fecha leads quentes (score >=65): proposta, agenda visita, negociação.', 'mandar_proposta,agendar_visita,negociar'
+);
+db.prepare(`INSERT OR IGNORE INTO agentes (chave, nome, descricao, tipos_aceitos) VALUES (?, ?, ?, ?)`).run(
+    'account_manager', 'Account Manager', 'Pós-venda: lembretes de contrato, NPS, up-sell, suporte ao cliente convertido.', 'lembrete_contrato,nps,upsell,suporte_pos'
+);
+db.prepare(`INSERT OR IGNORE INTO agentes (chave, nome, descricao, tipos_aceitos) VALUES (?, ?, ?, ?)`).run(
+    'estrategista', 'Estrategista', 'Calendário editorial mensal, briefing por campanha, define ângulos pros outros agentes.', 'planejar_calendario,briefing_campanha,definir_angulo'
+);
+db.prepare(`INSERT OR IGNORE INTO agentes (chave, nome, descricao, tipos_aceitos) VALUES (?, ?, ?, ?)`).run(
+    'copywriter', 'Copywriter', 'Escreve posts, headlines, captions. Especialista em texto que vende.', 'escrever_post,gerar_headline,reescrever'
+);
+db.prepare(`INSERT OR IGNORE INTO agentes (chave, nome, descricao, tipos_aceitos) VALUES (?, ?, ?, ?)`).run(
+    'community_manager', 'Community Manager', 'Responde DMs e comentários no Insta/WhatsApp. Escalonamento humano quando preciso.', 'responder_dm,responder_comentario,escalonar'
+);
+db.prepare(`INSERT OR IGNORE INTO agentes (chave, nome, descricao, tipos_aceitos) VALUES (?, ?, ?, ?)`).run(
+    'midia_paga', 'Mídia Paga', 'Gerencia Meta Ads e Google Ads. Otimiza segmentação, orçamento, criativos.', 'criar_campanha,otimizar_ads,relatorio_ads'
+);
+
 // === Skills sob demanda (padrão Hermes — dormem, acordam por palavra-chave) ===
 // Criadas separado do schema.sql pra ser migration idempotente.
 db.exec(`

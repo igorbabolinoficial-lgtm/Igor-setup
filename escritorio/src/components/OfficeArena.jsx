@@ -13,21 +13,35 @@ import Mobilia from './Mobilia.jsx';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || ''}/api`;
 
-const FLOOR_SIZE = 20;
+const FLOOR_SIZE = 22;  // ligeiramente maior pra caber 12 agentes
 const SEAT_OFFSET = 0.95;
 
-const COFFEE_SPOT = [-6.2, -5.5];
-const PRINTER_SPOT = [7.5, -6.2];
+const COFFEE_SPOT = [-8.5, -6];
+const PRINTER_SPOT = [8.5, -7];
 
-// 7 agentes do Igor — chaves batem com a coluna `agentes.chave` do SQLite
+// 12 agentes do Igor (Maestro + 11) — chaves batem com a coluna `agentes.chave` do SQLite
+// Layout: Maestro fundo central, 3 fileiras de 4 mesas distribuídas em -8/-3/3/8 no X.
 const EQUIPE = [
-  { nome: 'maestro',     label: 'Igor (Maestro)', deskPos: [0,  0, -7], shirtColor: '#7c5cff', phaseOffset: 0.2, walkRoute: [[0, -7 + SEAT_OFFSET], [0, 0]],                walkSpeed: 1.4, descricao: 'Orquestra o sistema, decide o que fazer e dispara tarefas pros agentes' },
-  { nome: 'sdr',         label: 'SDR',            deskPos: [-5, 0, -2], shirtColor: '#22c55e', phaseOffset: 3.3, walkRoute: [[-5, -2 + SEAT_OFFSET], [0, 0]],              walkSpeed: 1.5, descricao: 'Qualifica leads, gera tags + segmento, faz follow-up' },
-  { nome: 'financeiro',  label: 'Financeiro',     deskPos: [0,  0, -2], shirtColor: '#f59e0b', phaseOffset: 4.7, walkRoute: [[0, -2 + SEAT_OFFSET], PRINTER_SPOT],         walkSpeed: 1.3, descricao: 'Categoriza transações e monta relatórios' },
-  { nome: 'designer',    label: 'Designer',       deskPos: [5,  0, -2], shirtColor: '#ec4899', phaseOffset: 4.1, walkRoute: [[5, -2 + SEAT_OFFSET], PRINTER_SPOT],         walkSpeed: 1.7, descricao: 'Gera criativos pro Instagram com copy IA real' },
-  { nome: 'social',      label: 'Social',         deskPos: [-5, 0,  4], shirtColor: '#06b6d4', phaseOffset: 1.4, walkRoute: [[-5,  4 + SEAT_OFFSET], COFFEE_SPOT],         walkSpeed: 1.5, descricao: 'Cria e agenda posts, responde DMs' },
-  { nome: 'pesquisa',    label: 'Pesquisa',       deskPos: [0,  0,  4], shirtColor: '#6366f1', phaseOffset: 7.1, walkRoute: [[0,  4 + SEAT_OFFSET], [-5, -2 + SEAT_OFFSET]], walkSpeed: 1.3, descricao: 'Monitora preços e concorrência na Praia do Rosa' },
-  { nome: 'atendimento', label: 'Atendimento',    deskPos: [5,  0,  4], shirtColor: '#14b8a6', phaseOffset: 4.4, walkRoute: [[5,  4 + SEAT_OFFSET], COFFEE_SPOT],          walkSpeed: 1.2, descricao: 'Pós-venda: vistoria, documentação, dúvidas do cliente' },
+  // Maestro (centro fundo)
+  { nome: 'maestro',           label: 'Igor (Maestro)',  deskPos: [0,   0, -9], shirtColor: '#7c5cff', phaseOffset: 0.2, walkRoute: [[0,  -9 + SEAT_OFFSET], [0, -2]],            walkSpeed: 1.4, descricao: 'Orquestra o sistema, decide o que fazer e dispara tarefas pros agentes' },
+
+  // Fileira 1 — consultores comerciais (z = -4)
+  { nome: 'sdr',               label: 'SDR',              deskPos: [-8,  0, -4], shirtColor: '#22c55e', phaseOffset: 3.3, walkRoute: [[-8, -4 + SEAT_OFFSET], [0, -2]],             walkSpeed: 1.5, descricao: 'Qualifica leads frios, gera tags + segmento + próxima ação' },
+  { nome: 'closer',            label: 'Closer',           deskPos: [-3,  0, -4], shirtColor: '#84cc16', phaseOffset: 1.0, walkRoute: [[-3, -4 + SEAT_OFFSET], [0, -2]],             walkSpeed: 1.4, descricao: 'Fecha leads quentes: proposta, agenda visita, negociação' },
+  { nome: 'account_manager',   label: 'Account Mgr',      deskPos: [3,   0, -4], shirtColor: '#10b981', phaseOffset: 2.5, walkRoute: [[3,  -4 + SEAT_OFFSET], COFFEE_SPOT],        walkSpeed: 1.3, descricao: 'Pós-venda: lembretes contrato, NPS, up-sell' },
+  { nome: 'financeiro',        label: 'Financeiro',       deskPos: [8,   0, -4], shirtColor: '#f59e0b', phaseOffset: 4.7, walkRoute: [[8,  -4 + SEAT_OFFSET], PRINTER_SPOT],       walkSpeed: 1.3, descricao: 'Categoriza transações e monta relatórios' },
+
+  // Fileira 2 — marketing estratégia e produção (z = 0)
+  { nome: 'estrategista',      label: 'Estrategista',     deskPos: [-8,  0,  0], shirtColor: '#fbbf24', phaseOffset: 0.7, walkRoute: [[-8,  0 + SEAT_OFFSET], [-3, 0 + SEAT_OFFSET]], walkSpeed: 1.2, descricao: 'Calendário editorial + briefing por campanha' },
+  { nome: 'copywriter',        label: 'Copywriter',       deskPos: [-3,  0,  0], shirtColor: '#ec4899', phaseOffset: 5.5, walkRoute: [[-3,  0 + SEAT_OFFSET], [-8, 0 + SEAT_OFFSET]], walkSpeed: 1.5, descricao: 'Escreve posts, headlines, captions' },
+  { nome: 'designer',          label: 'Designer',         deskPos: [3,   0,  0], shirtColor: '#f43f5e', phaseOffset: 4.1, walkRoute: [[3,   0 + SEAT_OFFSET], PRINTER_SPOT],       walkSpeed: 1.7, descricao: 'Gera artes voxel e criativos' },
+  { nome: 'midia_paga',        label: 'Mídia Paga',       deskPos: [8,   0,  0], shirtColor: '#eab308', phaseOffset: 6.9, walkRoute: [[8,   0 + SEAT_OFFSET], PRINTER_SPOT],       walkSpeed: 1.8, descricao: 'Meta Ads + Google Ads + relatórios de performance' },
+
+  // Fileira 3 — atendimento e suporte (z = 4)
+  { nome: 'community_manager', label: 'Community Mgr',    deskPos: [-8,  0,  4], shirtColor: '#fda4af', phaseOffset: 8.3, walkRoute: [[-8,  4 + SEAT_OFFSET], COFFEE_SPOT],        walkSpeed: 1.7, descricao: 'DMs + comentários, escalona humano quando preciso' },
+  { nome: 'social',            label: 'Social',           deskPos: [-3,  0,  4], shirtColor: '#06b6d4', phaseOffset: 1.4, walkRoute: [[-3,  4 + SEAT_OFFSET], COFFEE_SPOT],        walkSpeed: 1.5, descricao: 'Agenda posts, supervisiona pipeline social' },
+  { nome: 'pesquisa',          label: 'Pesquisa',         deskPos: [3,   0,  4], shirtColor: '#6366f1', phaseOffset: 7.1, walkRoute: [[3,   4 + SEAT_OFFSET], [-8, -4 + SEAT_OFFSET]], walkSpeed: 1.3, descricao: 'Monitora preços e concorrência na Praia do Rosa' },
+  { nome: 'atendimento',       label: 'Atendimento',      deskPos: [8,   0,  4], shirtColor: '#14b8a6', phaseOffset: 4.4, walkRoute: [[8,   4 + SEAT_OFFSET], COFFEE_SPOT],        walkSpeed: 1.2, descricao: 'Suporte pós-venda: vistoria, documentação' },
 ];
 
 const MODOS = [
@@ -164,7 +178,7 @@ export default function OfficeArena() {
       >
         <strong style={{ color: '#fbbf24' }}>Escritório Igor Babolin · Voxel 3D</strong>
         <span style={{ opacity: 0.7, marginLeft: 8 }}>
-          Maestro + 6 agentes · {trabalhando} trabalhando{emPasseio > 0 ? ` · ${emPasseio} em passeio` : ''}
+          Maestro + 11 agentes · {trabalhando} trabalhando{emPasseio > 0 ? ` · ${emPasseio} em passeio` : ''}
         </span>
       </div>
 
