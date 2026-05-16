@@ -37,6 +37,49 @@ app.use((req, _res, next) => {
     next();
 });
 
+// ─── Basic Auth no admin (dashboard.html + APIs internas) ──────────────────────────
+// Protege rotas sensíveis em produção. Bypass total se IGOR_ADMIN_USER/PASS não setados (dev).
+// Whitelist sempre liberada:
+//   - /api/ai/publica      (chatbot do site público)
+//   - /api/saude           (healthcheck)
+//   - /api/webhooks/*      (entradas externas autenticadas por segredo próprio)
+//   - /escritorio/*        (assets do 3D, embed via iframe no dashboard.html)
+//   - /                    (index.html do site público)
+//   - /assets/*, /*.png/jpg/svg/css/js  (estáticos do site público)
+const ADMIN_USER = process.env.IGOR_ADMIN_USER;
+const ADMIN_PASS = process.env.IGOR_ADMIN_PASS;
+
+function eRotaPublica(url) {
+    if (url === '/' || url === '/index.html') return true;
+    if (url.startsWith('/api/ai/publica')) return true;
+    if (url === '/api/saude') return true;
+    if (url.startsWith('/api/webhooks/')) return true;
+    if (url.startsWith('/escritorio/')) return true;
+    if (url.startsWith('/assets/')) return true;
+    // Estáticos do site público (fotos de imóveis, css, js, favicons)
+    if (/\.(png|jpe?g|gif|svg|webp|ico|css|mjs|map|woff2?|ttf|json)(\?.*)?$/i.test(url)) return true;
+    return false;
+}
+
+function basicAuth(req, res, next) {
+    // Sem credenciais setadas = modo dev, sem auth
+    if (!ADMIN_USER || !ADMIN_PASS) return next();
+    if (eRotaPublica(req.url)) return next();
+
+    const header = req.headers.authorization || '';
+    const [tipo, b64] = header.split(' ');
+    if (tipo === 'Basic' && b64) {
+        try {
+            const [user, pass] = Buffer.from(b64, 'base64').toString('utf8').split(':');
+            if (user === ADMIN_USER && pass === ADMIN_PASS) return next();
+        } catch (_) {}
+    }
+    res.setHeader('WWW-Authenticate', 'Basic realm="Igor Babolin Neural — admin"');
+    return res.status(401).send('Autenticação necessária');
+}
+
+app.use(basicAuth);
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api/leads',     leadsRoutes);
