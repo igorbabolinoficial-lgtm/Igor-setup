@@ -1,147 +1,116 @@
-# Pendências — só você consegue fazer
+# Pendências Igor — Estado em 2026-05-16 (final do dia)
 
-> Tudo abaixo precisa de chave, clique externo ou criação de bot. O resto (código, build, prompts, dispatcher LLM, áudio, heartbeat, notif) já está pronto.
+> Sistema em produção em **https://babolin.tech** rodando na VPS dedicada `2.24.103.7` (Coolify v4.0.0).
+> Deploys automáticos: eu disparo via API quando pusho commit. Você só vê o resultado.
 
-## Ordem sugerida
+## Tarefas que precisam de você (5 itens, ordem por valor)
 
-### 1. Smoke local
+| # | Item | Tempo | Onde fazer |
+|---|---|---|---|
+| 1 | Criar `@Igor_Babolin_bot` no BotFather + setar `IGOR_BOT_TOKEN` no Coolify | 2 min | Telegram → @BotFather → /newbot |
+| 2 | Pegar `GROQ_API_KEY` nova (rotacionar a que vazou) + atualizar no Coolify | 1 min | console.groq.com/keys |
+| 3 | Criar `ELEVENLABS_API_KEY` com permissões TTS+Models+Voices Read+User Read + setar no Coolify | 2 min | elevenlabs.io |
+| 4 | Tornar `Igor-setup` privado de novo + configurar GitHub App no Coolify | 5 min | github.com/igorbabolinoficial-lgtm/Igor-setup/settings |
+| 5 | (Externo) Charles destravar Bad Gateway na Evolution API | bloqueio | Sessão Charles Nobre |
 
-```powershell
-cd C:\Users\55119\.gemini\antigravity\igor-neural-system
-node server.js
-```
+### Como ativar o bot Telegram (passo 1 em detalhe)
 
-Abrir `http://localhost:3003/dashboard.html` → aba **Rede de Agentes** → você deve ver o Escritório Voxel 3D com Maestro + 6 agentes voxel ao redor das mesas (modos Live / Typing / Walking / Pausa no painel direito).
-
-### 2. Plugar Groq — destrava IA real em TODA a rede
-
-Sem Groq, todos os agentes operam em fallback. Com Groq plugado, **TUDO** vira inteligência real: SDR qualifica leads com análise estruturada, Social/Designer geram copy com DNA do Cérebro, Briefing matinal escreve hipóteses, Bot Telegram entende texto livre e áudio, chatbot público responde com contexto.
-
-1. Pegar chave free em https://console.groq.com/keys
-2. Adicionar no `.env`:
-   ```
-   GROQ_API_KEY=gsk_...
-   ```
-3. (opcional) Override de modelo:
-   ```
-   GROQ_MODEL_TEXT=llama-3.1-8b-instant     # default — rápido e free tier generoso
-   # GROQ_MODEL_TEXT=llama-3.3-70b-versatile   # alternativa: mais agressivo, free tier menor
-   GROQ_MODEL_AUDIO=whisper-large-v3-turbo  # default
-   ```
-4. `node server.js` reinicia. Próximo ciclo do SDR/Social/Designer + briefing 07:00 já usam Groq.
-
-Ordem de fallback: **Groq → Gemini → Anthropic**. Se Groq cair, Gemini assume (se chave configurada). Se ambos caírem, fallback heurístico sem IA.
-
-### 3. Criar bot Telegram
-
-1. `@BotFather` no Telegram → `/newbot` → nome: **Igor Babolin Neural** → username sugerido `@Igor_Babolin_bot`
-2. Copiar o token
-3. Pegar seu user_id (`@userinfobot` no Telegram)
-4. No `.env`:
+1. Telegram → `@BotFather` → `/newbot`
+2. Nome: `Igor Babolin Neural`
+3. Username: tenta `igor_babolin_bot` (ou variante)
+4. Copia o token (formato `1234567890:ABC...`)
+5. Pega seu user_id (`@userinfobot` → `/start`)
+6. No Coolify (Environment Variables, mantém os outros que já estão):
    ```
    IGOR_BOT_TOKEN=<token do BotFather>
-   IGOR_BOT_ALLOWED_USER_IDS=1790195641,<id_do_igor_humano_se_for_o_caso>
+   IGOR_BOT_ALLOWED_USER_IDS=1790195641,<user_id_igor_humano>
    ```
-5. Reiniciar. Log esperado: `[bot] @Igor_Babolin_bot rodando (allowlist: N usuários)`
+7. Me avisa "bot configurado" — eu disparo redeploy
 
-**O que o bot faz hoje:**
-- 14 slash commands: `/status /leads /lead /pendentes /aprovar /rejeitar /imoveis /imovel /briefing /log /agenda /timeline /ajuda /start`
-- **Texto livre**: você manda "tem casa em ibiraquera?" → ele classifica e responde como `/imoveis ibiraquera`. "como tá o sistema?" vira `/status`. Múltiplas intents numa mensagem só funcionam.
-- **Áudio (voice)**: manda áudio do WhatsApp → Whisper transcreve → ecoa o que ouviu → roteia pelo dispatcher.
-- **Notificação proativa pra allowlist**:
-  - Lead novo via chatbot público (push imediato)
-  - Lead quente (score IA ≥85)
-  - Aprovação pendente >24h (lembrete 1x por dia)
-  - Aprovação expirada >7d
-  - Briefing matinal 07:00 (resumo no celular)
-  - Relatório semanal segunda 07:30
+Depois, no Telegram, manda `/start` pro `@Igor_Babolin_bot`. Funciona:
+- 14 slash commands (`/status /leads /lead <id> /pendentes /aprovar /rejeitar /imoveis /imovel /briefing /log /agenda /timeline /ajuda /start`)
+- Texto livre em português → dispatcher classifica intent → executa
+- Áudio (voice) → Whisper transcreve → executa
+- Push proativo: lead quente, aprovação >24h, briefing 07:00, relatório semanal
 
-### 4. Deploy na VPS DEDICADA `2.24.103.7` (24/7)
+## Visão Igor humano (DNA) — incorporada hoje
 
-A VPS nova da Hostinger (`srv1676224.hstgr.cloud`, IP `2.24.103.7`, Ubuntu KVM 2) é dedicada ao Igor. Está vazia — precisa instalar o Coolify primeiro.
+Igor humano mandou briefing completo da arquitetura ideal. Salvei como **`cerebro/Visao_Igor_Operacao_Ideal.md`** no repo. Vai pra prod automaticamente e o `contextoDNA()` injeta nos prompts dos agentes.
 
-**4.1 — Repo no GitHub** (precisa de você)
+Arquitetura proposta (6 agentes + extras):
+1. Captação Leads (Insta + WhatsApp)
+2. Comercial / Pré-venda (CRM + agenda + apresentações + follow-up + docs)
+3. Atendimento 24/7 (chatbot + escalonamento auto)
+4. Pós-venda (lembretes + NPS + up-sell + boletos)
+5. Dashboard / Relatórios (com alertas proativos)
+6. Portal Proprietários
 
-Local já está pronto: `git init` feito, commit inicial criado. Falta criar o repo no GitHub e push.
+Skills sob demanda (palavra-chave ativa, dormem por padrão):
+- Skill Creator
+- Prompt + Design
+- PDF / XLSX / PPTX / DOCX
+- Contratos
+- Find Skills
 
-1. https://github.com/new → nome `igor-neural-system` → Private → criar SEM README/gitignore (já tem)
-2. No terminal local:
-   ```powershell
-   cd C:\Users\55119\.gemini\antigravity\igor-neural-system
-   git remote add origin git@github.com:levimpantarotto-commits/igor-neural-system.git
-   git push -u origin main
-   ```
+## Decisões de produto antigas (sem urgência)
 
-**4.2 — Instalar Coolify na VPS nova**
-
-1. Painel Hostinger → VPS → Gerenciar → Browser Terminal (ou SSH com sua key)
-2. Rodar (1 linha, instala tudo):
-   ```bash
-   curl -fsSL https://cdn.coollabs.io/coolify/install.sh | sudo bash
-   ```
-3. Aguardar ~5 min. No fim mostra URL e credenciais iniciais.
-4. Abrir `http://2.24.103.7:8000` no browser → criar conta admin
-5. Configurar GitHub App (Settings → Sources → GitHub) — ou pode usar Deploy Key/Personal Access Token se quiser pular o GitHub App
-
-**4.3 — Deployar Igor no Coolify**
-
-1. + New Resource → Private Repository
-2. Repo `levimpantarotto-commits/igor-neural-system`, branch `main`
-3. Build Pack: **Dockerfile**, Base Directory `/`, Port `3003`
-4. Env vars (cola todas):
-   - `NODE_ENV=production`
-   - `PORT=3003`
-   - `GROQ_API_KEY=...`
-   - `IGOR_BOT_TOKEN=...`
-   - `IGOR_BOT_ALLOWED_USER_IDS=...`
-   - (opcional) `GEMINI_API_KEY=...` se quiser fallback
-5. **Persistent storage**: nome `igor-data`, mount path `/app` — preserva `igor.db` e `public/escritorio/` entre redeploys
-6. **Antes do deploy**: parar `node server.js` local (Telegram só aceita 1 polling por token).
-7. Deploy. Acessar `http://2.24.103.7:3003/dashboard.html`
-
-**4.4 — (opcional) Domínio + HTTPS**
-
-Você tem `praiadorosa.site` (visto no painel Hostinger). Se quiser:
-- Apontar subdomínio `igor.praiadorosa.site` (DNS A → `2.24.103.7`)
-- No Coolify: Domains → adicionar `igor.praiadorosa.site` → Let's Encrypt (Coolify gera SSL automático)
-
-### 5. Decisões antigas seguem em aberto
-
-| Mock | Decisão que falta |
+| Mock atual | Decisão pendente |
 |---|---|
-| Designer `gerar_arte` (imagem) | API de imagem: DALL-E 3, Bannerbear, Placid, Canva templates |
-| Atendimento pós-venda | Fluxo: vistoria, contrato, checklist |
-| Financeiro (extrato real) | Inter API, Nubank Pluggy, OFX manual |
-| WhatsApp Agentic (Evolution) | Esperar Charles destravar Bad Gateway |
+| Designer `gerar_arte` (imagem real) | API: DALL-E 3 / Bannerbear / Placid / Canva templates |
+| Atendimento pós-venda fluxo concreto | Vistoria? Contrato? Checklist? |
+| Financeiro extrato real | Inter API / Pluggy / OFX manual |
 
----
+## O que já existe em produção (sessão 2026-05-16)
 
-## O que foi entregue (1ª e 2ª rodadas desta sessão)
+### Infra
+- VPS dedicada `2.24.103.7` (Hostinger KVM 2, Ubuntu)
+- Coolify v4.0.0 com auto-deploy via API
+- Domínio `babolin.tech` + `www.babolin.tech` com SSL Let's Encrypt automático
+- Volume persistente `igor-data` em `/data` (banco + cache de voz)
+- Healthcheck Docker (`/api/saude` a cada 30s, restart auto se travar)
 
-### Rodada 1 — base
-- `escritorio/` subprojeto Vite/R3F + 10 componentes do LMP, build em `public/escritorio/`
-- iframe `#escritorio3d` no dashboard, SVG antigo escondido
-- endpoint `/api/agentes/status` no formato do 3D
-- `agentes/ia.js` → Groq → Gemini → Anthropic + `transcreverAudio()` Whisper
-- `bot/` módulo Telegram com 11 slash commands, allowlist, rate limit, notif `notificar()`
-- hook notif em lead novo do chatbot público
-- `Dockerfile` + `.dockerignore`
+### Aplicação
+- Dashboard `https://babolin.tech/dashboard.html` (atrás de login)
+- Página de login bonita `/login.html` (dark, Playfair Display, sem popup feio)
+- Cookie HttpOnly de sessão 30 dias (HMAC SHA256)
+- Botão Logout na sidebar
+- Endpoint `/api/auth/me` (dashboard sabe quem está logado)
 
-### Rodada 2 — inteligência
-- **Heartbeat plugado em todos os crons proativos** (sem isso o 3D ficava cinza — agora os agentes acendem em verde)
-- **DNA do Cérebro Obsidian injetado** nos prompts via `contextoDNA()` em `routes/cerebro.js` (cache 5min)
-- **Prompt SDR reforçado**: análise estruturada (orçamento, urgência, fit, bagunça) + JSON com `proxima_acao` e `justificativa` + push proativo quando lead score ≥85
-- **Prompt Social reforçado**: hook concreto obrigatório, lista de palavras banidas ("imperdível", "cantinho do paraíso"), tom Praia do Rosa
-- **Prompt Designer reforçado**: diferencial específico do imóvel, ZERO emoji na DM, max 3 emojis no post
-- **`briefing.js` migrado pra Groq** (era Gemini direto) + push proativo no Telegram quando termina
-- **2 comandos novos no bot**: `/agenda`, `/timeline <lead_id>`
-- **Dispatcher LLM** (`bot/dispatcher.js`): texto livre → classifica intent via Groq → roteia pelos handlers (14 intents)
-- **Áudio no bot**: `bot.on('voice'/'audio')` baixa, transcreve via Whisper, ecoa, roteia
-- **4 hooks novos de notif Telegram**: lead quente (score ≥85), aprovação envelhecida >24h, aprovação expirada >7d, briefing pronto, relatório semanal pronto
+### Agentes (rodando 24/7)
+- Maestro Igor + 6 agentes (SDR, Financeiro, Designer, Social, Pesquisa, Atendimento)
+- Heartbeat em todos os crons proativos (3D mostra "rodando" real)
+- IA: Groq Llama 3.1 8B (primary) → Gemini → Anthropic (fallback)
+- DNA Cérebro Obsidian injetado nos prompts (incluindo Visão Igor)
+- SDR com análise estruturada + `proxima_acao` + push proativo de lead quente (≥85)
+- Social/Designer com regras anti-clichê + DNA + 6 hashtags localidade
+- Briefing matinal 07:00 (push Telegram)
+- Relatório semanal seg 07:30 (push Telegram)
 
-### Boot validado
-```
-Igor Neural System rodando em http://localhost:3003
-Dashboard: http://localhost:3003/dashboard.html
-[bot] IGOR_BOT_TOKEN não setado — bot desligado
-```
+### Visual
+- Escritório Voxel 3D (R3F) integrado via iframe no dashboard
+- 7 agentes voxel animados (idle / typing / walking)
+- Modos Live / Typing / Walking / Pausa
+- Hover mostra status real-time, click abre painel detalhado
+
+### Endpoints novos hoje
+- `GET /api/agentes/status` — formato consumido pelo 3D
+- `GET /api/auth/me` — quem está logado
+- `POST /api/auth/login`, `POST /api/auth/logout` — sessão cookie
+- `GET /api/voz/status`, `GET /api/voz/vozes`, `POST /api/voz/gerar` — ElevenLabs TTS
+
+### Pronto pra ativar (só falta env var)
+- **Bot Telegram** — falta `IGOR_BOT_TOKEN` + `IGOR_BOT_ALLOWED_USER_IDS`
+- **ElevenLabs voz** — falta `ELEVENLABS_API_KEY` (voice_id já configurado: `SmoiEq4ZbybjsQdqveXv`)
+
+## Próxima sessão grande — Skills sob demanda
+
+O Igor humano pediu skills que **dormem por padrão e acordam por palavra-chave**. Padrão Hermes Agent. Plan:
+
+1. Tabela `skills` no SQLite com FTS5 (id, slug, descricao, prompt_template, matchers JSON, ativa)
+2. Seed inicial com as 8 skills pedidas (creator, prompt+design, PDF, XLSX, PPTX, DOCX, contratos, find-skills)
+3. `bot/skills.js` — função `matchSkill(texto)` retorna skill se algum matcher bater
+4. `bot.on('text')` checa skills ANTES do dispatcher
+5. Comandos `/skills` lista, `/skill <slug>` força execução
+6. (Futuro) Curador LLM observa logs de execução e propõe skills novas automaticamente
+
+Implementação: ~2-3h de código. Próxima sessão.
