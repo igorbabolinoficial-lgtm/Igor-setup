@@ -74,8 +74,8 @@ function basicAuth(req, res, next) {
             if (user === ADMIN_USER && pass === ADMIN_PASS) return next();
         } catch (_) {}
     }
-    res.setHeader('WWW-Authenticate', 'Basic realm="Igor Babolin Neural — admin"');
-    return res.status(401).send('Autenticação necessária');
+    res.setHeader('WWW-Authenticate', 'Basic realm="Igor Babolin Neural Admin"');
+    return res.status(401).send('Autenticacao necessaria');
 }
 
 app.use(basicAuth);
