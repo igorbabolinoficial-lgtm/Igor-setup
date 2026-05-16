@@ -57,6 +57,7 @@ function eRotaPublica(pathname, method) {
     if (pathname.startsWith('/api/ai/publica')) return true;
     if (pathname === '/api/saude') return true;
     if (pathname === '/api/voz/status') return true;  // só devolve {ativo: bool}, não expõe key
+    if (pathname === '/api/sistema/ia-status') return true;  // mesma ideia: só bool, sem expor keys
     if (pathname.startsWith('/api/webhooks/')) return true;
     // Catálogo de imóveis é público pra leitura (site do Igor mostra leads o catálogo).
     // Mutações (POST/PUT/PATCH/DELETE) ficam protegidas.

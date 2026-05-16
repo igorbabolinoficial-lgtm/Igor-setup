@@ -154,6 +154,21 @@ router.get('/arquitetura', (_req, res) => {
     });
 });
 
+// GET /api/sistema/ia-status — público. Mostra QUAIS provedores LLM estão configurados
+// (sem expor as keys). Útil pra debug rápido quando skills retornam null.
+router.get('/ia-status', (_req, res) => {
+    const { getGroqKey, getGeminiKey, getAnthropicKey } = require('../agentes/ia');
+    const groq = !!getGroqKey();
+    const gemini = !!getGeminiKey();
+    const anthropic = !!getAnthropicKey();
+    res.json({
+        groq, gemini, anthropic,
+        algum_ativo: groq || gemini || anthropic,
+        ordem_tentativa: 'groq -> gemini -> anthropic',
+        modelo_groq: process.env.GROQ_MODEL_TEXT || 'llama-3.1-8b-instant',
+    });
+});
+
 // POST /api/sistema/migrar — dispara migrador do catálogo em background.
 // Protegido pelo middleware de auth global. Pode levar 5+ min pra completar (48 imóveis + downloads).
 // Resposta imediata 202. Acompanhar em /api/sistema/migrar/status ou /api/logs?agente=sistema.
