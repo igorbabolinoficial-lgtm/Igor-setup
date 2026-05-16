@@ -754,6 +754,10 @@
 
         <!-- Catálogo de Imóveis -->
         <div id="imoveis" class="panel">
+            <div class="controls" style="margin-bottom: 18px;">
+                <button class="btn-elite" id="btnMigrar" onclick="dispararMigracao()" title="Importa imóveis do site da imobiliária + baixa fotos">↻ Migrar catálogo do site</button>
+                <span id="migrarStatus" style="font-size: 0.8rem; color: var(--text-muted); margin-left: 12px;"></span>
+            </div>
             <div class="filtros-imoveis">
                 <input type="text" id="imovBusca" placeholder="🔍 Buscar por título ou descrição...">
                 <select id="imovTipo"><option value="">Todos tipos</option></select>
@@ -764,6 +768,41 @@
             <div class="imoveis-stats" id="imoveisStats">Carregando…</div>
             <div class="galeria-imoveis" id="galeriaImoveis"></div>
         </div>
+        <script>
+            async function dispararMigracao() {
+                const btn = document.getElementById('btnMigrar');
+                const status = document.getElementById('migrarStatus');
+                if (!confirm('Vai migrar os imóveis do site imobiliariapraiadorosa.com.br (~48 imóveis, leva ~5min). Continuar?')) return;
+                btn.disabled = true;
+                btn.textContent = 'Migrando em background…';
+                status.textContent = 'Iniciando…';
+                try {
+                    const r = await fetch('/api/sistema/migrar', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    // Polling a cada 5s
+                    const inicio = Date.now();
+                    const id = setInterval(async () => {
+                        try {
+                            const s = await (await fetch('/api/sistema/migrar/status')).json();
+                            const seg = Math.floor((Date.now() - inicio) / 1000);
+                            const ultimo = s.ultimo_imovel_importado?.titulo || '—';
+                            status.textContent = `${s.total_imoveis} imóveis · ${seg}s · último: ${ultimo.slice(0, 50)}`;
+                            if (s.ultimo_log?.mensagem?.includes('concluída') || s.ultimo_log?.mensagem?.includes('Re-migração')) {
+                                clearInterval(id);
+                                btn.disabled = false;
+                                btn.textContent = '↻ Migrar catálogo do site';
+                                status.textContent = `✓ Concluído: ${s.total_imoveis} imóveis`;
+                                if (typeof carregarImoveis === 'function') carregarImoveis();
+                            }
+                        } catch (_) {}
+                    }, 5000);
+                } catch (e) {
+                    btn.disabled = false;
+                    btn.textContent = '↻ Migrar catálogo do site';
+                    status.textContent = '✗ Erro: ' + e.message;
+                }
+            }
+        </script>
 
         <!-- Aprovações -->
         <div id="aprovacoes" class="panel">
