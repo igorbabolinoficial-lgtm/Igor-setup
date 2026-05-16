@@ -27,6 +27,8 @@ RUN apk del .build-deps
 ENV NODE_ENV=production
 ENV PORT=3003
 ENV DB_PATH=/data/igor.db
+# Cérebro Obsidian vai dentro do repo em /app/cerebro (DNA dos prompts em prod)
+ENV OBSIDIAN_PATH=/app/cerebro
 
 # Cria diretório /data pra montagem de volume Coolify (preserva o banco entre redeploys)
 RUN mkdir -p /data
@@ -34,5 +36,9 @@ RUN mkdir -p /data
 EXPOSE 3003
 
 VOLUME ["/data"]
+
+# Coolify usa pra detectar app travado e fazer restart automatico
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO- http://localhost:3003/api/saude || exit 1
 
 CMD ["node", "server.js"]

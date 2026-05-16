@@ -334,8 +334,32 @@
             <li data-panel="logs">Terminal de Automação</li>
             <li data-panel="config">Configurações API</li>
         </nav>
+
+        <script>
+            // Carrega usuário logado + handler logout (rodapé da sidebar)
+            (async () => {
+                try {
+                    const r = await fetch('/api/auth/me');
+                    if (!r.ok) return;
+                    const data = await r.json();
+                    if (data.auth_enabled && data.user) {
+                        const bar = document.getElementById('userBar');
+                        document.getElementById('userName').textContent = data.user;
+                        bar.style.display = 'flex';
+                        document.getElementById('btnLogout').onclick = async () => {
+                            await fetch('/api/auth/logout', { method: 'POST' });
+                            location.href = '/login.html';
+                        };
+                    }
+                } catch (_) {}
+            })();
+        </script>
         <div id="sidebarStatus" style="margin-top: auto; padding: 20px; background: rgba(0,0,0,0.2); border-radius: 6px; font-size: 0.7rem;">
             <div style="color: var(--text-muted); margin-bottom: 10px;">Carregando status...</div>
+        </div>
+        <div id="userBar" style="display:none; margin-top:12px; padding:10px 14px; background:rgba(0,0,0,0.3); border-radius:6px; font-size:0.7rem; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+            <span style="color:var(--text-muted);">Logado: <strong id="userName" style="color:var(--accent);">—</strong></span>
+            <button id="btnLogout" style="background:transparent; border:1px solid var(--border); color:var(--text-muted); padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--danger)'; this.style.color='var(--danger)'" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-muted)'">Sair</button>
         </div>
     </aside>
 

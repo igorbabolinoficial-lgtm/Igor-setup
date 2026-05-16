@@ -19,6 +19,7 @@ const cerebroRoutes    = require('./routes/cerebro').router;
 const briefingRoutes   = require('./routes/briefing');
 const imoveisRoutes    = require('./routes/imoveis');
 const sistemaRoutes    = require('./routes/sistema');
+const vozRoutes        = require('./routes/voz');
 const maestro          = require('./agentes/maestro');
 const proativo         = require('./agentes/proativo');
 const briefing         = require('./briefing');
@@ -138,6 +139,15 @@ app.post('/api/auth/logout', (_req, res) => {
     res.json({ ok: true });
 });
 
+app.get('/api/auth/me', (req, res) => {
+    if (!ADMIN_USER || !ADMIN_PASS) {
+        return res.json({ auth_enabled: false, user: null });
+    }
+    const cookies = parseCookies(req);
+    const sessao = validarToken(cookies[COOKIE_NAME]);
+    res.json({ auth_enabled: true, user: sessao ? sessao.user : null });
+});
+
 app.use(authMiddleware);
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -155,6 +165,7 @@ app.use('/api/cerebro',     cerebroRoutes);
 app.use('/api/briefing',    briefingRoutes);
 app.use('/api/imoveis',     imoveisRoutes);
 app.use('/api/sistema',     sistemaRoutes);
+app.use('/api/voz',         vozRoutes);
 
 app.get('/api/saude', (_req, res) => res.json({ ok: true, projeto: 'igor-neural-system', versao: '0.1.0' }));
 

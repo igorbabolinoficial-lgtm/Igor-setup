@@ -19,6 +19,13 @@ public/escritorio/
 00_Backups/
 *.bak
 
+# Conteúdo dinâmico que o Igor gera no Cérebro em runtime (não vai pro git)
+cerebro/Logs_Neurais/
+cerebro/Briefings/
+cerebro/Aprovacoes/
+cerebro/Decisoes/
+cerebro/20_Dados_Leads/
+
 # Mídia local (escraping de fotos)
 media/
 audios/
@@ -34,3 +41,5 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+.coolify-token
+.coolify-token.txt
