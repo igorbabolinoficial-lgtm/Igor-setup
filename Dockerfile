@@ -29,6 +29,8 @@ ENV PORT=3003
 ENV DB_PATH=/data/igor.db
 # Cérebro Obsidian vai dentro do repo em /app/cerebro (DNA dos prompts em prod)
 ENV OBSIDIAN_PATH=/app/cerebro
+# Fotos dos imóveis no volume persistente (não no container, pra não perder em redeploy)
+ENV ASSETS_DIR=/data/assets/imoveis
 
 # Cria diretório /data pra montagem de volume Coolify (preserva o banco entre redeploys)
 RUN mkdir -p /data

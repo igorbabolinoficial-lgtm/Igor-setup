@@ -15,7 +15,9 @@ const cheerio = require('cheerio');
 const { db, registrarLog } = require('./db');
 
 const SITEMAP    = 'http://imobiliariapraiadorosa.com.br/sitemap.xml';
-const ASSETS_DIR = path.join(__dirname, 'public', 'assets', 'imoveis');
+// Em prod: ASSETS_DIR=/data/assets/imoveis (volume Coolify, persiste entre redeploys).
+// Em dev: fallback pra public/assets/imoveis (caminho local antigo).
+const ASSETS_DIR = process.env.ASSETS_DIR || path.join(__dirname, 'public', 'assets', 'imoveis');
 const UA         = 'Mozilla/5.0 (Igor Neural Migrator)';
 
 function flag(nome) {

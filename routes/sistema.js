@@ -154,4 +154,48 @@ router.get('/arquitetura', (_req, res) => {
     });
 });
 
+// POST /api/sistema/migrar — dispara migrador do catálogo em background.
+// Protegido pelo middleware de auth global. Pode levar 5+ min pra completar (48 imóveis + downloads).
+// Resposta imediata 202. Acompanhar em /api/sistema/migrar/status ou /api/logs?agente=sistema.
+//
+// Body opcional:
+//   { skipExistentes: false }   // re-baixa tudo, mesmo o que já existe
+//   { skipExistentes: true }    // default — só baixa novos (rápido)
+router.post('/migrar', (req, res) => {
+    const skipExistentes = req.body?.skipExistentes !== false;
+    const { migrarTudo } = require('../migrator');
+
+    setImmediate(() => {
+        migrarTudo({ skipExistentes }).catch(err => {
+            const { registrarLog } = require('../db');
+            registrarLog({ agente: 'sistema', nivel: 'erro', mensagem: `migrar falhou: ${err.message}`, contexto: { stack: err.stack } });
+        });
+    });
+
+    res.status(202).json({
+        ok: true,
+        mensagem: 'Migracao iniciada em background',
+        acompanhar: '/api/sistema/migrar/status',
+        opts: { skipExistentes }
+    });
+});
+
+// Status rápido pra acompanhar progresso da migração
+router.get('/migrar/status', (_req, res) => {
+    const total = db.prepare('SELECT COUNT(*) AS n FROM imoveis').get().n;
+    const ultimoLog = db.prepare(`
+        SELECT mensagem, criado_em FROM logs
+        WHERE agente='sistema' AND (mensagem LIKE '%igra%' OR mensagem LIKE '%catálogo%')
+        ORDER BY criado_em DESC LIMIT 1
+    `).get();
+    const ultimoImovel = db.prepare(`
+        SELECT titulo, importado_em FROM imoveis ORDER BY importado_em DESC LIMIT 1
+    `).get();
+    res.json({
+        total_imoveis: total,
+        ultimo_log: ultimoLog,
+        ultimo_imovel_importado: ultimoImovel,
+    });
+});
+
 module.exports = router;

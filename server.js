@@ -155,6 +155,11 @@ app.get('/api/auth/me', (req, res) => {
 
 app.use(authMiddleware);
 
+// Em prod, fotos dos imóveis ficam no volume persistente /data/assets/imoveis.
+// Express serve esse diretório sob o mesmo URL público /assets/imoveis (transparente pro frontend).
+if (process.env.ASSETS_DIR) {
+    app.use('/assets/imoveis', express.static(process.env.ASSETS_DIR));
+}
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api/leads',     leadsRoutes);
