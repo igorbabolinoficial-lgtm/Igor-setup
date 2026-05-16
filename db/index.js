@@ -34,6 +34,131 @@ adicionarColuna('leads', 'segmento', 'TEXT');                  // segmento princ
 adicionarColuna('aprovacoes', 'expirada_em', 'TEXT');          // marca quando o TTL atingiu
 adicionarColuna('leads', 'arquivado', 'INTEGER DEFAULT 0');    // soft-delete pra esconder sem perder histórico
 
+// === Skills sob demanda (padrão Hermes — dormem, acordam por palavra-chave) ===
+// Criadas separado do schema.sql pra ser migration idempotente.
+db.exec(`
+    CREATE TABLE IF NOT EXISTS skills (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug            TEXT UNIQUE NOT NULL,
+        nome            TEXT NOT NULL,
+        descricao       TEXT NOT NULL,
+        prompt_template TEXT NOT NULL,
+        matchers        TEXT NOT NULL DEFAULT '[]',   -- JSON array de palavras-chave
+        escopo          TEXT NOT NULL DEFAULT 'both', -- bot | api | both
+        ativa           INTEGER NOT NULL DEFAULT 1,
+        seed            INTEGER NOT NULL DEFAULT 0,   -- 1 = veio do seed inicial
+        criada_em       TEXT NOT NULL DEFAULT (datetime('now')),
+        atualizada_em   TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_skills_slug   ON skills(slug);
+    CREATE INDEX IF NOT EXISTS idx_skills_ativa  ON skills(ativa);
+
+    CREATE TABLE IF NOT EXISTS skill_execucoes (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        skill_id        INTEGER NOT NULL REFERENCES skills(id),
+        entrada         TEXT,                          -- texto/input que disparou
+        contexto        TEXT,                          -- JSON com info adicional (lead_id, etc)
+        output          TEXT,                          -- resposta gerada
+        sucesso         INTEGER NOT NULL DEFAULT 1,
+        erro            TEXT,
+        ms              INTEGER,                       -- tempo de execução
+        criada_em       TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_skill_exec_skill ON skill_execucoes(skill_id);
+    CREATE INDEX IF NOT EXISTS idx_skill_exec_data  ON skill_execucoes(criada_em DESC);
+`);
+
+// FTS5 virtual table pra busca semântica nas skills (rápido pra Find Skills)
+try {
+    db.exec(`
+        CREATE VIRTUAL TABLE IF NOT EXISTS skills_fts USING fts5(
+            slug, nome, descricao,
+            content='skills', content_rowid='id'
+        );
+        CREATE TRIGGER IF NOT EXISTS skills_ai AFTER INSERT ON skills BEGIN
+            INSERT INTO skills_fts(rowid, slug, nome, descricao) VALUES (new.id, new.slug, new.nome, new.descricao);
+        END;
+        CREATE TRIGGER IF NOT EXISTS skills_ad AFTER DELETE ON skills BEGIN
+            INSERT INTO skills_fts(skills_fts, rowid, slug, nome, descricao) VALUES('delete', old.id, old.slug, old.nome, old.descricao);
+        END;
+        CREATE TRIGGER IF NOT EXISTS skills_au AFTER UPDATE ON skills BEGIN
+            INSERT INTO skills_fts(skills_fts, rowid, slug, nome, descricao) VALUES('delete', old.id, old.slug, old.nome, old.descricao);
+            INSERT INTO skills_fts(rowid, slug, nome, descricao) VALUES (new.id, new.slug, new.nome, new.descricao);
+        END;
+    `);
+} catch (e) {
+    // Build do better-sqlite3 sem FTS5 — fallback pra LIKE simples na lib
+    console.warn('[db] FTS5 indisponível — busca de skills usará LIKE');
+}
+
+// Seed das 8 skills do Igor (idempotente — só insere se slug não existir)
+const SEED_SKILLS = [
+    {
+        slug: 'creator',
+        nome: 'Skill Creator',
+        descricao: 'Cria uma nova skill no sistema a partir de descrição em linguagem natural. O LLM gera prompt_template + matchers automaticamente.',
+        matchers: ['cria skill', 'nova skill', 'criar habilidade', 'criar skill', 'skill nova'],
+        prompt_template: 'Você é o Skill Creator do Igor Babolin. A partir da descrição abaixo, devolva JSON estrito com:\n{"slug":"kebab-case","nome":"Title Case","descricao":"1 frase","prompt_template":"template com {{input}} placeholder","matchers":["palavra-chave1","palavra-chave2"]}\n\nDESCRIÇÃO: {{input}}',
+    },
+    {
+        slug: 'prompt-design',
+        nome: 'Prompt + Design',
+        descricao: 'Gera um prompt LLM estruturado e bem desenhado, pronto pra usar em qualquer agente.',
+        matchers: ['monta prompt', 'escreve prompt', 'gera prompt', 'cria prompt', 'desenha prompt'],
+        prompt_template: 'Você é especialista em prompt engineering. Crie um prompt estruturado pra atender o pedido abaixo. Use seções claras (CONTEXTO, OBJETIVO, FORMATO DE SAÍDA, REGRAS). Tom profissional pt-BR. Devolva APENAS o prompt, sem comentários.\n\nPEDIDO: {{input}}',
+    },
+    {
+        slug: 'pdf',
+        nome: 'PDF',
+        descricao: 'Produz um documento PDF (proposta, dossiê de imóvel, apresentação ao cliente). HOJE retorna conteúdo em markdown — conversão pra binário será adicionada depois.',
+        matchers: ['gera pdf', 'cria pdf', 'pdf de', 'pdf do', 'documento pdf'],
+        prompt_template: 'Você é o gerador de PDFs do Igor Babolin (imobiliária Praia do Rosa). Gere o conteúdo do documento solicitado em markdown bem formatado (títulos, listas, tabelas se preciso). Tom profissional, sem clichê de corretor. Foco em informação útil pro cliente.\n\nPEDIDO: {{input}}',
+    },
+    {
+        slug: 'xlsx',
+        nome: 'Planilha XLSX',
+        descricao: 'Gera tabela/planilha estruturada (relatório financeiro, lista de imóveis, comparativo). HOJE retorna formato CSV/markdown — conversão pra xlsx será adicionada depois.',
+        matchers: ['planilha', 'xlsx', 'gera planilha', 'cria tabela', 'tabela comparativa'],
+        prompt_template: 'Você é o gerador de planilhas do Igor Babolin. Gere uma tabela em formato CSV (cabeçalho na primeira linha, colunas separadas por vírgula, strings com vírgula devem estar entre aspas). Devolva APENAS o CSV.\n\nPEDIDO: {{input}}',
+    },
+    {
+        slug: 'pptx',
+        nome: 'Apresentação PPTX',
+        descricao: 'Estrutura uma apresentação de slides (pra apresentar imóvel ao cliente, pitch). HOJE retorna outline markdown — conversão pra pptx será adicionada depois.',
+        matchers: ['apresentação', 'apresentacao', 'slides', 'pptx', 'pitch deck'],
+        prompt_template: 'Você é o gerador de apresentações do Igor Babolin. Gere uma apresentação em formato markdown com estrutura de slides. Cada slide começa com "## Slide N: Título" e tem 3-5 bullets curtos. Máximo 10 slides. Hook no slide 1, CTA no slide final.\n\nPEDIDO: {{input}}',
+    },
+    {
+        slug: 'docx',
+        nome: 'Documento DOCX',
+        descricao: 'Gera documento Word formal (ata de reunião, proposta, comunicado). HOJE retorna markdown — conversão pra docx será adicionada depois.',
+        matchers: ['docx', 'documento word', 'word', 'gera documento', 'ata de', 'comunicado'],
+        prompt_template: 'Você é o gerador de documentos formais do Igor Babolin. Gere o documento solicitado em markdown bem formatado, tom profissional formal (NÃO casual). Use cabeçalho com data, lugar e título centralizados.\n\nPEDIDO: {{input}}',
+    },
+    {
+        slug: 'contratos',
+        nome: 'Contratos',
+        descricao: 'Gera modelo de contrato (compra/venda, locação, intermediação) preenchido com dados do imóvel/lead quando disponíveis.',
+        matchers: ['contrato', 'gera contrato', 'cria contrato', 'modelo de contrato', 'minuta'],
+        prompt_template: 'Você é o redator de contratos do Igor Babolin Imóveis (Praia do Rosa - SC). Gere um modelo de contrato em markdown com cláusulas padrão pra imobiliária em SC. Use {{TITULAR}}, {{IMOVEL}}, {{VALOR}}, {{DATA}} como placeholders. Inclua: qualificação das partes, objeto, valor e forma de pagamento, prazo, cláusulas de rescisão, foro. AVISO: este é modelo automático — exige revisão de advogado antes de uso real.\n\nPEDIDO: {{input}}',
+    },
+    {
+        slug: 'find-skills',
+        nome: 'Find Skills',
+        descricao: 'Busca semântica em todas as skills disponíveis. Útil quando você não sabe o nome exato mas sabe o que quer.',
+        matchers: ['que skill faz', 'qual skill', 'find skill', 'tem skill', 'lista skills', 'quais skills'],
+        prompt_template: '__FIND_SKILLS__', // tratado especial na lib (não vai pro LLM)
+    },
+];
+
+const insertSkill = db.prepare(`
+    INSERT OR IGNORE INTO skills (slug, nome, descricao, prompt_template, matchers, seed)
+    VALUES (?, ?, ?, ?, ?, 1)
+`);
+for (const s of SEED_SKILLS) {
+    insertSkill.run(s.slug, s.nome, s.descricao, s.prompt_template, JSON.stringify(s.matchers));
+}
+
 function nowIso() {
     return new Date().toISOString();
 }

@@ -332,6 +332,7 @@
             <li data-panel="aprovacoes">Aprovações</li>
             <li data-panel="briefing">Briefing</li>
             <li data-panel="logs">Terminal de Automação</li>
+            <li data-panel="skills">Skills</li>
             <li data-panel="config">Configurações API</li>
         </nav>
 
@@ -850,6 +851,117 @@
             <div class="terminal" id="logTerminal"></div>
         </div>
 
+        <!-- Skills sob Demanda -->
+        <div id="skills" class="panel">
+            <div class="controls" style="margin-bottom: 20px;">
+                <button class="btn-elite" onclick="abrirCriarSkill()">+ Nova skill (via Creator)</button>
+                <button class="btn-ghost" onclick="carregarSkills()">↻ Atualizar</button>
+                <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 12px;">Skills dormem até serem chamadas por palavra-chave no bot Telegram, ou clicadas aqui</span>
+            </div>
+            <div id="skillsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px;"></div>
+
+            <!-- Modal execução -->
+            <div id="skillModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:200; align-items:center; justify-content:center; padding:20px;">
+                <div style="background:var(--surface); border:1px solid var(--accent); border-radius:8px; padding:28px; max-width:760px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:0 30px 60px rgba(0,0,0,0.6);">
+                    <div style="display:flex; align-items:flex-start; gap:12px; margin-bottom:18px;">
+                        <div style="flex:1;">
+                            <h3 id="skillModalNome" style="font-family:'Playfair Display',serif; color:var(--accent); margin-bottom:4px;">—</h3>
+                            <div id="skillModalDesc" style="font-size:0.8rem; color:var(--text-muted);"></div>
+                        </div>
+                        <button onclick="fecharSkillModal()" style="background:transparent; border:1px solid var(--border); color:var(--text-muted); padding:6px 12px; border-radius:4px; cursor:pointer;">×</button>
+                    </div>
+                    <label style="display:block; font-size:0.65rem; color:var(--text-muted); letter-spacing:0.15em; text-transform:uppercase; margin-bottom:6px;">Input</label>
+                    <textarea id="skillModalInput" rows="3" style="width:100%; background:#000; border:1px solid var(--border); color:var(--text); padding:10px; border-radius:4px; font-family:inherit; font-size:0.9rem; outline:none; margin-bottom:14px; resize:vertical;" placeholder="O que você quer que essa skill produza..."></textarea>
+                    <button class="btn-elite" id="skillModalBtn" onclick="executarSkillModal()" style="width:100%;">Executar</button>
+                    <div id="skillModalOutput" style="margin-top:16px; padding:14px; background:#000; border:1px solid var(--border); border-radius:4px; font-family:'JetBrains Mono',monospace; font-size:0.78rem; line-height:1.5; white-space:pre-wrap; max-height:340px; overflow-y:auto; display:none;"></div>
+                </div>
+            </div>
+
+            <!-- Modal criar -->
+            <div id="criarSkillModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:200; align-items:center; justify-content:center; padding:20px;">
+                <div style="background:var(--surface); border:1px solid var(--accent); border-radius:8px; padding:28px; max-width:560px; width:100%;">
+                    <h3 style="font-family:'Playfair Display',serif; color:var(--accent); margin-bottom:6px;">Criar nova skill</h3>
+                    <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:16px;">Descreva em linguagem natural o que a skill faz. O Creator vai gerar slug + prompt + matchers automaticamente.</div>
+                    <textarea id="criarSkillDesc" rows="4" style="width:100%; background:#000; border:1px solid var(--border); color:var(--text); padding:10px; border-radius:4px; font-family:inherit; font-size:0.9rem; outline:none; margin-bottom:14px; resize:vertical;" placeholder="Ex: gera mensagem de boas-vindas pra novo proprietário que cadastrou imóvel..."></textarea>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn-elite" onclick="criarSkillSubmit()" style="flex:1;">Criar via Creator</button>
+                        <button class="btn-ghost" onclick="document.getElementById('criarSkillModal').style.display='none';" style="flex:1;">Cancelar</button>
+                    </div>
+                    <div id="criarSkillOutput" style="margin-top:14px; padding:12px; background:#000; border:1px solid var(--border); border-radius:4px; font-size:0.78rem; white-space:pre-wrap; display:none;"></div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            let _skillsCache = [];
+            async function carregarSkills() {
+                const grid = document.getElementById('skillsGrid');
+                grid.innerHTML = '<div style="color:var(--text-muted);">Carregando...</div>';
+                try {
+                    const r = await fetch('/api/skills');
+                    const data = await r.json();
+                    _skillsCache = data.skills || [];
+                    if (!_skillsCache.length) { grid.innerHTML = '<div style="color:var(--text-muted);">Nenhuma skill.</div>'; return; }
+                    grid.innerHTML = _skillsCache.map(s => `
+                        <div style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:18px; transition:var(--transition); cursor:pointer;"
+                             onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"
+                             onclick="abrirSkillModal('${s.slug}')">
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                                <h4 style="font-family:'Playfair Display',serif; color:var(--accent); font-size:1.05rem;">${s.nome}</h4>
+                                ${s.seed ? '<span style="font-size:0.55rem; background:var(--accent-glow); color:var(--accent); padding:2px 6px; border-radius:3px; letter-spacing:0.1em; text-transform:uppercase;">SEED</span>' : '<span style="font-size:0.55rem; background:#22c55e22; color:#22c55e; padding:2px 6px; border-radius:3px; letter-spacing:0.1em; text-transform:uppercase;">USER</span>'}
+                            </div>
+                            <code style="font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:8px;">${s.slug}</code>
+                            <div style="font-size:0.8rem; color:var(--text); line-height:1.5; margin-bottom:10px;">${s.descricao}</div>
+                            ${Array.isArray(s.matchers) && s.matchers.length ? `<div style="font-size:0.65rem; color:var(--text-muted);"><strong style="color:var(--accent);">Trigger:</strong> ${s.matchers.slice(0,3).join(' · ')}${s.matchers.length > 3 ? ' · …' : ''}</div>` : ''}
+                        </div>
+                    `).join('');
+                } catch (e) { grid.innerHTML = `<div style="color:var(--danger);">Erro: ${e.message}</div>`; }
+            }
+            function abrirSkillModal(slug) {
+                const s = _skillsCache.find(x => x.slug === slug);
+                if (!s) return;
+                document.getElementById('skillModalNome').textContent = s.nome;
+                document.getElementById('skillModalDesc').textContent = s.descricao;
+                document.getElementById('skillModalInput').value = '';
+                document.getElementById('skillModalOutput').style.display = 'none';
+                document.getElementById('skillModalOutput').textContent = '';
+                document.getElementById('skillModalBtn').dataset.slug = slug;
+                document.getElementById('skillModal').style.display = 'flex';
+            }
+            function fecharSkillModal() { document.getElementById('skillModal').style.display = 'none'; }
+            async function executarSkillModal() {
+                const btn = document.getElementById('skillModalBtn');
+                const slug = btn.dataset.slug;
+                const input = document.getElementById('skillModalInput').value;
+                const out = document.getElementById('skillModalOutput');
+                btn.disabled = true; btn.textContent = 'Executando...';
+                out.style.display = 'block'; out.textContent = 'Aguardando IA...';
+                try {
+                    const r = await fetch(`/api/skills/${slug}/executar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ input }) });
+                    const data = await r.json();
+                    out.textContent = data.output || data.erro || JSON.stringify(data, null, 2);
+                } catch (e) { out.textContent = 'Erro: ' + e.message; }
+                btn.disabled = false; btn.textContent = 'Executar';
+            }
+            function abrirCriarSkill() {
+                document.getElementById('criarSkillDesc').value = '';
+                document.getElementById('criarSkillOutput').style.display = 'none';
+                document.getElementById('criarSkillModal').style.display = 'flex';
+            }
+            async function criarSkillSubmit() {
+                const desc = document.getElementById('criarSkillDesc').value;
+                const out = document.getElementById('criarSkillOutput');
+                if (!desc.trim()) return;
+                out.style.display = 'block'; out.textContent = 'Creator gerando...';
+                try {
+                    const r = await fetch('/api/skills/creator/executar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ input: desc }) });
+                    const data = await r.json();
+                    out.textContent = data.output || data.erro || JSON.stringify(data);
+                    setTimeout(() => { carregarSkills(); }, 500);
+                } catch (e) { out.textContent = 'Erro: ' + e.message; }
+            }
+        </script>
+
         <!-- API Config -->
         <div id="config" class="panel">
             <div class="config-grid">
@@ -937,6 +1049,7 @@
             aprovacoes: 'Aprovações Pendentes',
             briefing: 'Briefing do Igor',
             logs: 'Terminal de Automação',
+            skills: 'Skills sob Demanda',
             config: 'Configurações API'
         };
         document.querySelectorAll('nav li').forEach(li => {
@@ -956,6 +1069,7 @@
                 if (id === 'config')     carregarConfig();
                 if (id === 'imoveis')    carregarImoveis();
                 if (id === 'cerebro')    carregarCerebro();
+                if (id === 'skills')     carregarSkills();
             });
         });
 

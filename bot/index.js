@@ -9,6 +9,7 @@ const registrarComandos = require('./comandos');
 const { HANDLERS_POR_INTENT } = require('./comandos');
 const { classificar } = require('./dispatcher');
 const { transcreverAudio } = require('../agentes/ia');
+const { matchSkill, executarSkill, listarSkills, buscarSkill } = require('./skills');
 
 const RATE_LIMIT_MSG = 30;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -77,16 +78,52 @@ async function iniciarBot() {
         aplicarMiddlewares(bot);
         registrarComandos(bot);
 
-        // Dispatcher de linguagem natural — texto livre vira intent
+        // Comandos slash de skills (manuais — força execução de skill específica)
+        bot.command('skills', async (ctx) => {
+            const list = listarSkills();
+            const linhas = list.map(s => `• \`${s.slug}\` — ${s.nome}\n  _${s.descricao}_`);
+            await ctx.replyWithMarkdown(`*Skills disponiveis (${list.length})*\n\n${linhas.join('\n\n')}\n\nUse \`/skill <slug> <input>\` pra executar.`);
+        });
+        bot.command('skill', async (ctx) => {
+            const parts = ctx.message.text.split(/\s+/);
+            const slug = parts[1];
+            const input = parts.slice(2).join(' ');
+            if (!slug) return ctx.reply('Uso: /skill <slug> <input>. Veja /skills.');
+            const s = buscarSkill(slug);
+            if (!s) return ctx.reply(`Skill nao encontrada: ${slug}`);
+            await ctx.reply(`⚙️ Executando *${s.nome}*...`, { parse_mode: 'Markdown' });
+            const r = await executarSkill(slug, input);
+            const out = (r.output || '').slice(0, 3800);
+            await ctx.reply(out || 'Sem output');
+        });
+        bot.command('skill_new', async (ctx) => {
+            const desc = ctx.message.text.replace(/^\/skill_new\s*/, '').trim();
+            if (!desc) return ctx.reply('Uso: /skill_new <descricao da skill>');
+            await ctx.reply('⚙️ Criando skill via Creator...');
+            const r = await executarSkill('creator', desc);
+            await ctx.reply(r.output || 'Sem output', { parse_mode: 'Markdown' });
+        });
+
+        // Dispatcher de linguagem natural — texto livre.
+        // Ordem: 1) match skill (palavra-chave), se não → 2) dispatcher LLM (intent)
         bot.on('text', async (ctx) => {
             const texto = ctx.message?.text || '';
-            if (texto.startsWith('/')) return; // slash já tratado por bot.command
+            if (texto.startsWith('/')) return;
+
             try {
+                // 1) Skills sob demanda — match por palavra-chave (rápido, não chama LLM)
+                const m = matchSkill(texto);
+                if (m) {
+                    await ctx.reply(`⚙️ Skill *${m.skill.nome}* acordada por palavra-chave`, { parse_mode: 'Markdown' });
+                    const r = await executarSkill(m.skill, m.input);
+                    return ctx.reply((r.output || 'Sem output').slice(0, 3800));
+                }
+
+                // 2) Dispatcher LLM → intents (status, leads, etc)
                 const intents = await classificar(texto);
                 for (const { intent, args } of intents) {
                     const fn = HANDLERS_POR_INTENT[intent];
                     if (!fn) continue;
-                    // 'conversa' precisa do texto original; resto usa os args extraídos
                     await fn(ctx, intent === 'conversa' ? texto : args);
                 }
             } catch (err) {
