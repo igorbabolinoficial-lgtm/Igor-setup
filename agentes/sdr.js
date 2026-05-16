@@ -102,6 +102,41 @@ module.exports = {
                         const { notificar } = require('../bot');
                         notificar(`*Lead quente — score ${score}*\n\n*${lead.nome}* (${segmento || 'segmento?'})\nInteresse: ${lead.interesse || '-'}\nAção sugerida: \`${ia.proxima_acao || '-'}\`\n\n_${ia.justificativa}_\n\n\`/lead ${lead.id}\` pra detalhe`).catch(() => {});
                     } catch {}
+
+                    // Ação sugerida pela IA dispara skill correspondente automaticamente.
+                    // Resultado cai em fila de aprovações pra Levi/Igor humano decidir antes de enviar.
+                    try {
+                        const { executarSkill } = require('../bot/skills');
+                        let skillSlug = null;
+                        let inputBase = '';
+                        if (ia.proxima_acao === 'mandar_proposta') {
+                            skillSlug = 'contratos';
+                            inputBase = `Proposta inicial pra lead ${lead.nome}. Interesse: ${lead.interesse || '-'}. Segmento: ${segmento || '-'}. Notas: ${lead.notas || '-'}.`;
+                        } else if (ia.proxima_acao === 'mandar_catalogo') {
+                            skillSlug = 'pdf';
+                            inputBase = `Dossiê com 3-5 imóveis do catálogo que atendem o perfil do lead ${lead.nome}. Interesse: ${lead.interesse || '-'}. Segmento: ${segmento || '-'}.`;
+                        }
+                        if (skillSlug) {
+                            const skillResult = await executarSkill(skillSlug, inputBase, { lead_id: lead.id, lead_nome: lead.nome });
+                            if (skillResult.ok) {
+                                db.prepare(`
+                                    INSERT INTO aprovacoes (agente_destino, tipo, payload, descricao)
+                                    VALUES ('sdr', ?, ?, ?)
+                                `).run(
+                                    `skill_${skillSlug}`,
+                                    JSON.stringify({ lead_id: lead.id, output: skillResult.output, skill: skillSlug }),
+                                    `${skillSlug.toUpperCase()} para ${lead.nome} (score ${score})`
+                                );
+                                registrarLog({
+                                    agente: 'sdr', nivel: 'sucesso',
+                                    mensagem: `Skill ${skillSlug} executada pro lead ${lead.nome} — aprovação criada`,
+                                    contexto: { lead_id: lead.id, skill: skillSlug, ms: skillResult.ms }
+                                });
+                            }
+                        }
+                    } catch (e) {
+                        registrarLog({ agente: 'sdr', nivel: 'alerta', mensagem: `skill auto-disparada falhou: ${e.message}`, contexto: { lead_id: lead.id } });
+                    }
                 }
             }
 
