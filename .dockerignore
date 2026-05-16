@@ -1,0 +1,17 @@
+node_modules
+escritorio/node_modules
+public/escritorio
+.git
+.gitignore
+.env
+.env.local
+*.log
+npm-debug.log*
+.DS_Store
+igor.db
+igor.db-journal
+igor.db-wal
+igor.db-shm
+00_Backups
+audios
+*.bak

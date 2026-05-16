@@ -1,0 +1,918 @@
+{
+  "origem": "mock",
+  "total": 152,
+  "imoveis": [
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/1",
+      "titulo": "Casa 1 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 397000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/2",
+      "titulo": "Terreno 2 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 414000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/3",
+      "titulo": "Cobertura 3 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 431000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/4",
+      "titulo": "Loft 4 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 448000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/5",
+      "titulo": "Apartamento 5 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 465000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/6",
+      "titulo": "Casa 6 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 482000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/7",
+      "titulo": "Terreno 7 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 499000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/8",
+      "titulo": "Cobertura 8 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 516000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/9",
+      "titulo": "Loft 9 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 533000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/10",
+      "titulo": "Apartamento 10 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 550000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/11",
+      "titulo": "Casa 11 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 567000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/12",
+      "titulo": "Terreno 12 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 584000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/13",
+      "titulo": "Cobertura 13 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 601000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/14",
+      "titulo": "Loft 14 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 618000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/15",
+      "titulo": "Apartamento 15 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 635000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/16",
+      "titulo": "Casa 16 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 652000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/17",
+      "titulo": "Terreno 17 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 669000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/18",
+      "titulo": "Cobertura 18 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 686000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/19",
+      "titulo": "Loft 19 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 703000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/20",
+      "titulo": "Apartamento 20 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 720000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/21",
+      "titulo": "Casa 21 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 737000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/22",
+      "titulo": "Terreno 22 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 754000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/23",
+      "titulo": "Cobertura 23 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 771000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/24",
+      "titulo": "Loft 24 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 788000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/25",
+      "titulo": "Apartamento 25 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 805000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/26",
+      "titulo": "Casa 26 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 822000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/27",
+      "titulo": "Terreno 27 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 839000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/28",
+      "titulo": "Cobertura 28 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 856000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/29",
+      "titulo": "Loft 29 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 873000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/30",
+      "titulo": "Apartamento 30 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 890000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/31",
+      "titulo": "Casa 31 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 907000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/32",
+      "titulo": "Terreno 32 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 924000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/33",
+      "titulo": "Cobertura 33 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 941000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/34",
+      "titulo": "Loft 34 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 958000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/35",
+      "titulo": "Apartamento 35 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 975000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/36",
+      "titulo": "Casa 36 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 992000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/37",
+      "titulo": "Terreno 37 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 1009000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/38",
+      "titulo": "Cobertura 38 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 1026000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/39",
+      "titulo": "Loft 39 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 1043000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/40",
+      "titulo": "Apartamento 40 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 1060000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/41",
+      "titulo": "Casa 41 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 1077000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/42",
+      "titulo": "Terreno 42 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 1094000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/43",
+      "titulo": "Cobertura 43 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 1111000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/44",
+      "titulo": "Loft 44 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 1128000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/45",
+      "titulo": "Apartamento 45 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 1145000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/46",
+      "titulo": "Casa 46 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 1162000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/47",
+      "titulo": "Terreno 47 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 1179000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/48",
+      "titulo": "Cobertura 48 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 1196000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/49",
+      "titulo": "Loft 49 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 1213000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/50",
+      "titulo": "Apartamento 50 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 1230000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/51",
+      "titulo": "Casa 51 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 1247000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/52",
+      "titulo": "Terreno 52 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 1264000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/53",
+      "titulo": "Cobertura 53 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 1281000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/54",
+      "titulo": "Loft 54 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 1298000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/55",
+      "titulo": "Apartamento 55 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 1315000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/56",
+      "titulo": "Casa 56 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 1332000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/57",
+      "titulo": "Terreno 57 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 1349000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/58",
+      "titulo": "Cobertura 58 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 1366000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/59",
+      "titulo": "Loft 59 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 1383000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/60",
+      "titulo": "Apartamento 60 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 1400000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/61",
+      "titulo": "Casa 61 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 1417000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/62",
+      "titulo": "Terreno 62 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 1434000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/63",
+      "titulo": "Cobertura 63 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 1451000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/64",
+      "titulo": "Loft 64 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 1468000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/65",
+      "titulo": "Apartamento 65 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 1485000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/66",
+      "titulo": "Casa 66 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 1502000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/67",
+      "titulo": "Terreno 67 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 1519000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/68",
+      "titulo": "Cobertura 68 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 1536000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/69",
+      "titulo": "Loft 69 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 1553000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/70",
+      "titulo": "Apartamento 70 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 1570000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/71",
+      "titulo": "Casa 71 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 1587000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/72",
+      "titulo": "Terreno 72 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 1604000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/73",
+      "titulo": "Cobertura 73 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 1621000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/74",
+      "titulo": "Loft 74 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 1638000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/75",
+      "titulo": "Apartamento 75 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 1655000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/76",
+      "titulo": "Casa 76 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 1672000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/77",
+      "titulo": "Terreno 77 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 1689000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/78",
+      "titulo": "Cobertura 78 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 1706000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/79",
+      "titulo": "Loft 79 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 1723000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/80",
+      "titulo": "Apartamento 80 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 1740000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/81",
+      "titulo": "Casa 81 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 1757000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/82",
+      "titulo": "Terreno 82 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 1774000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/83",
+      "titulo": "Cobertura 83 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 1791000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/84",
+      "titulo": "Loft 84 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 1808000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/85",
+      "titulo": "Apartamento 85 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 1825000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/86",
+      "titulo": "Casa 86 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 1842000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/87",
+      "titulo": "Terreno 87 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 1859000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/88",
+      "titulo": "Cobertura 88 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 1876000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/89",
+      "titulo": "Loft 89 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 1893000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/90",
+      "titulo": "Apartamento 90 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 1910000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/91",
+      "titulo": "Casa 91 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 1927000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/92",
+      "titulo": "Terreno 92 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 1944000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/93",
+      "titulo": "Cobertura 93 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 1961000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/94",
+      "titulo": "Loft 94 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 1978000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/95",
+      "titulo": "Apartamento 95 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 1995000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/96",
+      "titulo": "Casa 96 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 2012000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/97",
+      "titulo": "Terreno 97 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 2029000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/98",
+      "titulo": "Cobertura 98 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 2046000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/99",
+      "titulo": "Loft 99 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 2063000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/100",
+      "titulo": "Apartamento 100 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 2080000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/101",
+      "titulo": "Casa 101 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 2097000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/102",
+      "titulo": "Terreno 102 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 2114000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/103",
+      "titulo": "Cobertura 103 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 2131000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/104",
+      "titulo": "Loft 104 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 2148000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/105",
+      "titulo": "Apartamento 105 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 2165000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/106",
+      "titulo": "Casa 106 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 2182000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/107",
+      "titulo": "Terreno 107 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 2199000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/108",
+      "titulo": "Cobertura 108 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 2216000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/109",
+      "titulo": "Loft 109 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 2233000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/110",
+      "titulo": "Apartamento 110 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 2250000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/111",
+      "titulo": "Casa 111 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 2267000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/112",
+      "titulo": "Terreno 112 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 2284000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/113",
+      "titulo": "Cobertura 113 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 2301000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/114",
+      "titulo": "Loft 114 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 2318000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/115",
+      "titulo": "Apartamento 115 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 2335000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/116",
+      "titulo": "Casa 116 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 2352000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/117",
+      "titulo": "Terreno 117 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 2369000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/118",
+      "titulo": "Cobertura 118 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 2386000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/119",
+      "titulo": "Loft 119 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 2403000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/120",
+      "titulo": "Apartamento 120 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 2420000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/121",
+      "titulo": "Casa 121 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 2437000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/122",
+      "titulo": "Terreno 122 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 2454000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/123",
+      "titulo": "Cobertura 123 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 2471000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/124",
+      "titulo": "Loft 124 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 2488000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/125",
+      "titulo": "Apartamento 125 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 2505000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/126",
+      "titulo": "Casa 126 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 2522000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/127",
+      "titulo": "Terreno 127 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 2539000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/128",
+      "titulo": "Cobertura 128 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 2556000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/129",
+      "titulo": "Loft 129 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 2573000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/130",
+      "titulo": "Apartamento 130 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 390000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/131",
+      "titulo": "Casa 131 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 407000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/132",
+      "titulo": "Terreno 132 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 424000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/133",
+      "titulo": "Cobertura 133 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 441000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/134",
+      "titulo": "Loft 134 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 458000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/135",
+      "titulo": "Apartamento 135 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 475000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/136",
+      "titulo": "Casa 136 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 492000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/137",
+      "titulo": "Terreno 137 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 509000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/138",
+      "titulo": "Cobertura 138 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 526000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/139",
+      "titulo": "Loft 139 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 543000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/140",
+      "titulo": "Apartamento 140 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 560000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/141",
+      "titulo": "Casa 141 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 577000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/142",
+      "titulo": "Terreno 142 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 594000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/143",
+      "titulo": "Cobertura 143 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 611000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/144",
+      "titulo": "Loft 144 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 628000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/145",
+      "titulo": "Apartamento 145 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 645000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/146",
+      "titulo": "Casa 146 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 662000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/147",
+      "titulo": "Terreno 147 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 679000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/148",
+      "titulo": "Cobertura 148 dormitórios — Vigia",
+      "descricao": "Imóvel cobertura localizado em Vigia, com vista para o mar.",
+      "preco": 696000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/149",
+      "titulo": "Loft 149 dormitórios — Barra",
+      "descricao": "Imóvel loft localizado em Barra, com vista para o mar.",
+      "preco": 713000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/150",
+      "titulo": "Apartamento 150 dormitórios — Praia do Rosa Norte",
+      "descricao": "Imóvel apartamento localizado em Praia do Rosa Norte, com vista para o mar.",
+      "preco": 730000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/151",
+      "titulo": "Casa 151 dormitórios — Praia do Rosa Sul",
+      "descricao": "Imóvel casa localizado em Praia do Rosa Sul, com vista para o mar.",
+      "preco": 747000
+    },
+    {
+      "url": "https://www.imobiliariapraiadorosa.com.br/imovel/152",
+      "titulo": "Terreno 152 dormitórios — Ibiraquera",
+      "descricao": "Imóvel terreno localizado em Ibiraquera, com vista para o mar.",
+      "preco": 764000
+    }
+  ]
+}

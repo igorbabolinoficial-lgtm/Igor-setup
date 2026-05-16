@@ -1,0 +1,36 @@
+node_modules/
+escritorio/node_modules/
+
+# Banco SQLite — vive em volume Coolify, não no repo
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Env vars (chaves IA, bot, etc.)
+.env
+.env.local
+.env.*.local
+
+# Build output do Vite (regenerado no Docker build)
+public/escritorio/
+
+# Backups locais
+00_Backups/
+*.bak
+
+# Mídia local (escraping de fotos)
+media/
+audios/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

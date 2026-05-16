@@ -1,0 +1,35 @@
+FROM node:22-alpine
+
+WORKDIR /app
+
+# better-sqlite3 precisa de build tools nativos (gyp + Python). Removidas após build pra imagem menor.
+RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+    && ln -sf python3 /usr/bin/python
+
+# Instala deps do server principal
+COPY package.json package-lock.json* ./
+RUN npm install --production --no-audit --no-fund
+
+# Build do subprojeto 3D (escritorio/) pra public/escritorio/
+COPY escritorio/package.json escritorio/package-lock.json* ./escritorio/
+RUN cd escritorio && npm install --no-audit --no-fund
+
+# Copia código
+COPY . .
+
+# Build do 3D (Vite output: public/escritorio/index.html + assets)
+RUN cd escritorio && npm run build && rm -rf node_modules
+
+# Remove deps de build pra encolher imagem
+RUN apk del .build-deps
+
+# Banco fica em volume persistente em /data — ajustar DB_PATH se quiser persistir
+# (db/index.js hoje grava em ./igor.db; pra persistir em volume Coolify monte /data e
+#  edite DB_PATH ou faça symlink — feito no boot via entrypoint, ou apenas monte ./igor.db)
+
+ENV NODE_ENV=production
+ENV PORT=3003
+
+EXPOSE 3003
+
+CMD ["node", "server.js"]
