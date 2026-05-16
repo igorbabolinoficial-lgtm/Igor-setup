@@ -48,16 +48,16 @@ const AUTH_SECRET = process.env.IGOR_AUTH_SECRET || (ADMIN_USER && ADMIN_PASS ? 
 const COOKIE_NAME = 'igor_session';
 const COOKIE_DIAS = 30;
 
-function eRotaPublica(url) {
-    if (url === '/' || url === '/index.html') return true;
-    if (url === '/login.html') return true;
-    if (url.startsWith('/api/auth/')) return true;
-    if (url.startsWith('/api/ai/publica')) return true;
-    if (url === '/api/saude') return true;
-    if (url.startsWith('/api/webhooks/')) return true;
-    if (url.startsWith('/escritorio/')) return true;
-    if (url.startsWith('/assets/')) return true;
-    if (/\.(png|jpe?g|gif|svg|webp|ico|css|mjs|map|woff2?|ttf|json)(\?.*)?$/i.test(url)) return true;
+function eRotaPublica(pathname) {
+    if (pathname === '/' || pathname === '/index.html') return true;
+    if (pathname === '/login.html') return true;
+    if (pathname.startsWith('/api/auth/')) return true;
+    if (pathname.startsWith('/api/ai/publica')) return true;
+    if (pathname === '/api/saude') return true;
+    if (pathname.startsWith('/api/webhooks/')) return true;
+    if (pathname.startsWith('/escritorio/')) return true;
+    if (pathname.startsWith('/assets/')) return true;
+    if (/\.(png|jpe?g|gif|svg|webp|ico|css|mjs|map|woff2?|ttf|json)$/i.test(pathname)) return true;
     return false;
 }
 
@@ -96,17 +96,19 @@ function parseCookies(req) {
 
 function authMiddleware(req, res, next) {
     if (!ADMIN_USER || !ADMIN_PASS) return next(); // dev mode
-    if (eRotaPublica(req.url)) return next();
+    // req.path = pathname sem querystring (req.url inclui ?next=... e quebra match estrito)
+    if (eRotaPublica(req.path)) return next();
 
     const cookies = parseCookies(req);
     const sessao = validarToken(cookies[COOKIE_NAME]);
     if (sessao) return next();
 
-    // API: 401 JSON. HTML: redireciona pra /login.html
-    if (req.url.startsWith('/api/')) {
+    if (req.path.startsWith('/api/')) {
         return res.status(401).json({ erro: 'Nao autenticado' });
     }
-    const next_param = encodeURIComponent(req.url);
+    // Anti-loop: nunca aponta next pra /login.html
+    const destino = req.path === '/login.html' ? '/dashboard.html' : req.originalUrl;
+    const next_param = encodeURIComponent(destino);
     return res.redirect(`/login.html?next=${next_param}`);
 }
 
