@@ -169,6 +169,39 @@ router.get('/ia-status', (_req, res) => {
     });
 });
 
+// GET /api/sistema/ia-teste — público. Faz 1 chamada direta a CADA provedor configurado
+// e devolve resposta/erro de cada um. Custo: 1 token por provedor ativo. Crítico pra debug.
+router.get('/ia-teste', async (_req, res) => {
+    const { getGroqKey, getGeminiKey, getAnthropicKey } = require('../agentes/ia');
+    const out = { groq: null, gemini: null, anthropic: null };
+
+    if (getGroqKey()) {
+        try {
+            const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${getGroqKey()}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: process.env.GROQ_MODEL_TEXT || 'llama-3.1-8b-instant',
+                    messages: [{ role: 'user', content: 'PONG?' }],
+                    max_tokens: 10,
+                }),
+            });
+            const txt = await r.text();
+            out.groq = { status: r.status, body: txt.slice(0, 400) };
+        } catch (e) { out.groq = { erro: e.message }; }
+    } else { out.groq = 'sem key'; }
+
+    if (getGeminiKey()) {
+        out.gemini = { status: 'configurada (não testada aqui)' };
+    } else { out.gemini = 'sem key'; }
+
+    if (getAnthropicKey()) {
+        out.anthropic = { status: 'configurada (não testada aqui)' };
+    } else { out.anthropic = 'sem key'; }
+
+    res.json(out);
+});
+
 // POST /api/sistema/migrar — dispara migrador do catálogo em background.
 // Protegido pelo middleware de auth global. Pode levar 5+ min pra completar (48 imóveis + downloads).
 // Resposta imediata 202. Acompanhar em /api/sistema/migrar/status ou /api/logs?agente=sistema.
