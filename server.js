@@ -37,48 +37,106 @@ app.use((req, _res, next) => {
     next();
 });
 
-// ─── Basic Auth no admin (dashboard.html + APIs internas) ──────────────────────────
+// ─── Auth via cookie de sessão (substitui Basic Auth) ──────────────────────────────
 // Protege rotas sensíveis em produção. Bypass total se IGOR_ADMIN_USER/PASS não setados (dev).
-// Whitelist sempre liberada:
-//   - /api/ai/publica      (chatbot do site público)
-//   - /api/saude           (healthcheck)
-//   - /api/webhooks/*      (entradas externas autenticadas por segredo próprio)
-//   - /escritorio/*        (assets do 3D, embed via iframe no dashboard.html)
-//   - /                    (index.html do site público)
-//   - /assets/*, /*.png/jpg/svg/css/js  (estáticos do site público)
+// Login bonito em /login.html, POST /api/auth/login, logout em /api/auth/logout.
+// Cookie HttpOnly de 30 dias, assinado com HMAC SHA256 (SECRET derivado do PASS se não houver IGOR_AUTH_SECRET).
+const crypto = require('crypto');
 const ADMIN_USER = process.env.IGOR_ADMIN_USER;
 const ADMIN_PASS = process.env.IGOR_ADMIN_PASS;
+const AUTH_SECRET = process.env.IGOR_AUTH_SECRET || (ADMIN_USER && ADMIN_PASS ? crypto.createHash('sha256').update(`igor:${ADMIN_USER}:${ADMIN_PASS}`).digest('hex') : null);
+const COOKIE_NAME = 'igor_session';
+const COOKIE_DIAS = 30;
 
 function eRotaPublica(url) {
     if (url === '/' || url === '/index.html') return true;
+    if (url === '/login.html') return true;
+    if (url.startsWith('/api/auth/')) return true;
     if (url.startsWith('/api/ai/publica')) return true;
     if (url === '/api/saude') return true;
     if (url.startsWith('/api/webhooks/')) return true;
     if (url.startsWith('/escritorio/')) return true;
     if (url.startsWith('/assets/')) return true;
-    // Estáticos do site público (fotos de imóveis, css, js, favicons)
     if (/\.(png|jpe?g|gif|svg|webp|ico|css|mjs|map|woff2?|ttf|json)(\?.*)?$/i.test(url)) return true;
     return false;
 }
 
-function basicAuth(req, res, next) {
-    // Sem credenciais setadas = modo dev, sem auth
-    if (!ADMIN_USER || !ADMIN_PASS) return next();
-    if (eRotaPublica(req.url)) return next();
-
-    const header = req.headers.authorization || '';
-    const [tipo, b64] = header.split(' ');
-    if (tipo === 'Basic' && b64) {
-        try {
-            const [user, pass] = Buffer.from(b64, 'base64').toString('utf8').split(':');
-            if (user === ADMIN_USER && pass === ADMIN_PASS) return next();
-        } catch (_) {}
-    }
-    res.setHeader('WWW-Authenticate', 'Basic realm="Igor Babolin Neural Admin"');
-    return res.status(401).send('Autenticacao necessaria');
+function gerarToken(user) {
+    if (!AUTH_SECRET) return null;
+    const payload = `${user}:${Date.now()}`;
+    const sig = crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('hex');
+    return Buffer.from(`${payload}:${sig}`).toString('base64url');
 }
 
-app.use(basicAuth);
+function validarToken(token) {
+    if (!token || !AUTH_SECRET) return null;
+    try {
+        const decoded = Buffer.from(token, 'base64url').toString('utf8');
+        const parts = decoded.split(':');
+        if (parts.length !== 3) return null;
+        const [user, ts, sig] = parts;
+        const esperado = crypto.createHmac('sha256', AUTH_SECRET).update(`${user}:${ts}`).digest('hex');
+        if (sig !== esperado) return null;
+        // expira em COOKIE_DIAS
+        const idade = Date.now() - Number(ts);
+        if (idade > COOKIE_DIAS * 86400 * 1000) return null;
+        return { user };
+    } catch (_) { return null; }
+}
+
+function parseCookies(req) {
+    const cookie = req.headers.cookie || '';
+    const out = {};
+    for (const pair of cookie.split(';')) {
+        const [k, ...v] = pair.trim().split('=');
+        if (k) out[k] = v.join('=');
+    }
+    return out;
+}
+
+function authMiddleware(req, res, next) {
+    if (!ADMIN_USER || !ADMIN_PASS) return next(); // dev mode
+    if (eRotaPublica(req.url)) return next();
+
+    const cookies = parseCookies(req);
+    const sessao = validarToken(cookies[COOKIE_NAME]);
+    if (sessao) return next();
+
+    // API: 401 JSON. HTML: redireciona pra /login.html
+    if (req.url.startsWith('/api/')) {
+        return res.status(401).json({ erro: 'Nao autenticado' });
+    }
+    const next_param = encodeURIComponent(req.url);
+    return res.redirect(`/login.html?next=${next_param}`);
+}
+
+// Rotas de auth (sempre montadas, mesmo em dev)
+app.post('/api/auth/login', (req, res) => {
+    const { user, pass } = req.body || {};
+    if (!ADMIN_USER || !ADMIN_PASS) return res.status(503).json({ erro: 'Auth nao configurada (env IGOR_ADMIN_USER/PASS)' });
+    if (user !== ADMIN_USER || pass !== ADMIN_PASS) {
+        return res.status(401).json({ erro: 'Credenciais invalidas' });
+    }
+    const token = gerarToken(user);
+    const isProd = process.env.NODE_ENV === 'production';
+    const flags = [
+        `${COOKIE_NAME}=${token}`,
+        `Max-Age=${COOKIE_DIAS * 86400}`,
+        'Path=/',
+        'HttpOnly',
+        'SameSite=Lax',
+    ];
+    if (isProd) flags.push('Secure');
+    res.setHeader('Set-Cookie', flags.join('; '));
+    res.json({ ok: true, user });
+});
+
+app.post('/api/auth/logout', (_req, res) => {
+    res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`);
+    res.json({ ok: true });
+});
+
+app.use(authMiddleware);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
