@@ -56,16 +56,54 @@ Ordem de fallback: **Groq → Gemini → Anthropic**. Se Groq cair, Gemini assum
   - Briefing matinal 07:00 (resumo no celular)
   - Relatório semanal segunda 07:30
 
-### 4. Deploy Coolify (24/7 sem laptop)
+### 4. Deploy na VPS DEDICADA `2.24.103.7` (24/7)
 
-Pré-requisito: repo no GitHub (Igor ainda não é git — `git init && commit && push` antes).
+A VPS nova da Hostinger (`srv1676224.hstgr.cloud`, IP `2.24.103.7`, Ubuntu KVM 2) é dedicada ao Igor. Está vazia — precisa instalar o Coolify primeiro.
 
-1. http://31.97.164.130:8000/projects → escolher projeto Igor (criar se preciso)
-2. **+ Add Resource** → Private Repository (GitHub App) → selecionar repo
+**4.1 — Repo no GitHub** (precisa de você)
+
+Local já está pronto: `git init` feito, commit inicial criado. Falta criar o repo no GitHub e push.
+
+1. https://github.com/new → nome `igor-neural-system` → Private → criar SEM README/gitignore (já tem)
+2. No terminal local:
+   ```powershell
+   cd C:\Users\55119\.gemini\antigravity\igor-neural-system
+   git remote add origin git@github.com:levimpantarotto-commits/igor-neural-system.git
+   git push -u origin main
+   ```
+
+**4.2 — Instalar Coolify na VPS nova**
+
+1. Painel Hostinger → VPS → Gerenciar → Browser Terminal (ou SSH com sua key)
+2. Rodar (1 linha, instala tudo):
+   ```bash
+   curl -fsSL https://cdn.coollabs.io/coolify/install.sh | sudo bash
+   ```
+3. Aguardar ~5 min. No fim mostra URL e credenciais iniciais.
+4. Abrir `http://2.24.103.7:8000` no browser → criar conta admin
+5. Configurar GitHub App (Settings → Sources → GitHub) — ou pode usar Deploy Key/Personal Access Token se quiser pular o GitHub App
+
+**4.3 — Deployar Igor no Coolify**
+
+1. + New Resource → Private Repository
+2. Repo `levimpantarotto-commits/igor-neural-system`, branch `main`
 3. Build Pack: **Dockerfile**, Base Directory `/`, Port `3003`
-4. Env vars: `NODE_ENV=production`, `PORT=3003`, `GROQ_API_KEY=...`, `IGOR_BOT_TOKEN=...`, `IGOR_BOT_ALLOWED_USER_IDS=...`
-5. Persistent storage: nome `igor-data`, mount `/app` — preserva `igor.db` entre deploys
-6. **Antes do deploy:** parar `node server.js` local (Telegram só permite 1 polling por token)
+4. Env vars (cola todas):
+   - `NODE_ENV=production`
+   - `PORT=3003`
+   - `GROQ_API_KEY=...`
+   - `IGOR_BOT_TOKEN=...`
+   - `IGOR_BOT_ALLOWED_USER_IDS=...`
+   - (opcional) `GEMINI_API_KEY=...` se quiser fallback
+5. **Persistent storage**: nome `igor-data`, mount path `/app` — preserva `igor.db` e `public/escritorio/` entre redeploys
+6. **Antes do deploy**: parar `node server.js` local (Telegram só aceita 1 polling por token).
+7. Deploy. Acessar `http://2.24.103.7:3003/dashboard.html`
+
+**4.4 — (opcional) Domínio + HTTPS**
+
+Você tem `praiadorosa.site` (visto no painel Hostinger). Se quiser:
+- Apontar subdomínio `igor.praiadorosa.site` (DNS A → `2.24.103.7`)
+- No Coolify: Domains → adicionar `igor.praiadorosa.site` → Let's Encrypt (Coolify gera SSL automático)
 
 ### 5. Decisões antigas seguem em aberto
 
