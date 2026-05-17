@@ -53,22 +53,22 @@ const COOKIE_DIAS = 30;
 function eRotaPublica(pathname, method) {
     if (pathname === '/' || pathname === '/index.html') return true;
     if (pathname === '/login.html') return true;
+    if (pathname === '/catalogo.html') return true;  // catálogo antigo do Igor preservado
     if (pathname.startsWith('/api/auth/')) return true;
     if (pathname.startsWith('/api/ai/publica')) return true;
     if (pathname === '/api/saude') return true;
-    if (pathname === '/api/voz/status') return true;  // só devolve {ativo: bool}, não expõe key
-    if (pathname === '/api/sistema/ia-status') return true;  // mesma ideia: só bool, sem expor keys
-    if (pathname === '/api/sistema/ia-teste') return true;   // teste 1 chamada real ao Groq, mostra erro exato
+    if (pathname === '/api/voz/status') return true;
+    if (pathname === '/api/sistema/ia-status') return true;
+    if (pathname === '/api/sistema/ia-teste') return true;
     if (pathname.startsWith('/api/webhooks/')) return true;
-    // Catálogo de imóveis é público pra leitura (site do Igor mostra leads o catálogo).
-    // Mutações (POST/PUT/PATCH/DELETE) ficam protegidas.
     if (pathname.startsWith('/api/imoveis') && method === 'GET') return true;
     if (pathname.startsWith('/escritorio/')) return true;
-    if (pathname.startsWith('/showcase/')) return true;
+    if (pathname.startsWith('/showcase/')) return true;  // legado — antes do showcase virar home
     if (pathname.startsWith('/assets/')) return true;
-    // Fotos dos imóveis ficam em /media/* — público pro site mostrar
     if (pathname.startsWith('/media/')) return true;
-    if (/\.(png|jpe?g|gif|svg|webp|ico|css|mjs|map|woff2?|ttf|json)$/i.test(pathname)) return true;
+    if (pathname.startsWith('/models/')) return true;     // GLB/GLTF do showcase 3D
+    if (pathname.startsWith('/textures/')) return true;   // texturas do showcase 3D
+    if (/\.(png|jpe?g|gif|svg|webp|ico|css|mjs|map|woff2?|ttf|json|glb|gltf|fbx|dae|bin|hdr|exr)$/i.test(pathname)) return true;
     return false;
 }
 
