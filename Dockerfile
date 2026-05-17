@@ -10,16 +10,20 @@ RUN apk add --no-cache --virtual .build-deps python3 make g++ \
 COPY package.json package-lock.json* ./
 RUN npm install --omit=dev --no-audit --no-fund
 
-# Build do subprojeto 3D (escritorio/) pra public/escritorio/
-# IMPORTANTE: --include=dev força instalar devDependencies (vite, plugin-react) mesmo com NODE_ENV=production
+# Build do subprojeto 3D escritorio/ (Sala dos Agentes)
 COPY escritorio/package.json escritorio/package-lock.json* ./escritorio/
 RUN cd escritorio && npm install --include=dev --no-audit --no-fund
+
+# Build do subprojeto 3D showcase/ (vitrine pública de imóveis)
+COPY showcase/package.json showcase/package-lock.json* ./showcase/
+RUN cd showcase && npm install --include=dev --no-audit --no-fund
 
 # Copia código
 COPY . .
 
-# Build do 3D (Vite output: public/escritorio/index.html + assets). Apaga node_modules após pra encolher imagem.
+# Builds: gera public/escritorio/ e public/showcase/. Apaga node_modules dos subs pra encolher.
 RUN cd escritorio && npm run build && rm -rf node_modules
+RUN cd showcase   && npm run build && rm -rf node_modules
 
 # Remove deps de build pra encolher imagem
 RUN apk del .build-deps

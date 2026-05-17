@@ -64,6 +64,7 @@ function eRotaPublica(pathname, method) {
     // Mutações (POST/PUT/PATCH/DELETE) ficam protegidas.
     if (pathname.startsWith('/api/imoveis') && method === 'GET') return true;
     if (pathname.startsWith('/escritorio/')) return true;
+    if (pathname.startsWith('/showcase/')) return true;
     if (pathname.startsWith('/assets/')) return true;
     // Fotos dos imóveis ficam em /media/* — público pro site mostrar
     if (pathname.startsWith('/media/')) return true;
