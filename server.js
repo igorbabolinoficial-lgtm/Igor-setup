@@ -185,6 +185,28 @@ app.use('/api/skills',      skillsRoutes);
 
 app.get('/api/saude', (_req, res) => res.json({ ok: true, projeto: 'igor-neural-system', versao: '0.1.0' }));
 
+// Dispara re-migração completa do sitemap imobiliariapraiadorosa.com.br.
+// Roda em background; resposta imediata. Resultado vai pros logs.
+let _migrarRodando = false;
+app.post('/api/imoveis/migrar', async (_req, res) => {
+    if (_migrarRodando) return res.status(409).json({ erro: 'Migração já em andamento' });
+    _migrarRodando = true;
+    res.status(202).json({ ok: true, mensagem: 'Migração iniciada. Acompanhe em /api/logs' });
+    try {
+        const { migrarTudo } = require('./migrator');
+        const log = await migrarTudo({ skipExistentes: true });
+        registrarLog({
+            agente: 'sistema', nivel: 'sucesso',
+            mensagem: `Migração manual: ${log.sucesso.length} ok, ${log.pulados.length} pulados`,
+            contexto: { sucesso: log.sucesso.length, pulados: log.pulados.length }
+        });
+    } catch (e) {
+        registrarLog({ agente: 'sistema', nivel: 'erro', mensagem: `Migração falhou: ${e.message}` });
+    } finally {
+        _migrarRodando = false;
+    }
+});
+
 app.use((err, _req, res, _next) => {
     console.error('[neural] erro:', err);
     registrarLog({

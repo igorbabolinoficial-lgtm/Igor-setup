@@ -170,7 +170,7 @@ async function migrarImovel(url, log, opts = {}) {
 
     log.sucesso.push({
         id: data.id, titulo: data.titulo, preco: data.preco,
-        fotos: fotosLocais.length, fotosErr: erroFoto
+        fotos: fotosLocais.length
     });
 }
 

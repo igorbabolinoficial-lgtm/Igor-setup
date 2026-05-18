@@ -29,46 +29,46 @@ class CanvasErrorBoundary extends Component {
 
 const LISTINGS = [
   {
-    tag: 'Praia do Rosa',
+    tag: 'Garopaba',
     title: 'Casa Frente Mar',
-    price: 'R$ 4.200.000',
-    detail: '4 suítes · 380m² · vista lagoa + mar',
-    img: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80&auto=format&fit=crop',
-  },
-  {
-    tag: 'Centro · Imbituba',
-    title: 'Apartamento Garden',
-    price: 'R$ 899.000',
-    detail: '2 quartos · 92m² · 1 vaga',
-    img: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80&auto=format&fit=crop',
-  },
-  {
-    tag: 'Praia do Rosa',
-    title: 'Cobertura Duplex',
-    price: 'R$ 6.800.000',
-    detail: '3 suítes · 280m² · piscina privativa',
-    img: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&q=80&auto=format&fit=crop',
+    price: 'R$ 3.700.000',
+    detail: '4 quartos · 5 banheiros · 230m² · 2 vagas',
+    img: 'https://imobiliariapraiadorosa.com.br/uploads/media/fremar_2-1718647562-800X500.jpg',
   },
   {
     tag: 'Garopaba',
-    title: 'Refúgio na Mata',
-    price: 'R$ 2.500.000',
-    detail: '3 quartos · 210m² · terreno 1.200m²',
-    img: 'https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=800&q=80&auto=format&fit=crop',
-  },
-  {
-    tag: 'Vila Nova',
-    title: 'Studio Pé na Areia',
-    price: 'R$ 2.800/mês',
-    detail: '1 quarto · 38m² · temporada',
-    img: 'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&q=80&auto=format&fit=crop',
+    title: 'Casa Exclusiva com Vista Total',
+    price: 'R$ 4.800.000',
+    detail: '4 quartos · 4 banheiros · 249m² · 2 vagas',
+    img: 'https://imobiliariapraiadorosa.com.br/uploads/media/guga_11-1758540093-800X500.jfif',
   },
   {
     tag: 'Praia do Rosa',
-    title: 'Terreno Vista Aberta',
-    price: 'R$ 1.450.000',
-    detail: '1.800m² · pronto pra construir',
-    img: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&q=80&auto=format&fit=crop',
+    title: 'Pousada no Centrinho do Rosa',
+    price: 'R$ 4.500.000',
+    detail: '789m² · estrutura completa · centro do Rosa',
+    img: 'https://imobiliariapraiadorosa.com.br/uploads/media/8db6e59e-18ac-4afa-80a2-b56cddaf4fd1-1678013341-800X500.jpg',
+  },
+  {
+    tag: 'Praia do Rosa',
+    title: 'Terreno Frente Lagoa',
+    price: 'R$ 6.999.999',
+    detail: '14.670m² · beira de lagoa · investimento',
+    img: 'https://imobiliariapraiadorosa.com.br/uploads/media/frente_lagoa_1-1678975080-800X500.jpg',
+  },
+  {
+    tag: 'Praia do Rosa',
+    title: 'Fina Pousada no Coração do Rosa',
+    price: 'R$ 3.500.000',
+    detail: '8 quartos · 9 banheiros · 475m² · 8 vagas',
+    img: 'https://imobiliariapraiadorosa.com.br/uploads/media/delmo_18-1709664039-800X500.jpg',
+  },
+  {
+    tag: 'Garopaba',
+    title: 'Casa a Poucos Metros do Mar',
+    price: 'R$ 5.000.000',
+    detail: '3 quartos · 4 banheiros · 292m² · 2 vagas',
+    img: 'https://imobiliariapraiadorosa.com.br/uploads/media/alan_25-1726514099-800X500.jpg',
   },
 ];
 
@@ -201,7 +201,7 @@ export default function App() {
           <header className="listings-header">
             <div className="label">Em destaque</div>
             <h2>Selecionados <em>a dedo</em></h2>
-            <p>Poucos clientes por vez. Cada imóvel visitado pessoalmente antes de entrar no catálogo.</p>
+            <p>Casas, terrenos, pousadas e apartamentos na Praia do Rosa, Garopaba e Imbituba. Cada imóvel visitado pessoalmente antes de entrar no catálogo.</p>
           </header>
 
           <div className="listings-grid">
@@ -221,19 +221,65 @@ export default function App() {
           </div>
 
           <div className="listings-cta">
-            <a className="ghost" href="#catalogo">Ver catálogo completo →</a>
+            <a className="ghost" href="/catalogo.html">Ver catálogo completo →</a>
           </div>
         </section>
 
-        <section className="cta-band">
+        {/* REGIÕES */}
+        <section className="listings" id="regioes">
+          <header className="listings-header">
+            <div className="label">Onde atendemos</div>
+            <h2>Região <em>do litoral sul</em></h2>
+            <p>Atuação concentrada na faixa entre Garopaba e Imbituba — Praia do Rosa, Ibiraquera, Ferrugem, Vigia, Campo Duna e arredores.</p>
+          </header>
+          <div className="listings-grid">
+            <article className="listing-card">
+              <div className="listing-body">
+                <div className="listing-tag">Praia do Rosa</div>
+                <h3>Casas, pousadas e terrenos</h3>
+                <div className="listing-detail">Coração turístico da região. Vista pra lagoa, mata e mar.</div>
+              </div>
+            </article>
+            <article className="listing-card">
+              <div className="listing-body">
+                <div className="listing-tag">Garopaba</div>
+                <h3>Frente mar e condomínios</h3>
+                <div className="listing-detail">Casas de praia, áreas para incorporação e oportunidades em condomínio.</div>
+              </div>
+            </article>
+            <article className="listing-card">
+              <div className="listing-body">
+                <div className="listing-tag">Ibiraquera · Imbituba</div>
+                <h3>Terrenos beira de lagoa</h3>
+                <div className="listing-detail">Lotes residenciais, áreas para loteamento e sítios estratégicos.</div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        {/* SOBRE */}
+        <section className="listings" id="sobre">
+          <header className="listings-header">
+            <div className="label">Sobre nós</div>
+            <h2>Plataforma de anúncios <em>com atendimento direto.</em></h2>
+            <p>Trabalhamos com ampla experiência na região e um portfólio variado: casas amplas, apartamentos com vista, pousadas em operação, sítios e terrenos pra investir, morar ou veranear. Igor Babolin é incorporador de condomínios logísticos retroportuários — a plataforma é focada na região da Praia do Rosa e Garopaba e trabalha com anúncios de parceiros corretores que buscam mais visibilidade pros seus produtos.</p>
+          </header>
+        </section>
+
+        <section className="cta-band" id="contato">
           <h2>Achou o seu? <em>Vamos visitar.</em></h2>
           <p>Atendimento direto pelo WhatsApp, sem corretor-robô no caminho.</p>
           <a className="primary" href="https://wa.me/554891493622" target="_blank" rel="noreferrer">Falar com Igor</a>
         </section>
 
         <footer className="site-footer">
-          <span>© Babolin Properties · CRECI 00000</span>
-          <span>Praia do Rosa · Imbituba · Santa Catarina</span>
+          <span>© Babolin Properties · Corretor de Imóveis CRECI-SC</span>
+          <span>Rua dos Pocianos · Ibiraquera · Praia do Rosa · Imbituba — SC</span>
+          <span>
+            <a href="https://wa.me/554891493622" target="_blank" rel="noreferrer">WhatsApp (48) 9149-3622</a>
+            {' · '}
+            <a href="https://www.instagram.com/imobiliariapdr/" target="_blank" rel="noreferrer">@imobiliariapdr</a>
+          </span>
         </footer>
       </div>
     </>
