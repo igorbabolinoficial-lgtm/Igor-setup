@@ -1,31 +1,7 @@
-import React, { useEffect, useRef, useState, Suspense, Component } from 'react';
+import React from 'react';
 import './App.css';
-import Showcase3D from './Showcase3D.jsx';
 
-class CanvasErrorBoundary extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { error: null };
-  }
-  static getDerivedStateFromError(error) {
-    return { error };
-  }
-  componentDidCatch(error, info) {
-    // eslint-disable-next-line no-console
-    console.error('[Showcase3D crash]', error, info);
-  }
-  render() {
-    if (this.state.error) {
-      return (
-        <div className="canvas-error">
-          <strong>3D não carregou:</strong>
-          <pre>{String(this.state.error?.message || this.state.error)}</pre>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
+const HERO_BG = 'https://imobiliariapraiadorosa.com.br/uploads/banner/PRAIA_DO_ROSA_ART-61-1677729629.jpg';
 
 const LISTINGS = [
   {
@@ -78,63 +54,21 @@ const LISTINGS = [
   },
 ];
 
-/* Progresso global da página (0 = topo, 1 = fim do scroll). Sem trava nem hero spacer. */
-function useGlobalScroll() {
-  const scrollRef = useRef(0);
-
-  useEffect(() => {
-    let raf = 0;
-    const update = () => {
-      const doc = document.documentElement;
-      const total = doc.scrollHeight - window.innerHeight;
-      const scrolled = window.scrollY || doc.scrollTop || 0;
-      scrollRef.current = total > 0 ? Math.max(0, Math.min(1, scrolled / total)) : 0;
-    };
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => { raf = 0; update(); });
-    };
-    update();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
-
-  return scrollRef;
-}
-
-function useEnvironmentFlags() {
-  const [flags, setFlags] = useState({ mobile: false });
-  useEffect(() => {
-    const mobileMq = window.matchMedia('(max-width: 768px)');
-    const update = () => setFlags({ mobile: mobileMq.matches });
-    update();
-    mobileMq.addEventListener('change', update);
-    return () => mobileMq.removeEventListener('change', update);
-  }, []);
-  return flags;
-}
-
 export default function App() {
-  const scrollRef = useGlobalScroll();
-  const { mobile } = useEnvironmentFlags();
-  const quality = mobile ? 'lite' : 'hi';
-
   return (
     <>
-      {/* CANVAS DE FUNDO — fixo, recebe o scroll global da página inteira */}
-      <div className="bg-canvas" aria-hidden>
-        <div className="canvas-wrap">
-          <CanvasErrorBoundary>
-            <Suspense fallback={<div className="bg-fallback" />}>
-              <Showcase3D scrollRef={scrollRef} quality={quality} />
-            </Suspense>
-          </CanvasErrorBoundary>
-        </div>
+      {/* HERO BACKGROUND — imagem fixa estilo banner do site antigo */}
+      <div
+        className="bg-canvas"
+        aria-hidden
+        style={{
+          backgroundImage: `url(${HERO_BG})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundColor: '#1a1a1a',
+        }}
+      >
         <div className="bg-veil" />
       </div>
 
