@@ -144,7 +144,7 @@ export default function App() {
             <a href="#sobre">Sobre</a>
             <a href="#contato">Contato</a>
           </nav>
-          <a className="cta" href="https://wa.me/5548999999999" target="_blank" rel="noreferrer">
+          <a className="cta" href="https://wa.me/554891493622" target="_blank" rel="noreferrer">
             Falar no WhatsApp
           </a>
         </header>
@@ -228,7 +228,7 @@ export default function App() {
         <section className="cta-band">
           <h2>Achou o seu? <em>Vamos visitar.</em></h2>
           <p>Atendimento direto pelo WhatsApp, sem corretor-robô no caminho.</p>
-          <a className="primary" href="https://wa.me/5548999999999" target="_blank" rel="noreferrer">Falar com Igor</a>
+          <a className="primary" href="https://wa.me/554891493622" target="_blank" rel="noreferrer">Falar com Igor</a>
         </section>
 
         <footer className="site-footer">
