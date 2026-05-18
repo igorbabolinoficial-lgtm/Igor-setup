@@ -246,4 +246,36 @@ router.get('/migrar/status', (_req, res) => {
     });
 });
 
+// Sanitiza descricoes dos imoveis substituindo telefones/contatos do site original
+// pelos do Igor. Roda em massa contra todas as descricoes existentes.
+router.post('/sanitizar-descricoes', (_req, res) => {
+    const fones = [
+        /\+?55[\s.\-]?\(?48\)?[\s.\-]?9\s?9145[\s.\-]?0077/g,
+        /\(?48\)?[\s.\-]?9\s?9145[\s.\-]?0077/g,
+        /9\s?9145[\s.\-]?0077/g,
+        /48991450077/g,
+        /5548991450077/g,
+    ];
+    const FONE_NOVO = '(48) 9149-3622';
+    const emailAntigo = /contato@imobiliariapraiadorosa\.com\.br/gi;
+    const EMAIL_NOVO = 'contato@babolin.tech';
+
+    const linhas = db.prepare('SELECT id, descricao FROM imoveis WHERE descricao IS NOT NULL').all();
+    let alteradas = 0;
+    const upd = db.prepare('UPDATE imoveis SET descricao = ? WHERE id = ?');
+    const tx = db.transaction(() => {
+        for (const l of linhas) {
+            let nova = l.descricao;
+            for (const r of fones) nova = nova.replace(r, FONE_NOVO);
+            nova = nova.replace(emailAntigo, EMAIL_NOVO);
+            if (nova !== l.descricao) {
+                upd.run(nova, l.id);
+                alteradas++;
+            }
+        }
+    });
+    tx();
+    res.json({ ok: true, total: linhas.length, alteradas });
+});
+
 module.exports = router;

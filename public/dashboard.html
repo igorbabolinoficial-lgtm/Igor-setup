@@ -757,6 +757,7 @@
         <div id="imoveis" class="panel">
             <div class="controls" style="margin-bottom: 18px;">
                 <button class="btn-elite" id="btnMigrar" onclick="dispararMigracao()" title="Importa imóveis do site da imobiliária + baixa fotos">↻ Migrar catálogo do site</button>
+                <button class="btn-elite" id="btnSanitizar" onclick="sanitizarDescricoes()" style="margin-left: 8px;" title="Substitui telefones/emails da concorrência nas descrições dos imóveis">🧹 Limpar contatos antigos</button>
                 <span id="migrarStatus" style="font-size: 0.8rem; color: var(--text-muted); margin-left: 12px;"></span>
             </div>
             <div class="filtros-imoveis">
@@ -801,6 +802,26 @@
                     btn.disabled = false;
                     btn.textContent = '↻ Migrar catálogo do site';
                     status.textContent = '✗ Erro: ' + e.message;
+                }
+            }
+
+            async function sanitizarDescricoes() {
+                const btn = document.getElementById('btnSanitizar');
+                const status = document.getElementById('migrarStatus');
+                if (!confirm('Vai substituir telefones (48) 99145-0077 e emails do imobiliariapraiadorosa.com.br nas descrições dos imóveis pelos do Igor. Continuar?')) return;
+                btn.disabled = true;
+                btn.textContent = 'Limpando…';
+                try {
+                    const r = await fetch('/api/sistema/sanitizar-descricoes', { method: 'POST' });
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    const j = await r.json();
+                    status.textContent = `✓ ${j.alteradas} de ${j.total} imóveis atualizados`;
+                    if (typeof carregarImoveis === 'function') carregarImoveis();
+                } catch (e) {
+                    status.textContent = '✗ Erro: ' + e.message;
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = '🧹 Limpar contatos antigos';
                 }
             }
         </script>

@@ -44,6 +44,23 @@ function decodeEnts(s) {
     return (s || '').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
 }
 
+// Remove referencias ao contato do site original (concorrente). Mantemos o texto descritivo,
+// trocando telefones/emails pelos do Igor pra evitar que cliente do babolin.tech ligue pra outro corretor.
+function sanitizarTexto(s) {
+    if (!s) return s;
+    const fones = [
+        /\+?55[\s.\-]?\(?48\)?[\s.\-]?9\s?9145[\s.\-]?0077/g,
+        /\(?48\)?[\s.\-]?9\s?9145[\s.\-]?0077/g,
+        /9\s?9145[\s.\-]?0077/g,
+        /48991450077/g,
+        /5548991450077/g,
+    ];
+    let t = s;
+    for (const r of fones) t = t.replace(r, '(48) 9149-3622');
+    t = t.replace(/contato@imobiliariapraiadorosa\.com\.br/gi, 'contato@babolin.tech');
+    return t;
+}
+
 function parsePreco(texto) {
     if (!texto) return null;
     let limpo = texto.replace(/[^\d.,]/g, '');
@@ -70,7 +87,9 @@ function parsePropriedade(html, urlOrigem) {
     const precoBruto = decodeEnts($('.price-block-btn').first().text().trim());
     const preco = parsePreco(precoBruto);
 
-    const descricao = $('.prop_desc').text().trim().replace(/\s+/g, ' ').slice(0, 4000);
+    const descricao = sanitizarTexto(
+        $('.prop_desc').text().trim().replace(/\s+/g, ' ').slice(0, 4000)
+    );
 
     // Fotos: tudo de /uploads/media/ exceto LOGO/logo, deduplicado
     const fotosUrlsSet = new Set();
