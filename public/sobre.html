@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sobre — Igor Babolin Imobiliária</title>
+    <meta name="description" content="Plataforma de imóveis na Praia do Rosa, Garopaba e Imbituba. Atendimento direto, sem corretor-robô.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #FAF8F5; --surface: #FFFFFF; --accent: #A39688; --accent-dark: #7d6f5e;
+            --text: #1A1A1A; --text-muted: #666; --border: rgba(0,0,0,0.08);
+            --transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); --shadow: 0 10px 40px rgba(0,0,0,0.08);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter Tight', sans-serif; line-height: 1.65; }
+        h1, h2, h3 { font-family: 'Playfair Display', serif; font-weight: 400; line-height: 1.15; letter-spacing: -0.01em; }
+        a { color: inherit; text-decoration: none; }
+        header { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
+        .nav { max-width: 1280px; margin: 0 auto; padding: 22px 40px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-family: 'Playfair Display', serif; font-size: 1.3rem; letter-spacing: 0.08em; }
+        .logo span { color: var(--accent); font-style: italic; }
+        nav ul { display: flex; gap: 36px; list-style: none; font-size: 0.9rem; }
+        nav a:hover { color: var(--accent); }
+        .btn-wpp { background: #25D366; color: #fff; padding: 10px 22px; border-radius: 30px; font-size: 0.85rem; font-weight: 500; transition: var(--transition); }
+        .btn-wpp:hover { background: #1da050; }
+
+        .pagina { max-width: 880px; margin: 0 auto; padding: 160px 40px 80px; }
+        .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--accent); margin-bottom: 16px; display: block; }
+        h1.titulo { font-size: 3.2rem; margin-bottom: 30px; }
+        h1.titulo em { color: var(--accent); font-style: italic; }
+        .lead { font-size: 1.2rem; color: var(--text-muted); margin-bottom: 50px; line-height: 1.55; }
+        .texto p { margin-bottom: 22px; font-size: 1.02rem; color: var(--text-muted); }
+        .texto strong { color: var(--text); font-weight: 500; }
+        .pilares { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin: 60px 0; }
+        .pilar { background: var(--surface); padding: 30px 26px; border-radius: 8px; box-shadow: var(--shadow); }
+        .pilar h3 { font-size: 1.2rem; margin-bottom: 10px; color: var(--accent); }
+        .pilar p { font-size: 0.92rem; color: var(--text-muted); }
+
+        .cta-band { background: var(--accent); color: #fff; padding: 70px 40px; text-align: center; margin-top: 60px; border-radius: 8px; }
+        .cta-band h2 { font-size: 2.2rem; margin-bottom: 14px; }
+        .cta-band h2 em { font-style: italic; }
+        .cta-band p { max-width: 540px; margin: 0 auto 28px; opacity: 0.92; }
+        .cta-band .btn-cta { background: #fff; color: var(--accent); padding: 14px 36px; border-radius: 30px; font-weight: 600; display: inline-block; transition: var(--transition); }
+        .cta-band .btn-cta:hover { background: var(--text); color: #fff; }
+
+        footer { padding: 50px 40px 30px; background: var(--text); color: rgba(255,255,255,0.7); margin-top: 60px; }
+        .footer-grid { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 50px; padding-bottom: 36px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .footer-grid h4 { font-family: 'Playfair Display', serif; font-size: 1rem; color: #fff; margin-bottom: 18px; font-weight: 600; }
+        .footer-grid a, .footer-grid p { display: block; font-size: 0.85rem; padding: 4px 0; }
+        .footer-grid a:hover { color: var(--accent); }
+        .copyright { max-width: 1280px; margin: 24px auto 0; font-size: 0.75rem; opacity: 0.5; text-align: center; }
+
+        @media (max-width: 800px) {
+            h1.titulo { font-size: 2.2rem; }
+            .pilares { grid-template-columns: 1fr; }
+            nav ul { display: none; }
+            .footer-grid { grid-template-columns: 1fr; gap: 30px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="nav">
+            <a href="/" class="logo">IGOR BABOLIN <span>imobiliária</span></a>
+            <ul>
+                <li><a href="/catalogo.html">Imóveis</a></li>
+                <li><a href="/sobre.html">Sobre</a></li>
+                <li><a href="/contato.html">Contato</a></li>
+            </ul>
+            <a class="btn-wpp" href="https://wa.me/554891493622" target="_blank">WhatsApp</a>
+        </div>
+    </header>
+
+    <main class="pagina">
+        <span class="label">Sobre nós</span>
+        <h1 class="titulo">Curadoria de imóveis <em>na Praia do Rosa.</em></h1>
+        <p class="lead">Plataforma de anúncios focada no litoral sul de Santa Catarina, com atendimento personalizado e portfólio variado entre Garopaba, Praia do Rosa e Imbituba.</p>
+
+        <div class="texto">
+            <p>Trabalhamos com <strong>ampla experiência na região</strong> e profundo conhecimento de cada bairro — desde o coração da Praia do Rosa até as ofertas em Ibiraquera, Ferrugem, Vigia e Campo Duna. Cada imóvel anunciado no nosso catálogo passa por curadoria antes de entrar.</p>
+
+            <p>Igor Babolin é incorporador de condomínios logísticos retroportuários. A plataforma é focada na região da Praia do Rosa e Garopaba e trabalha com anúncios de <strong>parceiros corretores</strong> que buscam mais visibilidade pros seus produtos — sem intermediários robotizados no caminho.</p>
+
+            <p>Se você está procurando um lugar pra investir, morar ou passar as férias, temos a opção certa. No portfólio tem casas amplas e confortáveis, apartamentos aconchegantes com vista pro mar, pousadas em operação, sítios e terrenos estratégicos pra construir ou incorporar.</p>
+        </div>
+
+        <div class="pilares">
+            <div class="pilar">
+                <h3>Atendimento direto</h3>
+                <p>WhatsApp em uma linha, sem URA, sem corretor-robô. O Igor responde.</p>
+            </div>
+            <div class="pilar">
+                <h3>Conhecimento de região</h3>
+                <p>Praia do Rosa, Garopaba, Imbituba, Ibiraquera, Ferrugem, Vigia e Campo Duna.</p>
+            </div>
+            <div class="pilar">
+                <h3>Portfólio variado</h3>
+                <p>Casas, apartamentos, pousadas, sítios, terrenos pra venda, locação e temporada.</p>
+            </div>
+        </div>
+
+        <div class="cta-band">
+            <h2>Achou o seu? <em>Vamos visitar.</em></h2>
+            <p>Atendimento direto pelo WhatsApp ou agende uma visita pelo formulário.</p>
+            <a class="btn-cta" href="https://wa.me/554891493622" target="_blank">Falar com Igor</a>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-grid">
+            <div>
+                <div class="logo" style="color: #fff; margin-bottom: 16px;">IGOR BABOLIN <span>imobiliária</span></div>
+                <p>Curadoria de imóveis na Praia do Rosa, Garopaba e Imbituba.</p>
+                <p>Rua dos Pocianos · Ibiraquera · Imbituba — SC</p>
+            </div>
+            <div>
+                <h4>Navegação</h4>
+                <a href="/">Home</a>
+                <a href="/catalogo.html">Imóveis</a>
+                <a href="/sobre.html">Sobre</a>
+                <a href="/contato.html">Contato</a>
+            </div>
+            <div>
+                <h4>Contato</h4>
+                <a href="https://wa.me/554891493622" target="_blank">WhatsApp (48) 9149-3622</a>
+                <a href="https://www.instagram.com/imobiliariapdr/" target="_blank">@imobiliariapdr</a>
+            </div>
+        </div>
+        <div class="copyright">© Babolin Properties · Corretor de Imóveis CRECI-SC</div>
+    </footer>
+</body>
+</html>

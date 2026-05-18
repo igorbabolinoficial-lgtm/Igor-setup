@@ -54,6 +54,10 @@ function eRotaPublica(pathname, method) {
     if (pathname === '/' || pathname === '/index.html') return true;
     if (pathname === '/login.html') return true;
     if (pathname === '/catalogo.html') return true;  // catálogo antigo do Igor preservado
+    if (pathname === '/imovel.html') return true;
+    if (pathname === '/sobre.html') return true;
+    if (pathname === '/contato.html') return true;
+    if (pathname === '/api/contato' && method === 'POST') return true;
     if (pathname.startsWith('/api/auth/')) return true;
     if (pathname.startsWith('/api/ai/publica')) return true;
     if (pathname === '/api/saude') return true;
@@ -184,6 +188,26 @@ app.use('/api/voz',         vozRoutes);
 app.use('/api/skills',      skillsRoutes);
 
 app.get('/api/saude', (_req, res) => res.json({ ok: true, projeto: 'igor-neural-system', versao: '0.1.0' }));
+
+// Formulario publico de contato (pagina /contato.html). Cria lead no funil.
+app.post('/api/contato', (req, res) => {
+    const { nome, telefone, email, interesse, mensagem } = req.body || {};
+    if (!nome || !telefone) return res.status(400).json({ erro: 'nome e telefone obrigatorios' });
+    const { db, uid, registrarLog } = require('./db');
+    const id = uid('lead');
+    const interesseTexto = interesse || 'site_contato';
+    const notas = mensagem || null;
+    db.prepare(`
+        INSERT INTO leads (id, nome, interesse, telefone, email, origem, score_ia, notas)
+        VALUES (?, ?, ?, ?, ?, 'site_contato', 0, ?)
+    `).run(id, nome, interesseTexto, telefone, email || null, notas);
+    registrarLog({
+        agente: 'sdr', nivel: 'info',
+        mensagem: `Novo contato pelo site: ${nome}`,
+        contexto: { lead_id: id, interesse: interesseTexto }
+    });
+    res.json({ ok: true, lead_id: id });
+});
 
 app.use((err, _req, res, _next) => {
     console.error('[neural] erro:', err);

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contato — Igor Babolin Imobiliária</title>
+    <meta name="description" content="Fale com o Igor Babolin: WhatsApp, formulário, endereço em Ibiraquera.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #FAF8F5; --surface: #FFFFFF; --accent: #A39688; --accent-dark: #7d6f5e;
+            --text: #1A1A1A; --text-muted: #666; --border: rgba(0,0,0,0.08);
+            --transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); --shadow: 0 10px 40px rgba(0,0,0,0.08);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter Tight', sans-serif; line-height: 1.6; }
+        h1, h2, h3 { font-family: 'Playfair Display', serif; font-weight: 400; line-height: 1.15; letter-spacing: -0.01em; }
+        a { color: inherit; text-decoration: none; }
+        header { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
+        .nav { max-width: 1280px; margin: 0 auto; padding: 22px 40px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-family: 'Playfair Display', serif; font-size: 1.3rem; letter-spacing: 0.08em; }
+        .logo span { color: var(--accent); font-style: italic; }
+        nav ul { display: flex; gap: 36px; list-style: none; font-size: 0.9rem; }
+        nav a:hover { color: var(--accent); }
+        .btn-wpp { background: #25D366; color: #fff; padding: 10px 22px; border-radius: 30px; font-size: 0.85rem; font-weight: 500; transition: var(--transition); }
+        .btn-wpp:hover { background: #1da050; }
+
+        .pagina { max-width: 1180px; margin: 0 auto; padding: 150px 40px 80px; }
+        .header-pagina { margin-bottom: 50px; }
+        .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--accent); margin-bottom: 16px; display: block; }
+        h1.titulo { font-size: 3rem; margin-bottom: 18px; }
+        h1.titulo em { color: var(--accent); font-style: italic; }
+        .sub { font-size: 1.05rem; color: var(--text-muted); max-width: 620px; }
+
+        .contato-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 60px; align-items: start; }
+
+        form { background: var(--surface); padding: 40px 36px; border-radius: 8px; box-shadow: var(--shadow); }
+        .campo { margin-bottom: 20px; }
+        .campo label { display: block; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 8px; }
+        .campo input, .campo textarea, .campo select { width: 100%; background: var(--bg); border: 1px solid var(--border); padding: 14px 16px; border-radius: 6px; font-family: inherit; font-size: 0.95rem; color: var(--text); outline: none; transition: var(--transition); }
+        .campo input:focus, .campo textarea:focus, .campo select:focus { border-color: var(--accent); background: var(--surface); }
+        .campo textarea { min-height: 120px; resize: vertical; }
+        .submit { width: 100%; background: var(--accent); color: #fff; border: none; padding: 16px 24px; border-radius: 6px; font-family: inherit; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: var(--transition); letter-spacing: 0.05em; text-transform: uppercase; }
+        .submit:hover { background: var(--accent-dark); }
+        .submit:disabled { opacity: 0.5; cursor: not-allowed; }
+        .feedback { padding: 14px 18px; border-radius: 6px; margin-bottom: 18px; font-size: 0.9rem; display: none; }
+        .feedback.show { display: block; }
+        .feedback.sucesso { background: #e3f5e3; color: #2d5a2d; }
+        .feedback.erro { background: #fae6e6; color: #8a2c2c; }
+
+        .info-lateral { padding-top: 8px; }
+        .info-item { background: var(--surface); padding: 24px 28px; border-radius: 8px; box-shadow: var(--shadow); margin-bottom: 16px; }
+        .info-item h3 { font-size: 1.15rem; margin-bottom: 6px; }
+        .info-item p, .info-item a { font-size: 0.95rem; color: var(--text-muted); display: block; padding: 2px 0; }
+        .info-item a:hover { color: var(--accent); }
+        .info-item .icon { font-size: 1.4rem; margin-bottom: 8px; }
+
+        footer { padding: 50px 40px 30px; background: var(--text); color: rgba(255,255,255,0.7); margin-top: 60px; }
+        .footer-grid { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 50px; padding-bottom: 36px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .footer-grid h4 { font-family: 'Playfair Display', serif; font-size: 1rem; color: #fff; margin-bottom: 18px; font-weight: 600; }
+        .footer-grid a, .footer-grid p { display: block; font-size: 0.85rem; padding: 4px 0; }
+        .footer-grid a:hover { color: var(--accent); }
+        .copyright { max-width: 1280px; margin: 24px auto 0; font-size: 0.75rem; opacity: 0.5; text-align: center; }
+
+        @media (max-width: 800px) {
+            h1.titulo { font-size: 2rem; }
+            .contato-grid { grid-template-columns: 1fr; gap: 30px; }
+            nav ul { display: none; }
+            .footer-grid { grid-template-columns: 1fr; gap: 30px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="nav">
+            <a href="/" class="logo">IGOR BABOLIN <span>imobiliária</span></a>
+            <ul>
+                <li><a href="/catalogo.html">Imóveis</a></li>
+                <li><a href="/sobre.html">Sobre</a></li>
+                <li><a href="/contato.html">Contato</a></li>
+            </ul>
+            <a class="btn-wpp" href="https://wa.me/554891493622" target="_blank">WhatsApp</a>
+        </div>
+    </header>
+
+    <main class="pagina">
+        <div class="header-pagina">
+            <span class="label">Contato</span>
+            <h1 class="titulo">Vamos <em>conversar.</em></h1>
+            <p class="sub">Pelo WhatsApp, formulário ou venha tomar um café no escritório em Ibiraquera. Sem corretor-robô no caminho.</p>
+        </div>
+
+        <div class="contato-grid">
+            <form id="formContato" onsubmit="enviar(event)">
+                <div id="feedback" class="feedback"></div>
+
+                <div class="campo">
+                    <label for="nome">Nome *</label>
+                    <input type="text" id="nome" name="nome" required>
+                </div>
+                <div class="campo">
+                    <label for="telefone">WhatsApp / Telefone *</label>
+                    <input type="text" id="telefone" name="telefone" required placeholder="(48) 9 ____-____">
+                </div>
+                <div class="campo">
+                    <label for="email">E-mail</label>
+                    <input type="email" id="email" name="email">
+                </div>
+                <div class="campo">
+                    <label for="interesse">Interesse</label>
+                    <select id="interesse" name="interesse">
+                        <option value="">Selecione…</option>
+                        <option value="comprar">Comprar imóvel</option>
+                        <option value="alugar">Alugar imóvel</option>
+                        <option value="temporada">Temporada</option>
+                        <option value="vender">Vender meu imóvel</option>
+                        <option value="incorporar">Incorporação / loteamento</option>
+                        <option value="outro">Outro</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <label for="mensagem">Mensagem</label>
+                    <textarea id="mensagem" name="mensagem" placeholder="Sobre qual imóvel? Qual região tem em mente? Qual o orçamento?"></textarea>
+                </div>
+                <button type="submit" class="submit" id="btnEnviar">Enviar mensagem</button>
+            </form>
+
+            <aside class="info-lateral">
+                <div class="info-item">
+                    <div class="icon">💬</div>
+                    <h3>WhatsApp</h3>
+                    <a href="https://wa.me/554891493622" target="_blank">(48) 9149-3622</a>
+                    <p style="font-size: 0.82rem; margin-top: 4px;">Resposta direta, sem URA.</p>
+                </div>
+                <div class="info-item">
+                    <div class="icon">📍</div>
+                    <h3>Escritório</h3>
+                    <p>Rua dos Pocianos</p>
+                    <p>Ibiraquera · Praia do Rosa</p>
+                    <p>Imbituba — SC</p>
+                </div>
+                <div class="info-item">
+                    <div class="icon">📷</div>
+                    <h3>Instagram</h3>
+                    <a href="https://www.instagram.com/imobiliariapdr/" target="_blank">@imobiliariapdr</a>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-grid">
+            <div>
+                <div class="logo" style="color: #fff; margin-bottom: 16px;">IGOR BABOLIN <span>imobiliária</span></div>
+                <p>Curadoria de imóveis na Praia do Rosa, Garopaba e Imbituba.</p>
+                <p>Rua dos Pocianos · Ibiraquera · Imbituba — SC</p>
+            </div>
+            <div>
+                <h4>Navegação</h4>
+                <a href="/">Home</a>
+                <a href="/catalogo.html">Imóveis</a>
+                <a href="/sobre.html">Sobre</a>
+                <a href="/contato.html">Contato</a>
+            </div>
+            <div>
+                <h4>Contato</h4>
+                <a href="https://wa.me/554891493622" target="_blank">WhatsApp (48) 9149-3622</a>
+                <a href="https://www.instagram.com/imobiliariapdr/" target="_blank">@imobiliariapdr</a>
+            </div>
+        </div>
+        <div class="copyright">© Babolin Properties · Corretor de Imóveis CRECI-SC</div>
+    </footer>
+
+    <script>
+        // Pré-preenche se veio de "Agendar visita" da página de imóvel
+        const params = new URLSearchParams(location.search);
+        if (params.get('imovel')) {
+            document.getElementById('mensagem').value = `Tenho interesse em agendar visita ao imóvel: ${params.get('imovel')}`;
+            document.getElementById('interesse').value = 'comprar';
+        }
+
+        async function enviar(e) {
+            e.preventDefault();
+            const fb = document.getElementById('feedback');
+            const btn = document.getElementById('btnEnviar');
+            fb.classList.remove('show', 'sucesso', 'erro');
+
+            const dados = {
+                nome: document.getElementById('nome').value.trim(),
+                telefone: document.getElementById('telefone').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                interesse: document.getElementById('interesse').value,
+                mensagem: document.getElementById('mensagem').value.trim(),
+            };
+
+            btn.disabled = true;
+            btn.textContent = 'Enviando…';
+
+            try {
+                const r = await fetch('/api/contato', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dados),
+                });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                fb.textContent = '✓ Mensagem enviada. O Igor entrará em contato em breve.';
+                fb.classList.add('show', 'sucesso');
+                document.getElementById('formContato').reset();
+            } catch (err) {
+                fb.textContent = '✗ Erro ao enviar. Tente pelo WhatsApp direto.';
+                fb.classList.add('show', 'erro');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Enviar mensagem';
+            }
+        }
+    </script>
+</body>
+</html>

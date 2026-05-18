@@ -34,6 +34,7 @@ const LISTINGS = [
     price: 'R$ 3.700.000',
     detail: '4 quartos · 5 banheiros · 230m² · 2 vagas',
     img: 'https://imobiliariapraiadorosa.com.br/uploads/media/fremar_2-1718647562-800X500.jpg',
+    link: '/catalogo.html?q=Casa+Frente+Mar',
   },
   {
     tag: 'Garopaba',
@@ -41,6 +42,7 @@ const LISTINGS = [
     price: 'R$ 4.800.000',
     detail: '4 quartos · 4 banheiros · 249m² · 2 vagas',
     img: 'https://imobiliariapraiadorosa.com.br/uploads/media/guga_11-1758540093-800X500.jfif',
+    link: '/catalogo.html?q=Casa+Exclusiva+com+Vista+Total',
   },
   {
     tag: 'Praia do Rosa',
@@ -48,6 +50,7 @@ const LISTINGS = [
     price: 'R$ 4.500.000',
     detail: '789m² · estrutura completa · centro do Rosa',
     img: 'https://imobiliariapraiadorosa.com.br/uploads/media/8db6e59e-18ac-4afa-80a2-b56cddaf4fd1-1678013341-800X500.jpg',
+    link: '/catalogo.html?q=Pousa+Incrivel+no+Centrinho',
   },
   {
     tag: 'Praia do Rosa',
@@ -55,6 +58,7 @@ const LISTINGS = [
     price: 'R$ 6.999.999',
     detail: '14.670m² · beira de lagoa · investimento',
     img: 'https://imobiliariapraiadorosa.com.br/uploads/media/frente_lagoa_1-1678975080-800X500.jpg',
+    link: '/catalogo.html?q=Terreno+Frente+Lagoa',
   },
   {
     tag: 'Praia do Rosa',
@@ -62,6 +66,7 @@ const LISTINGS = [
     price: 'R$ 3.500.000',
     detail: '8 quartos · 9 banheiros · 475m² · 8 vagas',
     img: 'https://imobiliariapraiadorosa.com.br/uploads/media/delmo_18-1709664039-800X500.jpg',
+    link: '/catalogo.html?q=Fina+Pousada',
   },
   {
     tag: 'Garopaba',
@@ -69,6 +74,7 @@ const LISTINGS = [
     price: 'R$ 5.000.000',
     detail: '3 quartos · 4 banheiros · 292m² · 2 vagas',
     img: 'https://imobiliariapraiadorosa.com.br/uploads/media/alan_25-1726514099-800X500.jpg',
+    link: '/catalogo.html?q=Casa+em+Garopaba+a+poucos',
   },
 ];
 
@@ -139,10 +145,10 @@ export default function App() {
             <small>Properties</small>
           </div>
           <nav>
-            <a href="#imoveis">Imóveis</a>
+            <a href="/catalogo.html">Imóveis</a>
             <a href="#regioes">Regiões</a>
-            <a href="#sobre">Sobre</a>
-            <a href="#contato">Contato</a>
+            <a href="/sobre.html">Sobre</a>
+            <a href="/contato.html">Contato</a>
           </nav>
           <a className="cta" href="https://wa.me/554891493622" target="_blank" rel="noreferrer">
             Falar no WhatsApp
@@ -206,7 +212,7 @@ export default function App() {
 
           <div className="listings-grid">
             {LISTINGS.map((item, i) => (
-              <article key={i} className="listing-card">
+              <a key={i} className="listing-card" href={item.link}>
                 <div className="listing-img">
                   <img src={item.img} alt={item.title} loading="lazy" />
                 </div>
@@ -216,7 +222,7 @@ export default function App() {
                   <div className="listing-detail">{item.detail}</div>
                   <div className="listing-price">{item.price}</div>
                 </div>
-              </article>
+              </a>
             ))}
           </div>
 

@@ -410,7 +410,8 @@
                 $('heroImg').src = destaque.fotos[0];
                 $('heroTitulo').textContent = destaque.titulo;
                 $('heroPreco').textContent = fmtBRL(destaque.preco);
-                $('heroImage').onclick = () => abrirLB(destaque.id);
+                $('heroImage').style.cursor = 'pointer';
+                $('heroImage').onclick = () => location.href = `/imovel.html?id=${destaque.id}`;
             }
         }
 
@@ -422,9 +423,9 @@
                 return;
             }
             imoveis.forEach(im => {
-                const card = document.createElement('div');
+                const card = document.createElement('a');
                 card.className = 'card';
-                card.onclick = () => abrirLB(im.id);
+                card.href = `/imovel.html?id=${im.id}`;
                 const capa = (im.fotos && im.fotos[0]) || '';
                 card.innerHTML = `
                     <div class="card-foto">
