@@ -15,6 +15,8 @@ const cheerio = require('cheerio');
 const { db, registrarLog } = require('./db');
 
 const SITEMAP    = 'http://imobiliariapraiadorosa.com.br/sitemap.xml';
+// Fallback usado quando o sitemap está desatualizado (caso real: 48 URLs no XML vs 156 na pagina).
+const LISTAGEM   = 'https://imobiliariapraiadorosa.com.br/property';
 // Em prod: ASSETS_DIR=/data/assets/imoveis (volume Coolify, persiste entre redeploys).
 // Em dev: fallback pra public/assets/imoveis (caminho local antigo).
 const ASSETS_DIR = process.env.ASSETS_DIR || path.join(__dirname, 'public', 'assets', 'imoveis');
@@ -108,6 +110,29 @@ function ehHomepage(html) {
     return !html.includes('property_slider');
 }
 
+// Lê URLs de imóveis combinando sitemap.xml (rápido) + listagem /property (cobre o gap quando o sitemap está desatualizado).
+async function coletarUrls() {
+    const set = new Set();
+    try {
+        const { html: xml } = await buscar(SITEMAP);
+        [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)]
+            .map(m => m[1].trim())
+            .filter(u => /\/property\/.+~\d+/.test(u))
+            .forEach(u => set.add(u.replace(/^http:\/\//, 'https://')));
+    } catch (e) {
+        console.warn('[migrator] sitemap falhou:', e.message);
+    }
+    try {
+        const { html } = await buscar(LISTAGEM);
+        [...html.matchAll(/href="(https?:\/\/imobiliariapraiadorosa\.com\.br\/property\/[^"]+~\d+)"/g)]
+            .map(m => m[1])
+            .forEach(u => set.add(u.replace(/^http:\/\//, 'https://')));
+    } catch (e) {
+        console.warn('[migrator] listagem falhou:', e.message);
+    }
+    return [...set];
+}
+
 async function migrarImovel(url, log, opts = {}) {
     const { html, status } = await buscar(url);
     if (status !== 200) { log.pulados.push({ url, motivo: `HTTP ${status}` }); return; }
@@ -182,11 +207,8 @@ async function main() {
     if (!dry) fs.mkdirSync(ASSETS_DIR, { recursive: true });
     if (skipExistentes) console.log('[migrator] modo rápido: pulando fotos já baixadas');
 
-    console.log(`[migrator] Lendo sitemap: ${SITEMAP}`);
-    const { html: xml } = await buscar(SITEMAP);
-    let urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)]
-        .map(m => m[1].trim())
-        .filter(u => /\/property\/.+~\d+/.test(u));
+    console.log(`[migrator] Coletando URLs (sitemap + listagem)`);
+    let urls = await coletarUrls();
 
     console.log(`[migrator] ${urls.length} URLs de imóvel detectadas`);
     urls = urls.slice(0, max);
@@ -237,10 +259,7 @@ async function main() {
 
 async function migrarTudo({ skipExistentes = true } = {}) {
     fs.mkdirSync(ASSETS_DIR, { recursive: true });
-    const { html: xml } = await buscar(SITEMAP);
-    const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)]
-        .map(m => m[1].trim())
-        .filter(u => /\/property\/.+~\d+/.test(u));
+    const urls = await coletarUrls();
     const log = { sucesso: [], pulados: [], fotosErr: [] };
     for (const url of urls) {
         try { await migrarImovel(url, log, { skipExistentes }); }
