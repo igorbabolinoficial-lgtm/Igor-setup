@@ -213,7 +213,7 @@ export default function App() {
         </section>
 
         <footer className="site-footer">
-          <span>© Babolin Properties · Corretor de Imóveis CRECI-SC</span>
+          <span>© Igor Babolin · Corretor de Imóveis CRECI-SC 55601</span>
           <span>Rua dos Pocianos · Ibiraquera · Praia do Rosa · Imbituba — SC</span>
           <span>
             <a href="https://wa.me/554891493622" target="_blank" rel="noreferrer">WhatsApp (48) 9149-3622</a>
