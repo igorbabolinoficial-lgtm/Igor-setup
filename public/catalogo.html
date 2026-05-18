@@ -502,10 +502,21 @@
         }
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharLB(); });
 
-        // boot
+        // boot — aceita query string da URL (ex: /catalogo.html?q=Casa+Frente+Mar vindo do home)
         (async () => {
             await carregarStats();
-            await carregarImoveis();
+            const urlParams = new URLSearchParams(location.search);
+            const q = urlParams.get('q');
+            const tipo = urlParams.get('tipo');
+            const bairro = urlParams.get('bairro');
+            if (q)      $('fBusca').value = q;
+            if (tipo)   $('fTipo').value = tipo;
+            if (bairro) $('fBairro').value = bairro;
+            if (q || tipo || bairro) {
+                filtrar();
+            } else {
+                await carregarImoveis();
+            }
         })();
     </script>
 </body>

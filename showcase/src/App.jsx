@@ -1,7 +1,7 @@
 import React from 'react';
 import './App.css';
 
-const HERO_BG = 'https://imobiliariapraiadorosa.com.br/uploads/banner/PRAIA_DO_ROSA_ART-61-1677729629.jpg';
+const HERO_BG = '/assets/hero.jpg';
 
 const LISTINGS = [
   {
