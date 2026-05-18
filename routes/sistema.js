@@ -246,6 +246,62 @@ router.get('/migrar/status', (_req, res) => {
     });
 });
 
+// Re-baixa apenas as descricoes (texto) dos imoveis ja importados, preservando paragrafos.
+// Nao mexe em fotos/precos/etc. Util quando o parsing da descricao mudou.
+let _redescRodando = false;
+router.post('/re-descricoes', (_req, res) => {
+    if (_redescRodando) return res.status(409).json({ erro: 'Re-descricao ja em andamento' });
+    _redescRodando = true;
+    res.status(202).json({ ok: true, mensagem: 'Re-baixando descricoes em background' });
+
+    (async () => {
+        const cheerio = require('cheerio');
+        const linhas = db.prepare('SELECT id, slug, url_origem FROM imoveis').all();
+        let ok = 0, erro = 0;
+        for (const l of linhas) {
+            try {
+                const url = l.url_origem || `https://imobiliariapraiadorosa.com.br/property/${l.slug}`;
+                const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Igor Re-desc)' } });
+                if (!r.ok) { erro++; continue; }
+                const html = await r.text();
+                const $ = cheerio.load(html);
+                const descHtml = ($('.prop_desc').html() || '')
+                    .replace(/<br\s*\/?>/gi, '\n')
+                    .replace(/<\/p>/gi, '\n\n')
+                    .replace(/<\/li>/gi, '\n');
+                let texto = cheerio.load('<div>' + descHtml + '</div>')('div').text()
+                    .replace(/[ \t]+/g, ' ')
+                    .replace(/\n[ \t]+/g, '\n')
+                    .replace(/\n{3,}/g, '\n\n')
+                    .trim()
+                    .slice(0, 6000);
+                // Sanitiza contatos da concorrencia inline
+                const fones = [
+                    /\+?55[\s.\-]?\(?48\)?[\s.\-]?9\s?9145[\s.\-]?0077/g,
+                    /\(?48\)?[\s.\-]?9\s?9145[\s.\-]?0077/g,
+                    /9\s?9145[\s.\-]?0077/g,
+                    /48991450077/g,
+                    /5548991450077/g,
+                ];
+                for (const re of fones) texto = texto.replace(re, '(48) 9149-3622');
+                texto = texto.replace(/contato@imobiliariapraiadorosa\.com\.br/gi, 'contato@babolin.tech');
+                db.prepare('UPDATE imoveis SET descricao = ? WHERE id = ?').run(texto, l.id);
+                ok++;
+                await new Promise(r => setTimeout(r, 300));
+            } catch (e) {
+                erro++;
+            }
+        }
+        const { registrarLog } = require('../db');
+        registrarLog({
+            agente: 'sistema', nivel: 'sucesso',
+            mensagem: `Re-descricoes: ${ok} ok, ${erro} erros`,
+            contexto: { ok, erro, total: linhas.length }
+        });
+        _redescRodando = false;
+    })();
+});
+
 // Sanitiza descricoes dos imoveis substituindo telefones/contatos do site original
 // pelos do Igor. Roda em massa contra todas as descricoes existentes.
 router.post('/sanitizar-descricoes', (_req, res) => {

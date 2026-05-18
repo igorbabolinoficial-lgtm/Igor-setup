@@ -212,7 +212,7 @@
                 ${im.descricao ? `
                     <section class="descricao-bloco">
                         <h2>Sobre o imóvel</h2>
-                        <div class="descricao-texto">${im.descricao}</div>
+                        <div class="descricao-texto">${im.descricao.split(/\n{2,}/).map(p => `<p style="margin-bottom: 18px;">${p.replace(/\n/g, '<br>')}</p>`).join('')}</div>
                     </section>
                 ` : ''}
             `;

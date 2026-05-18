@@ -758,6 +758,7 @@
             <div class="controls" style="margin-bottom: 18px;">
                 <button class="btn-elite" id="btnMigrar" onclick="dispararMigracao()" title="Importa imóveis do site da imobiliária + baixa fotos">↻ Migrar catálogo do site</button>
                 <button class="btn-elite" id="btnSanitizar" onclick="sanitizarDescricoes()" style="margin-left: 8px;" title="Substitui telefones/emails da concorrência nas descrições dos imóveis">🧹 Limpar contatos antigos</button>
+                <button class="btn-elite" id="btnReDesc" onclick="reDescricoes()" style="margin-left: 8px;" title="Re-baixa descrições preservando parágrafos (sem mexer em fotos)">📝 Re-baixar descrições</button>
                 <span id="migrarStatus" style="font-size: 0.8rem; color: var(--text-muted); margin-left: 12px;"></span>
             </div>
             <div class="filtros-imoveis">
@@ -802,6 +803,24 @@
                     btn.disabled = false;
                     btn.textContent = '↻ Migrar catálogo do site';
                     status.textContent = '✗ Erro: ' + e.message;
+                }
+            }
+
+            async function reDescricoes() {
+                const btn = document.getElementById('btnReDesc');
+                const status = document.getElementById('migrarStatus');
+                if (!confirm('Vai re-baixar todas as descrições do site original preservando parágrafos. Demora ~3-5min em background. Continuar?')) return;
+                btn.disabled = true;
+                btn.textContent = 'Re-baixando…';
+                try {
+                    const r = await fetch('/api/sistema/re-descricoes', { method: 'POST' });
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    status.textContent = '✓ Iniciada. Veja progresso em /api/logs.';
+                } catch (e) {
+                    status.textContent = '✗ Erro: ' + e.message;
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = '📝 Re-baixar descrições';
                 }
             }
 

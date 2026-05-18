@@ -87,9 +87,18 @@ function parsePropriedade(html, urlOrigem) {
     const precoBruto = decodeEnts($('.price-block-btn').first().text().trim());
     const preco = parsePreco(precoBruto);
 
-    const descricao = sanitizarTexto(
-        $('.prop_desc').text().trim().replace(/\s+/g, ' ').slice(0, 4000)
-    );
+    // Preserva parágrafos: converte <br> e </p> em \n antes de pegar texto
+    const descHtml = ($('.prop_desc').html() || '')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n\n')
+        .replace(/<\/li>/gi, '\n');
+    const descTexto = cheerio.load('<div>' + descHtml + '</div>')('div').text()
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n[ \t]+/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+        .slice(0, 6000);
+    const descricao = sanitizarTexto(descTexto);
 
     // Fotos: tudo de /uploads/media/ exceto LOGO/logo, deduplicado
     const fotosUrlsSet = new Set();

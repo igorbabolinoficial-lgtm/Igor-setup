@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import './App.css';
 
 const HERO_BG = '/assets/hero.jpg';
+
+function fmtBRL(v) {
+  if (v == null) return 'Sob consulta';
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+}
 
 const LISTINGS = [
   {
@@ -55,6 +60,26 @@ const LISTINGS = [
 ];
 
 export default function App() {
+  const [recentes, setRecentes] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/imoveis?ordenar=recente')
+      .then(r => r.json())
+      .then(d => setRecentes((d.imoveis || []).slice(0, 6)))
+      .catch(() => {});
+  }, []);
+
+  function buscar(e) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const params = new URLSearchParams();
+    const tipo = form.querySelector('[name=tipo]').value;
+    const bairro = form.querySelector('[name=bairro]').value;
+    if (tipo) params.set('tipo', tipo);
+    if (bairro) params.set('bairro', bairro);
+    window.location.href = `/catalogo.html${params.toString() ? '?' + params : ''}`;
+  }
+
   return (
     <>
       {/* HERO BACKGROUND — imagem fixa estilo banner do site antigo */}
@@ -98,49 +123,82 @@ export default function App() {
           </div>
         </section>
 
-        {/* BARRA DE BUSCA */}
+        {/* PROCURANDO IMÓVEL? */}
         <section className="search-bar" id="buscar">
           <div className="search-inner">
-            <div className="search-field">
-              <label>Tipos de listagem</label>
-              <select defaultValue="">
-                <option value="" disabled>Selecione o tipo de propriedade</option>
-                <option>Casa</option>
-                <option>Apartamento</option>
-                <option>Terreno</option>
-                <option>Cobertura</option>
-              </select>
-            </div>
-            <div className="search-field">
-              <label>Tipo de oferta</label>
-              <select defaultValue="">
-                <option value="" disabled>Selecione a oferta</option>
-                <option>Venda</option>
-                <option>Aluguel</option>
-                <option>Temporada</option>
-              </select>
-            </div>
-            <div className="search-field">
-              <label>Selecione a cidade</label>
-              <select defaultValue="">
-                <option value="" disabled>Selecione qualquer cidade</option>
-                <option>Imbituba</option>
-                <option>Garopaba</option>
-                <option>Praia do Rosa</option>
-              </select>
-            </div>
-            <div className="search-actions">
-              <button className="btn-search">Procurar</button>
-              <button className="btn-advanced">Busca Avançada</button>
-            </div>
+            <h2 style={{ gridColumn: '1 / -1', fontFamily: 'var(--serif)', fontSize: 24, fontWeight: 500, marginBottom: 10, color: 'var(--text)' }}>
+              Procurando imóvel?
+            </h2>
+            <form onSubmit={buscar} style={{ display: 'contents' }}>
+              <div className="search-field">
+                <label>Tipo de propriedade</label>
+                <select name="tipo" defaultValue="">
+                  <option value="">Todos os tipos</option>
+                  <option value="casa">Casa</option>
+                  <option value="apartamento">Apartamento</option>
+                  <option value="terreno">Terreno</option>
+                  <option value="sitio">Sítio</option>
+                  <option value="outro">Pousada / Outros</option>
+                </select>
+              </div>
+              <div className="search-field">
+                <label>Região</label>
+                <select name="bairro" defaultValue="">
+                  <option value="">Todas as regiões</option>
+                  <option value="Praia do Rosa">Praia do Rosa</option>
+                  <option value="Ibiraquera">Ibiraquera</option>
+                  <option value="Praia da Vigia">Praia da Vigia</option>
+                </select>
+              </div>
+              <div className="search-actions">
+                <button className="btn-search" type="submit">Procurar</button>
+              </div>
+            </form>
           </div>
         </section>
+
+        {/* PROPRIEDADES RECENTES */}
+        {recentes.length > 0 && (
+          <section className="listings" id="recentes">
+            <header className="listings-header">
+              <div className="label">Acabou de entrar</div>
+              <h2>Propriedades <em>Recentes</em></h2>
+              <p>Últimos imóveis adicionados ao catálogo.</p>
+            </header>
+            <div className="listings-grid">
+              {recentes.map(im => (
+                <a key={im.id} className="listing-card" href={`/imovel.html?id=${im.id}`}>
+                  <div className="listing-img">
+                    {im.fotos && im.fotos[0] ? (
+                      <img src={im.fotos[0]} alt={im.titulo} loading="lazy" />
+                    ) : null}
+                  </div>
+                  <div className="listing-body">
+                    <div className="listing-tag">{im.bairro || im.tipo || 'Imóvel'}</div>
+                    <h3>{im.titulo}</h3>
+                    <div className="listing-detail">
+                      {[
+                        im.area_m2 && `${im.area_m2}m²`,
+                        im.quartos && `${im.quartos} quartos`,
+                        im.banheiros && `${im.banheiros} banheiros`,
+                      ].filter(Boolean).join(' · ') || '—'}
+                    </div>
+                    <div className="listing-price">{fmtBRL(im.preco)}</div>
+                  </div>
+                </a>
+              ))}
+            </div>
+            <div className="listings-cta">
+              <a className="ghost" href="/catalogo.html">Ver catálogo completo →</a>
+            </div>
+          </section>
+        )}
 
         {/* LISTAGEM */}
         <section className="listings" id="imoveis">
           <header className="listings-header">
-            <div className="label">Em destaque</div>
-            <h2>Selecionados <em>a dedo</em></h2>
+            <div className="label">Selecionados a dedo</div>
+            <h2>Imóveis em <em>Destaques</em></h2>
             <p>Casas, terrenos, pousadas e apartamentos na Praia do Rosa, Garopaba e Imbituba. Cada imóvel visitado pessoalmente antes de entrar no catálogo.</p>
           </header>
 
