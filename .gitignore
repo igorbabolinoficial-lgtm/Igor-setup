@@ -1,5 +1,9 @@
 node_modules/
 escritorio/node_modules/
+showcase/node_modules/
+whatsapp-agent/node_modules/
+whatsapp-agent/.env*
+whatsapp-agent/wa-agent*.db*
 
 # Banco SQLite — vive em volume Coolify, não no repo
 *.db

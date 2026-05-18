@@ -1,0 +1,23 @@
+{
+  "name": "igor-babolin-whatsapp-agent",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Motor WhatsApp Agentic do Igor Babolin — WAHA + Groq + SQLite local",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test-groq": "node scripts/test-groq.mjs"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "better-sqlite3": "^11.3.0",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.1",
+    "groq-sdk": "^0.29.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
