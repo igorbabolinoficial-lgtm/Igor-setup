@@ -212,11 +212,14 @@ export async function processBatch(batch) {
   }
 
   // Historico ja contem as inbounds que persistIncoming salvou.
+  // Groq rejeita content null/vazio — filtra mensagens sem conteudo textual.
   const recent = await getRecentMessages(phone, 16);
-  const historyForLLM = recent.map((m) => ({
-    role: m.direction === 'in' ? 'user' : 'assistant',
-    content: m.body,
-  }));
+  const historyForLLM = recent
+    .filter((m) => m.body && String(m.body).trim().length > 0)
+    .map((m) => ({
+      role: m.direction === 'in' ? 'user' : 'assistant',
+      content: String(m.body),
+    }));
 
   const system = await buildSystemPrompt();
   const messages = [{ role: 'system', content: system }, ...historyForLLM];

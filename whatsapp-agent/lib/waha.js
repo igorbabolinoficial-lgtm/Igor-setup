@@ -124,7 +124,7 @@ export async function createInstance(webhookUrl) {
     return data;
   } catch (err) {
     const msg = err.response?.data?.message || err.message;
-    if (err.response?.status === 422 || /already|exist/i.test(msg)) {
+    if (err.response?.status === 422 || err.response?.status === 401 || /already|exist/i.test(msg)) {
       log.info('Sessao WAHA ja existe, atualizando webhook', { session: SESSION });
       try {
         await http.put(`/api/sessions/${SESSION}`, payload);
