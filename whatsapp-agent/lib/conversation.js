@@ -2,7 +2,7 @@
 import { chat } from './groq.js';
 import { resumoCatalogo, linkImovel, imovelPorId, formatarImovelDestaque } from './catalogo.js';
 import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syncLeadToIgor } from './storage.js';
-import { sendText, sendVoice, resolveLidToPhone, setTyping, downloadMediaFromUrl } from './waha.js';
+import { sendText, sendVoice, resolveLidToPhone, setTyping, downloadMediaFromUrl } from './baileys.js';
 import { transcribeAudio } from './transcribe.js';
 import { gerarAudio, ttsHabilitado } from './tts.js';
 import { log } from './logger.js';
@@ -147,9 +147,9 @@ export async function persistIncoming(incoming) {
   // e LLM passam a ver a fala como texto normal.
   const looksAudio = mediaType && /^audio\//i.test(mediaType);
   let transcribed = false;
-  if (looksAudio && mediaUrl) {
+  if (looksAudio && (incoming.rawMsg || mediaUrl)) {
     try {
-      const media = await downloadMediaFromUrl(mediaUrl, mediaMimetype);
+      const media = await downloadMediaFromUrl(mediaUrl, mediaMimetype, { rawMsg: incoming.rawMsg });
       if (media?.buffer) {
         const texto = await transcribeAudio(media.buffer, media.mimetype);
         if (texto) {
@@ -162,8 +162,8 @@ export async function persistIncoming(incoming) {
       log.warn('Falha transcrevendo audio', { phone, err: err.message });
       body = body || '[audio - falha na transcricao]';
     }
-  } else if (looksAudio && !mediaUrl) {
-    log.warn('Audio recebido sem mediaUrl no payload — verificar config STORE_MEDIA do WAHA', { phone });
+  } else if (looksAudio && !incoming.rawMsg && !mediaUrl) {
+    log.warn('Audio recebido sem rawMsg nem mediaUrl — verificar handler do Baileys', { phone });
   }
 
   log.info('Inbound recebido', { phone, pushName, mediaType, transcribed, body: body?.slice(0, 80) });

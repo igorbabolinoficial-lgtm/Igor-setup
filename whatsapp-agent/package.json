@@ -11,11 +11,13 @@
     "test-groq": "node scripts/test-groq.mjs"
   },
   "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc11",
     "axios": "^1.7.7",
     "better-sqlite3": "^11.3.0",
     "dotenv": "^17.4.2",
     "express": "^4.21.1",
-    "groq-sdk": "^0.29.0"
+    "groq-sdk": "^0.29.0",
+    "qrcode": "^1.5.4"
   },
   "engines": {
     "node": ">=22"

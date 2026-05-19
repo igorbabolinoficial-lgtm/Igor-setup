@@ -1,10 +1,17 @@
 // WhatsApp Agentic Server — Igor Babolin
-// Roda no Coolify, conecta com WAHA noweb + Groq + SQLite local.
+// Conecta DIRETO no WhatsApp via Baileys (sem WAHA intermediário).
 import express from 'express';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 import { persistIncoming, processBatch, enviarManual } from './lib/conversation.js';
-import { parseIncomingMessage, createInstance, deleteInstance, getQrCode, getInstanceState, sendText } from './lib/waha.js';
+import {
+  connect as connectBaileys,
+  registerIncomingHandler,
+  getState,
+  getQrCode,
+  resetSession,
+  sendText,
+} from './lib/baileys.js';
 import { normalizePhone, db } from './lib/storage.js';
 import { coalesceIncoming } from './lib/coalescer.js';
 import { log } from './lib/logger.js';
@@ -34,66 +41,42 @@ function requireToken(req, res, next) {
 // --- HEALTH ---
 app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 
-app.get('/status', requireToken, async (_req, res) => {
-  try { res.json(await getInstanceState()); } catch (err) { res.status(500).json({ error: err.message }); }
+app.get('/status', requireToken, (_req, res) => {
+  const state = getState();
+  res.json({ instance: { instanceName: 'baileys', state: state === 'WORKING' ? 'open' : 'close', rawStatus: state } });
 });
 
 // --- PAREAMENTO ---
-app.post('/setup/create-instance', requireToken, async (req, res) => {
+app.post('/setup/create-instance', requireToken, async (_req, res) => {
   try {
-    const webhookUrl = `${req.protocol}://${req.get('host')}/webhook/waha?token=${WEBHOOK_TOKEN}`;
-    const result = await createInstance(webhookUrl);
-    res.json({ ok: true, result, webhook: webhookUrl });
+    await connectBaileys();
+    res.json({ ok: true, status: getState() });
   } catch (err) {
-    log.error('Falha criando instancia', { err: err.message });
+    log.error('Falha conectando baileys', { err: err.message });
     res.status(500).json({ error: err.message });
   }
 });
 
-app.post('/setup/reset-instance', requireToken, async (req, res) => {
+app.post('/setup/reset-instance', requireToken, async (_req, res) => {
   try {
-    await deleteInstance();
-    const webhookUrl = `${req.protocol}://${req.get('host')}/webhook/waha?token=${WEBHOOK_TOKEN}`;
-    const result = await createInstance(webhookUrl);
-    res.json({ ok: true, reset: true, result, webhook: webhookUrl });
+    const r = await resetSession();
+    res.json(r);
   } catch (err) {
-    log.error('Falha resetando instancia', { err: err.message });
+    log.error('Falha resetando baileys', { err: err.message });
     res.status(500).json({ error: err.message });
   }
 });
 
 app.get('/setup/qr', requireToken, async (_req, res) => {
-  try { res.json(await getQrCode()); } catch (err) { res.status(500).json({ error: err.message }); }
+  try {
+    const qr = await getQrCode();
+    res.json(qr);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// --- WEBHOOK WAHA ---
-// Aceita /webhook/waha (novo) e /webhook/evolution (legacy do Charles, mesmo handler)
-async function handleWebhook(req, res) {
-  const provided = req.query.token;
-  if (!WEBHOOK_TOKEN || !provided || !timingSafeEqual(provided, WEBHOOK_TOKEN)) {
-    return res.status(401).json({ error: 'Token invalido' });
-  }
-  res.json({ ok: true });
-
-  const payload = req.body;
-  const event = payload?.event;
-  log.debug('Webhook recebido', { event });
-
-  if (event !== 'message' && event !== 'message.any' && event !== 'messages.upsert') return;
-
-  const parsed = parseIncomingMessage(payload);
-  if (!parsed) return;
-
-  persistIncoming(parsed)
-    .then((enriched) => coalesceIncoming(enriched.phone, enriched, processBatch))
-    .catch((err) => {
-      log.error('Falha processando inbound', { phone: parsed.phone, err: err.message, stack: err.stack });
-    });
-}
-app.post('/webhook/waha', handleWebhook);
-app.post('/webhook/evolution', handleWebhook); // legacy compat
-
-// --- CONVERSAS (lista mensagens recentes pra monitorar) ---
+// --- CONVERSAS ---
 app.get('/admin/conversas', requireToken, (req, res) => {
   try {
     const sinceMin = parseInt(req.query.since, 10) || 30;
@@ -152,10 +135,25 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Erro interno' });
 });
 
-app.listen(PORT, () => {
+// Registra handler de inbound do Baileys ANTES de conectar
+registerIncomingHandler((parsed) => {
+  // parsed: { phone, body, pushName, mediaType, mediaMimetype, rawMsg, wahaMessageId, fromIsLid }
+  persistIncoming(parsed)
+    .then((enriched) => coalesceIncoming(enriched.phone, enriched, processBatch))
+    .catch((err) => {
+      log.error('Falha processando inbound', { phone: parsed.phone, err: err.message, stack: err.stack });
+    });
+});
+
+app.listen(PORT, async () => {
   log.info('WhatsApp Agentic Igor online', {
     port: PORT,
-    instance: process.env.WAHA_SESSION_NAME || 'default',
+    engine: 'baileys',
     groqModel: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+  });
+  // Conecta no WhatsApp automaticamente no boot. Se ainda nao tem auth,
+  // QR fica disponivel em /setup/qr e a sessao espera scan.
+  connectBaileys().catch((err) => {
+    log.error('Falha boot baileys', { err: err.message, stack: err.stack });
   });
 });

@@ -17,9 +17,10 @@ COPY . .
 # Remove deps de build pra encolher imagem
 RUN apk del .build-deps
 
-# Volume pro SQLite local persistir entre redeploys
+# Volume pro SQLite + auth do Baileys persistirem entre redeploys
 RUN mkdir -p /data
 ENV DB_PATH=/data/wa-agent.db
+ENV BAILEYS_AUTH_DIR=/data/baileys-auth
 
 EXPOSE 3030
 
