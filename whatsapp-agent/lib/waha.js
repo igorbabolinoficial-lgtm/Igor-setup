@@ -227,14 +227,15 @@ export async function setTyping(phone, on = true) {
 
 // Envia áudio (voice note / PTT). buffer deve ser audio binário (mp3, ogg, etc).
 // WAHA aceita data URL em file.data — usamos base64 inline.
-export async function sendVoice(phone, audioBuffer, mimeType = 'audio/mpeg') {
+export async function sendVoice(phone, audioBuffer, mimeType = 'audio/ogg; codecs=opus') {
   const base64 = Buffer.from(audioBuffer).toString('base64');
+  const ext = /mpeg|mp3/i.test(mimeType) ? 'mp3' : 'ogg';
   const payload = {
     session: SESSION,
     chatId: phoneToChatId(phone),
     file: {
       mimetype: mimeType,
-      filename: 'voice.mp3',
+      filename: `voice.${ext}`,
       data: base64,
     },
   };

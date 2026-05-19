@@ -2,6 +2,9 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+# ffmpeg pra converter MP3 (ElevenLabs) -> OGG/Opus (WhatsApp PTT)
+RUN apk add --no-cache ffmpeg
+
 # better-sqlite3 precisa de build tools nativos
 RUN apk add --no-cache --virtual .build-deps python3 make g++ \
     && ln -sf python3 /usr/bin/python

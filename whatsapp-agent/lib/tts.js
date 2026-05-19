@@ -1,8 +1,10 @@
 // Text-to-Speech via ElevenLabs. Usado quando lead manda audio: respondemos audio também.
 // Cache em disco pra não pagar 2x pelo mesmo texto (igual padrao do agentes/voz.js do Igor).
+// Converte MP3 -> OGG/Opus via ffmpeg (WhatsApp PTT exige OGG).
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { log } from './logger.js';
 
@@ -34,11 +36,11 @@ export async function gerarAudio(texto) {
   }
   ensureCacheDir();
   const hash = sha256(`${VOICE_ID}|${MODEL}|${texto}`);
-  const cachePath = path.join(CACHE_DIR, `${hash}.mp3`);
+  const cachePath = path.join(CACHE_DIR, `${hash}.ogg`);
   if (fs.existsSync(cachePath)) {
     const buf = fs.readFileSync(cachePath);
     log.debug('TTS cache hit', { chars: texto.length, hash: hash.slice(0, 8) });
-    return { buffer: buf, mime: 'audio/mpeg', cached: true };
+    return { buffer: buf, mime: 'audio/ogg; codecs=opus', cached: true };
   }
 
   const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
@@ -59,8 +61,39 @@ export async function gerarAudio(texto) {
     throw new Error(`ElevenLabs HTTP ${r.status}: ${errTxt.slice(0, 200)}`);
   }
   const arrayBuf = await r.arrayBuffer();
-  const buffer = Buffer.from(arrayBuf);
-  fs.writeFileSync(cachePath, buffer);
-  log.info('TTS gerado', { chars: texto.length, bytes: buffer.length, hash: hash.slice(0, 8) });
-  return { buffer, mime: 'audio/mpeg', cached: false };
+  const mp3 = Buffer.from(arrayBuf);
+
+  // Converte MP3 -> OGG/Opus pra WhatsApp PTT aceitar
+  const ogg = await mp3ParaOggOpus(mp3);
+  fs.writeFileSync(cachePath, ogg);
+  log.info('TTS gerado', { chars: texto.length, mp3Bytes: mp3.length, oggBytes: ogg.length, hash: hash.slice(0, 8) });
+  return { buffer: ogg, mime: 'audio/ogg; codecs=opus', cached: false };
+}
+
+function mp3ParaOggOpus(mp3Buffer) {
+  return new Promise((resolve, reject) => {
+    const ff = spawn('ffmpeg', [
+      '-loglevel', 'error',
+      '-i', 'pipe:0',
+      '-c:a', 'libopus',
+      '-b:a', '32k',
+      '-vbr', 'on',
+      '-application', 'voip',
+      '-ar', '48000',
+      '-ac', '1',
+      '-f', 'ogg',
+      'pipe:1',
+    ]);
+    const chunks = [];
+    let stderr = '';
+    ff.stdout.on('data', (d) => chunks.push(d));
+    ff.stderr.on('data', (d) => (stderr += d.toString()));
+    ff.on('error', reject);
+    ff.on('close', (code) => {
+      if (code !== 0) return reject(new Error(`ffmpeg exit ${code}: ${stderr.slice(0, 300)}`));
+      resolve(Buffer.concat(chunks));
+    });
+    ff.stdin.write(mp3Buffer);
+    ff.stdin.end();
+  });
 }
