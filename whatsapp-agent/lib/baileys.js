@@ -32,7 +32,9 @@ export function registerIncomingHandler(handler) {
 }
 
 export async function connect() {
+  // Idempotente — nao reconecta se ja esta WORKING ou conectando.
   if (_connectInProgress) return;
+  if (_state === 'WORKING' && _sock) return;
   _connectInProgress = true;
   _state = 'STARTING';
   try {
@@ -170,16 +172,19 @@ function parseMessage(msg) {
     return null;
   }
 
+  // Guarda remoteJid raw pra responder no mesmo JID (mais robusto que reconstruir
+  // de phone, especialmente quando lead esta em @lid de Multi-Device).
   return {
     phone,
+    remoteJid,                        // <- jid original ex: "5511...@s.whatsapp.net" ou "54073...@lid"
     pushName: msg.pushName || null,
     body,
     wahaMessageId: msg.key.id,
     mediaType,
     mediaMimetype,
-    mediaUrl: null, // Baileys nao usa URL — usar downloadMedia(rawMsg) abaixo
+    mediaUrl: null,
     rawMsg: hasMedia ? msg : null,
-    fromIsLid: false, // Baileys ja entrega phone real; LID nao se aplica
+    fromIsLid: remoteJid.endsWith('@lid'),
   };
 }
 
@@ -201,14 +206,23 @@ export async function downloadMediaFromUrl(_url, mimetype, opts = {}) {
 export async function resolveLidToPhone(_lid) { return null; }
 
 // --- Envio ---
-function phoneToJid(phone) {
-  const p = String(phone || '').replace(/\D/g, '');
+function phoneToJid(phoneOrJid) {
+  if (!phoneOrJid) return null;
+  const s = String(phoneOrJid);
+  if (s.includes('@')) return s;            // ja eh JID completo
+  const p = s.replace(/\D/g, '');
+  if (p.length >= 14) return `${p}@lid`;    // 14+ digitos = LID Multi-Device
   return `${p}@s.whatsapp.net`;
 }
 
-export async function sendText(phone, body) {
+// Resolve o JID de destino: preferencia pra remoteJid raw quando disponivel.
+function resolveTargetJid(phoneOrJid, explicitJid) {
+  return explicitJid || phoneToJid(phoneOrJid);
+}
+
+export async function sendText(phone, body, remoteJid) {
   if (!_sock) throw new Error('Baileys nao conectado');
-  const jid = phoneToJid(phone);
+  const jid = resolveTargetJid(phone, remoteJid);
   const sent = await _sock.sendMessage(jid, { text: body });
   return {
     key: { id: sent?.key?.id, remoteJid: jid, fromMe: true },
@@ -216,15 +230,15 @@ export async function sendText(phone, body) {
   };
 }
 
-export async function sendVoice(phone, audioBuffer, mimeType = 'audio/ogg; codecs=opus') {
+export async function sendVoice(phone, audioBuffer, mimeType = 'audio/ogg; codecs=opus', remoteJid) {
   if (!_sock) throw new Error('Baileys nao conectado');
-  const jid = phoneToJid(phone);
+  const jid = resolveTargetJid(phone, remoteJid);
   const sent = await _sock.sendMessage(jid, {
     audio: audioBuffer,
     mimetype: mimeType,
     ptt: true,
   });
-  log.info('Audio enviado (baileys)', { phone, bytes: audioBuffer.length, id: sent?.key?.id });
+  log.info('Audio enviado (baileys)', { phone, jid, bytes: audioBuffer.length, id: sent?.key?.id });
   return {
     key: { id: sent?.key?.id, remoteJid: jid, fromMe: true },
     status: 'SENT',
@@ -239,10 +253,10 @@ export async function sendImage(phone, imageUrl, caption) {
   return sent;
 }
 
-export async function setTyping(phone, on = true) {
+export async function setTyping(phone, on = true, remoteJid) {
   if (!_sock) return;
   try {
-    const jid = phoneToJid(phone);
+    const jid = resolveTargetJid(phone, remoteJid);
     await _sock.sendPresenceUpdate(on ? 'composing' : 'paused', jid);
   } catch (err) {
     log.debug('Falha setTyping', { err: err.message });

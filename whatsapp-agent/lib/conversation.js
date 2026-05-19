@@ -181,7 +181,7 @@ export async function persistIncoming(incoming) {
   // apos processBatch enviar resposta. (CHECK constraint: pendente|enviado|respondido|opt_out)
   await touchLead(lead.id);
 
-  return { ...incoming, phone, leadId: lead.id };
+  return { ...incoming, phone, leadId: lead.id, remoteJid: incoming.remoteJid };
 }
 
 // Etapa 2: chamada pelo coalescer apos o debounce expirar.
@@ -190,7 +190,7 @@ export async function processBatch(batch) {
   if (!batch || batch.length === 0) return null;
 
   const last = batch[batch.length - 1];
-  const { phone, leadId } = last;
+  const { phone, leadId, remoteJid } = last;
   // Se algum inbound do batch foi audio (transcrito), respondemos tambem em audio
   const inboundFoiAudio = batch.some((m) => m?.transcribed || /^audio\//i.test(m?.mediaType || ''));
 
@@ -207,7 +207,7 @@ export async function processBatch(batch) {
   // 'escalado'); a flag escalate_to_human ja vai na meta da message via opts.escalate.
   if (/humano|atendente|pessoa de verdade/i.test(combinedBody)) {
     return enviarResposta(phone, 'Claro, em instantes o Igor te chama por aqui.', leadId, {
-      agent: true, escalate: true, inboundLen,
+      agent: true, escalate: true, inboundLen, remoteJid,
     });
   }
 
@@ -237,7 +237,7 @@ export async function processBatch(batch) {
   }
 
   await touchLead(leadId, { whatsapp_status: 'respondido' });
-  return enviarResposta(phone, resposta, leadId, { agent: true, inboundLen, comoAudio: inboundFoiAudio });
+  return enviarResposta(phone, resposta, leadId, { agent: true, inboundLen, comoAudio: inboundFoiAudio, remoteJid });
 }
 
 function splitInChunks(body) {
@@ -294,10 +294,10 @@ async function enviarResposta(phone, body, leadId, opts = {}) {
     try {
       const textoCompleto = chunks.join(' ');
       const { buffer, mime } = await gerarAudio(textoCompleto);
-      await setTyping(phone, true);
+      await setTyping(phone, true, opts.remoteJid);
       await sleep(tempoDigitacao(textoCompleto.length));
-      await setTyping(phone, false);
-      const sent = await sendVoice(phone, buffer, mime);
+      await setTyping(phone, false, opts.remoteJid);
+      const sent = await sendVoice(phone, buffer, mime, opts.remoteJid);
       await saveMessage({
         phone, direction: 'out', body: textoCompleto, leadId,
         wahaMessageId: sent?.key?.id, agentResponse: !!opts.agent,
@@ -315,11 +315,11 @@ async function enviarResposta(phone, body, leadId, opts = {}) {
     const chunk = chunks[i];
     try {
       const typingMs = tempoDigitacao(chunk.length);
-      await setTyping(phone, true);
+      await setTyping(phone, true, opts.remoteJid);
       await sleep(typingMs);
-      await setTyping(phone, false);
+      await setTyping(phone, false, opts.remoteJid);
 
-      const sent = await sendText(phone, chunk);
+      const sent = await sendText(phone, chunk, opts.remoteJid);
       await saveMessage({
         phone,
         direction: 'out',
