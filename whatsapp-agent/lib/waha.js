@@ -230,21 +230,26 @@ export async function setTyping(phone, on = true) {
 export async function sendVoice(phone, audioBuffer, mimeType = 'audio/ogg; codecs=opus') {
   const base64 = Buffer.from(audioBuffer).toString('base64');
   const ext = /mpeg|mp3/i.test(mimeType) ? 'mp3' : 'ogg';
-  const payload = {
-    session: SESSION,
-    chatId: phoneToChatId(phone),
-    file: {
-      mimetype: mimeType,
-      filename: `voice.${ext}`,
-      data: base64,
-    },
-  };
-  const { data } = await http.post('/api/sendVoice', payload);
-  log.debug('Audio enviado', { phone, id: data?.id, size: audioBuffer.length });
-  return {
-    key: { id: data?.id || null, remoteJid: payload.chatId, fromMe: true },
-    status: 'SENT',
-  };
+  const chatId = phoneToChatId(phone);
+
+  // Tenta sendVoice (PTT). Se 422, fallback pra sendFile (anexo de audio normal).
+  const tentativas = [
+    { path: '/api/sendVoice', payload: { session: SESSION, chatId, file: { mimetype: mimeType, filename: `voice.${ext}`, data: base64 } } },
+    { path: '/api/sendFile',  payload: { session: SESSION, chatId, file: { mimetype: mimeType, filename: `audio.${ext}`, data: base64 } } },
+  ];
+  let lastErr = null;
+  for (const t of tentativas) {
+    try {
+      const { data } = await http.post(t.path, t.payload);
+      log.info('Audio enviado', { phone, via: t.path, id: data?.id, size: audioBuffer.length });
+      return { key: { id: data?.id || null, remoteJid: chatId, fromMe: true }, status: 'SENT' };
+    } catch (err) {
+      const body = err.response?.data ? JSON.stringify(err.response.data).slice(0, 300) : err.message;
+      log.warn('sendVoice tentativa falhou', { path: t.path, status: err.response?.status, body });
+      lastErr = err;
+    }
+  }
+  throw lastErr;
 }
 
 export async function sendImage(phone, imageUrl, caption) {
