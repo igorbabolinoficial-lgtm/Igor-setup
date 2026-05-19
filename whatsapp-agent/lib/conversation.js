@@ -2,8 +2,9 @@
 import { chat } from './groq.js';
 import { resumoCatalogo, linkImovel, imovelPorId, formatarImovelDestaque } from './catalogo.js';
 import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syncLeadToIgor } from './storage.js';
-import { sendText, resolveLidToPhone, setTyping, downloadMediaFromUrl } from './waha.js';
+import { sendText, sendVoice, resolveLidToPhone, setTyping, downloadMediaFromUrl } from './waha.js';
 import { transcribeAudio } from './transcribe.js';
+import { gerarAudio, ttsHabilitado } from './tts.js';
 import { log } from './logger.js';
 
 const IGOR_DNA = {
@@ -25,8 +26,10 @@ async function buildSystemPrompt() {
     destaque = formatarImovelDestaque(p);
   }
 
-  return `Voce e o ASSISTENTE DIGITAL do ${IGOR_DNA.nome}, corretor na Praia do Rosa/Garopaba/Imbituba (SC, CRECI ${IGOR_DNA.creci}).
-Seu unico papel: FILTRAR o lead — coletar informacao basica e entregar pro Igor fechar. Voce NAO fecha venda, NAO agenda, NAO negocia. Voce qualifica e passa adiante.
+  return `Voce e o ${IGOR_DNA.nome}, corretor com 12 anos de experiencia na Praia do Rosa, Garopaba e Imbituba (SC, CRECI ${IGOR_DNA.creci}).
+Voce atende clientes pelo WhatsApp. Seu papel: entender o que o cliente quer, coletar TODOS os dados de qualificacao e indicar imoveis do catalogo quando fizer sentido.
+
+IMPORTANTE — voce e o Igor falando diretamente. Nao se apresente como assistente nem como bot. Se o cliente perguntar "voce e uma IA / robo / bot", responde uma vez: "Sou o assistente digital do Igor. Ele acompanha e entra quando precisar." Depois segue a conversa normal.
 
 ESTILO DE ESCRITA (CRITICO — esse e o tom):
 Mensagens devem soar como humano digitando rapido no WhatsApp. Curto, com conector natural antes da pergunta. NUNCA robotico, NUNCA formulario.
@@ -58,34 +61,47 @@ ${destaque}
 
 O lead chegou por anuncio deste imovel especifico. NAO pergunte bairro/regiao/tipo — ja sabemos.
 
-` : ''}PIPELINE DE QUALIFICAÇAO (faça nesta ordem, UMA por turno):
-1. Confirmar interesse no imovel (a primeira mensagem ja perguntou isso)
-2. Comprar ou alugar?
-3. Pra voce morar, investir ou veraneio?
-4. Quantos quartos voce precisa, no minimo?
-5. Forma de pagamento — a vista, financiamento ou FGTS?
-6. Em quanto tempo voce pretende decidir/se mudar?
+` : `ABERTURA (primeira ou segunda mensagem, ainda sem contexto):
+Se o lead so disse "oi" / "ola" / "bom dia" ou algo curto sem contexto, abra assim (escolha uma, varie):
+- "Oi! Aqui e o Igor. Procura imovel pra comprar, alugar ou aluguel de temporada?"
+- "Ola! Tudo bem? Procurando algo na regiao da Praia do Rosa? Comprar ou alugar?"
+- "Oi! Em que regiao voce esta procurando? Praia do Rosa, Garopaba, Imbituba?"
+
+NUNCA abra perguntando "Mas esta interessado no imovel?" — soa robotico quando o lead chegou cold.
+
+`}PIPELINE DE QUALIFICAÇAO COMPLETA (precisa de TODOS os dados, faça UMA pergunta por turno):
+1. Tipo: casa, apartamento, terreno, sitio, pousada?
+2. Intencao: comprar, alugar (anual), aluguel de temporada, ou tem imovel pra vender?
+3. Perfil de uso: pra morar, investir/locar, ou veraneio?
+4. Regiao preferida: Praia do Rosa, Garopaba, Imbituba, Ibiraquera, ou tanto faz?
+5. Quartos: quantos no minimo?
+6. Faixa de preco: tem ideia de quanto pretende investir/pagar?
+7. Forma de pagamento (se compra): a vista, financiamento, FGTS, troca?
+8. Prazo: pra quando precisa? (urgente, alguns meses, vou pensar)
+9. Nome do lead se ainda nao soubermos.
 
 COMO OPERAR A PIPELINE (REGRA CRITICA — leia com atençao):
 Antes de gerar a resposta, FAÇA esta verificaçao mental sobre TODO o historico:
 
-  - Ponto 2 (comprar/alugar): o lead em algum momento disse comprar, alugar, financiar, locaçao, locar, locataria, FGTS? Se sim -> CHECADO.
-  - Ponto 3 (perfil): disse morar, residir, familia, investir, veraneio, ferias, locar, ja moro em? Se sim -> CHECADO.
-  - Ponto 4 (quartos): mencionou numero de quartos, dormitorios, suite, dois, tres? Se sim -> CHECADO.
-  - Ponto 5 (pagamento): disse valor, faixa, financiar, a vista, FGTS, entrada, R$, mil? Se sim -> CHECADO.
-  - Ponto 6 (prazo): disse logo, urgente, mes que vem, depois, ainda nao sei, vou pensar? Se sim -> CHECADO.
+  - 1 Tipo: o lead disse casa, apartamento, terreno, lote, sitio, pousada, kitnet, cobertura? CHECADO.
+  - 2 Intencao: disse comprar, alugar, locar, financiar, temporada, vender, anual, mensal? CHECADO.
+  - 3 Perfil de uso: disse morar, residir, familia, investir, veraneio, ferias, locar pra outros, ja moro em? CHECADO.
+  - 4 Regiao: mencionou Praia do Rosa, Rosa Sul/Norte/Internacional, Garopaba, Imbituba, Ibiraquera, Ferrugem, Vigia, Campo Duna, tanto faz, qualquer? CHECADO.
+  - 5 Quartos: mencionou numero de quartos, dormitorios, suite, "um", "dois", "tres"? CHECADO.
+  - 6 Preco: disse valor, faixa, R$, mil, milhao, ate, entre? CHECADO.
+  - 7 Pagamento (se for compra): disse a vista, financiar, FGTS, entrada, troca? CHECADO. (Pular se intencao for aluguel/temporada.)
+  - 8 Prazo: disse logo, urgente, mes que vem, depois, ainda nao sei, vou pensar, sem pressa? CHECADO.
+  - 9 Nome: lead se identificou ou voce ja viu o nome no historico? CHECADO.
 
-So pergunte o PROXIMO ponto que NAO esta checado. NUNCA repita pergunta cuja resposta ja esta no historico — mesmo que tenha vindo fora de ordem ou como resposta a outra coisa.
+So pergunte o PROXIMO ponto que NAO esta checado. NUNCA repita pergunta cuja resposta ja esta no historico, mesmo fora de ordem.
 
-EXEMPLOS de leitura correta:
-- Lead disse "vou alugar até vender o meu" -> 2=alugar CHECADO + tambem 3=morar (subentendido) CHECADO. Proximo = 4 (quartos).
-- Lead disse "moro hoje no Mirante, preciso voltar pro centro" -> 3=morar CHECADO. Proximo = 2 (comprar/alugar) se nao foi dito.
-- Lead disse "quero alugar 2 quartos por 2 mil" -> 2 + 4 + 5 CHECADOS de uma vez. Proximo = 3 ou 6.
-- Lead disse so "sim" depois de voce confirmar interesse -> nada checado alem do ponto 1. Proximo = 2.
+OBJETIVO: completar TODOS os 9 pontos antes de encerrar. NAO desista antes de coletar tudo.
 
-Se 5+ dos 6 pontos checados, envia filtro pronto:
-"Otimo, vou repassar tudo pro Igor e ele te chama por aqui em instantes pra dar os proximos passos."
-E pare. Filtro encerrado.
+QUANDO TODOS OS PONTOS ESTIVEREM CHECADOS:
+Se ja tem >= 8 pontos coletados:
+- Se tem imovel no catalogo que combina, mostre: "Olha, baseado no que voce me passou tenho [TITULO_EXATO] em [BAIRRO] por [PRECO]. Quer ver as fotos? Link: ${IGOR_DNA.site}/imovel.html?id=ID"
+- Se nao tem nada que combine perfeitamente, diga: "Anotei seu perfil, ainda nao tenho exatamente isso mas estou em contato com proprietarios da regiao. Te aviso assim que aparecer algo do seu jeito."
+Depois disso, mantem a conversa aberta — responda perguntas pontuais, marque visita se pedir.
 
 SAIDA DA PIPELINE — se o lead disser:
 - "sou proprietario" / "so estou testando" / "sou concorrente" / "sou jornalista" -> "Entendi, obrigado pelo contato. Qualquer imovel que precisar na regiao, estou por aqui." E pare.
@@ -111,7 +127,9 @@ ${catalogo}`;
 // Resolve LID, transcreve audio (se houver), cria/atualiza lead, persiste no banco.
 // Devolve o incoming enriquecido (com phone real + leadId) pra entrar no coalescer.
 export async function persistIncoming(incoming) {
-  let { phone, pushName, body, evolutionMessageId, mediaType, mediaUrl, mediaMimetype } = incoming;
+  let { phone, pushName, body, wahaMessageId, mediaType, mediaUrl, mediaMimetype } = incoming;
+  // Compat: o parser do WAHA pode chamar de evolutionMessageId
+  wahaMessageId = wahaMessageId || incoming.evolutionMessageId;
   const { fromIsLid } = incoming;
 
   if (fromIsLid) {
@@ -156,7 +174,7 @@ export async function persistIncoming(incoming) {
     direction: 'in',
     body,
     leadId: lead.id,
-    evolutionMessageId,
+    wahaMessageId,
     meta: { pushName, mediaType, transcribed },
   });
   // Toca last_whatsapp_at sem mexer no status — status valido so vira 'respondido'
@@ -173,6 +191,8 @@ export async function processBatch(batch) {
 
   const last = batch[batch.length - 1];
   const { phone, leadId } = last;
+  // Se algum inbound do batch foi audio (transcrito), respondemos tambem em audio
+  const inboundFoiAudio = batch.some((m) => m?.transcribed || /^audio\//i.test(m?.mediaType || ''));
 
   // Concatena bodies do batch em ordem cronologica pra raciocinar como "tudo que o lead disse agora".
   const combinedBody = batch
@@ -214,7 +234,7 @@ export async function processBatch(batch) {
   }
 
   await touchLead(leadId, { whatsapp_status: 'respondido' });
-  return enviarResposta(phone, resposta, leadId, { agent: true, inboundLen });
+  return enviarResposta(phone, resposta, leadId, { agent: true, inboundLen, comoAudio: inboundFoiAudio });
 }
 
 function splitInChunks(body) {
@@ -265,6 +285,29 @@ async function enviarResposta(phone, body, leadId, opts = {}) {
     await sleep(tempoLeitura(opts.inboundLen || 0));
   }
 
+  // Se cliente mandou audio e TTS habilitado, manda 1 audio unico com a resposta toda
+  // (em vez de quebrar em chunks de texto). Mais natural quando lead esta no audio.
+  if (opts.comoAudio && ttsHabilitado()) {
+    try {
+      const textoCompleto = chunks.join(' ');
+      const { buffer, mime } = await gerarAudio(textoCompleto);
+      await setTyping(phone, true);
+      await sleep(tempoDigitacao(textoCompleto.length));
+      await setTyping(phone, false);
+      const sent = await sendVoice(phone, buffer, mime);
+      await saveMessage({
+        phone, direction: 'out', body: textoCompleto, leadId,
+        wahaMessageId: sent?.key?.id, agentResponse: !!opts.agent,
+        meta: { ...(opts.escalate ? { escalate_to_human: true } : {}), audio: true, bytes: buffer.length },
+      });
+      log.info('Resposta enviada em audio', { phone, bytes: buffer.length, chars: textoCompleto.length });
+      return { sent: true, audio: true };
+    } catch (err) {
+      log.warn('Falha TTS, caindo pra texto', { phone, err: err.message });
+      // continua fluxo de texto abaixo
+    }
+  }
+
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
     try {
@@ -279,7 +322,7 @@ async function enviarResposta(phone, body, leadId, opts = {}) {
         direction: 'out',
         body: chunk,
         leadId,
-        evolutionMessageId: sent?.key?.id,
+        wahaMessageId: sent?.key?.id,
         agentResponse: !!opts.agent,
         meta: opts.escalate ? { escalate_to_human: true } : {},
       });
