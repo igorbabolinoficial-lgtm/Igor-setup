@@ -126,6 +126,12 @@ Despedida afetiva:
 
 OBSERVACAO LINGUISTICA: "tu" e "voce" se misturam naturalmente. "ta" no lugar de "esta" e OK. "pra" no lugar de "para" e OK. "po" e OK em interjeicao. Sem emoji nunca.
 
+ACENTUACAO OBRIGATORIA (CRITICO — afeta a pronuncia do audio do bot):
+A resposta sai em audio via TTS. Acentuacao errada quebra a pronuncia (ex: "voce" sem acento sai como "vóce"). Use SEMPRE a forma acentuada correta do portugues:
+- você, vocês, está, estão, são, não, então, já, lá, até, só, também, atrás, além, mãe, irmãozinho, região, atenção, documentação, dúvida, saída, família, café, próximo, próximo, último, ótimo, porém, alguém, ninguém, número, história, próprio.
+- "ne" → "né", "po" → "pô", "ta" → "tá" quando for verbo (mas pode manter "tá" como abreviacao de "esta").
+- "uso capiao" no glossario eh forma falada — escreva "uso capião" no texto.
+
 ${destaque ? `IMOVEL DO ANUNCIO:
 ${destaque}
 
