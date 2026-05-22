@@ -107,14 +107,15 @@ export async function findOrCreateLeadByPhone(phone, defaults = {}) {
     if (phone && phone.startsWith('55')) variants.push(phone.slice(2));
     for (const v of variants) {
         const found = db.prepare('SELECT * FROM leads WHERE phone = ?').get(v);
-        if (found) return found;
+        if (found) return { lead: found, created: false };
     }
     const id = uid();
     db.prepare(`
         INSERT INTO leads (id, phone, name, source, status, whatsapp_status)
         VALUES (?, ?, ?, ?, 'novo', 'respondido')
     `).run(id, phone, defaults.name || phone, defaults.source || 'whatsapp');
-    return db.prepare('SELECT * FROM leads WHERE id = ?').get(id);
+    const lead = db.prepare('SELECT * FROM leads WHERE id = ?').get(id);
+    return { lead, created: true };
 }
 
 // Pega historico recente da conversa (ultimas N mensagens) pro contexto do LLM.
@@ -134,6 +135,9 @@ export const supabase = new Proxy({}, {
 });
 
 // Encaminha pro Igor neural-system pra aparecer no Kanban do dashboard.
+// Aponta pra POST /api/contato (rota publica do babolin.tech, mesmo endpoint
+// usado pelo formulario do site /contato.html). Payload: nome+telefone obrigatorios,
+// interesse + mensagem opcionais.
 // Best-effort: se falhar, nao quebra a conversa.
 export async function syncLeadToIgor(lead, interesse) {
     const url = process.env.IGOR_LEAD_SYNC_URL;
@@ -149,9 +153,9 @@ export async function syncLeadToIgor(lead, interesse) {
             body: JSON.stringify({
                 nome: lead.name || lead.phone,
                 telefone: lead.phone,
-                origem: 'whatsapp',
+                email: null,
                 interesse: interesse || 'whatsapp',
-                notas: 'Lead capturado via WhatsApp (Igor agent)',
+                mensagem: 'Lead capturado via WhatsApp (Igor agent)',
             }),
         });
     } catch (e) {

@@ -82,7 +82,7 @@ curl -s "$URL/admin/conversas?since=60&limit=50&token=$TOKEN" | jq
 ## Variáveis que você ainda precisa decidir
 
 - `GROQ_API_KEY` (use a mesma chave do LMP/Charles se já tem ativa)
-- `IGOR_LEAD_SYNC_URL` (opcional) — se quiser que leads qualificados apareçam no Kanban do `babolin.tech/dashboard.html → Leads`, aponta pra `https://babolin.tech/api/leads` e passa `IGOR_API_TOKEN` se houver auth.
+- `IGOR_LEAD_SYNC_URL` — pra leads novos do WhatsApp aparecerem no Kanban do `babolin.tech/dashboard.html → Leads`, setar como `https://babolin.tech/api/contato` (rota pública, mesma usada pelo formulário do site). `IGOR_API_TOKEN` é opcional (ainda não há validação no receptor, mantido pra uso futuro). A chamada dispara só na 1ª mensagem do lead novo (em `persistIncoming → findOrCreateLeadByPhone({ created: true })`).
 
 ## Comandos úteis (igual Charles)
 
