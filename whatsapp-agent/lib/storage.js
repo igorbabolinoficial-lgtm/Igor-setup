@@ -118,6 +118,28 @@ export async function findOrCreateLeadByPhone(phone, defaults = {}) {
     return { lead, created: true };
 }
 
+// Guarda o ultimo google_event_id criado pro lead (pra remarcacao automatica cancelar antes de criar novo).
+// Usa o campo meta (JSON) da tabela leads — sem migration nova.
+export async function setUltimoEventId(phone, eventId) {
+    if (!phone || !eventId) return;
+    const row = db.prepare('SELECT meta FROM leads WHERE phone = ?').get(phone);
+    if (!row) return;
+    let meta = {};
+    try { meta = row.meta ? JSON.parse(row.meta) : {}; } catch { meta = {}; }
+    meta.last_google_event_id = eventId;
+    db.prepare('UPDATE leads SET meta = ? WHERE phone = ?').run(JSON.stringify(meta), phone);
+}
+
+export async function getUltimoEventId(phone) {
+    if (!phone) return null;
+    const row = db.prepare('SELECT meta FROM leads WHERE phone = ?').get(phone);
+    if (!row || !row.meta) return null;
+    try {
+        const meta = JSON.parse(row.meta);
+        return meta.last_google_event_id || null;
+    } catch { return null; }
+}
+
 // Pega historico recente da conversa (ultimas N mensagens) pro contexto do LLM.
 // Devolve ordem cronologica (antiga -> nova).
 export async function getRecentMessages(phone, limit = 12) {
@@ -134,29 +156,18 @@ export const supabase = new Proxy({}, {
     get() { throw new Error('supabase removido — use storage.js direto'); }
 });
 
-// Encaminha pro Igor neural-system pra aparecer no Kanban do dashboard.
-// Aponta pra POST /api/contato (rota publica do babolin.tech, mesmo endpoint
-// usado pelo formulario do site /contato.html). Payload: nome+telefone obrigatorios,
-// interesse + mensagem opcionais.
+// Encaminha pro Igor neural-system pra aparecer no Kanban do dashboard E na Sheet do Google.
+// Usa parent-api (X-Agent-Token), batendo em POST /api/leads do parent.
 // Best-effort: se falhar, nao quebra a conversa.
 export async function syncLeadToIgor(lead, interesse) {
-    const url = process.env.IGOR_LEAD_SYNC_URL;
-    const token = process.env.IGOR_API_TOKEN;
-    if (!url) return;
     try {
-        await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...(token ? { 'X-Agent-Token': token } : {}),
-            },
-            body: JSON.stringify({
-                nome: lead.name || lead.phone,
-                telefone: lead.phone,
-                email: null,
-                interesse: interesse || 'whatsapp',
-                mensagem: 'Lead capturado via WhatsApp (Igor agent)',
-            }),
+        const { criarLead } = await import('./parent-api.js');
+        await criarLead({
+            nome: lead.name && lead.name !== lead.phone ? lead.name : '',
+            telefone: lead.phone,
+            origem: 'whatsapp',
+            interesse: interesse || '',
+            mensagem: 'Lead capturado via WhatsApp (bot Igor)',
         });
     } catch (e) {
         // silencioso — o lead ja existe localmente

@@ -38,7 +38,7 @@ async function chamarParent(path, body) {
  * Cria evento na agenda do parent (que tambem cria evento no Google Calendar via OAuth).
  * Retorna { ok, data } onde data tem google_sync.link / google_sync.meet se Google OK.
  */
-export async function criarAgenda({ titulo, descricao, lead_id, inicio, fim, convidados, localizacao }) {
+export async function criarAgenda({ titulo, descricao, lead_id, inicio, fim, convidados, localizacao, cancelar_anterior_event_id }) {
   return chamarParent('/api/agenda', {
     titulo,
     descricao,
@@ -48,6 +48,21 @@ export async function criarAgenda({ titulo, descricao, lead_id, inicio, fim, con
     tipo: 'reuniao',
     convidados,
     localizacao,
+    cancelar_anterior_event_id,
+  });
+}
+
+/**
+ * Sincroniza lead novo com o parent (cria no DB do parent + append na Sheet via OAuth).
+ * Best-effort: silencioso se falhar.
+ */
+export async function criarLead({ nome, telefone, origem = 'whatsapp', interesse, mensagem }) {
+  return chamarParent('/api/leads', {
+    nome,
+    telefone,
+    origem,
+    interesse: interesse || '',
+    notas: mensagem || '',
   });
 }
 

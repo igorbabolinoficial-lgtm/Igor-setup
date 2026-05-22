@@ -23,8 +23,22 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-    const { titulo, descricao, lead_id, inicio, fim, tipo = 'reuniao', convidados, localizacao } = req.body || {};
+    const { titulo, descricao, lead_id, inicio, fim, tipo = 'reuniao', convidados, localizacao, cancelar_anterior_event_id } = req.body || {};
     if (!titulo || !inicio) return res.status(400).json({ erro: 'titulo e inicio são obrigatórios' });
+
+    // Se foi passado um event_id anterior, cancela antes de criar o novo (remarcacao)
+    let canceladoAnterior = null;
+    if (cancelar_anterior_event_id && googleLib.isReady()) {
+        try {
+            await googleLib.calendar.cancelarEvento(cancelar_anterior_event_id);
+            canceladoAnterior = { ok: true, event_id: cancelar_anterior_event_id };
+            // Marca o registro local correspondente como cancelado
+            db.prepare(`UPDATE agenda SET status = 'cancelado' WHERE google_event_id = ?`).run(cancelar_anterior_event_id);
+        } catch (err) {
+            console.error('[agenda] Falha ao cancelar evento anterior:', err.message);
+            canceladoAnterior = { ok: false, error: err.message };
+        }
+    }
 
     const id = uid('evt');
     db.prepare(`
@@ -57,7 +71,7 @@ router.post('/', async (req, res) => {
     }
 
     const evento = db.prepare('SELECT * FROM agenda WHERE id = ?').get(id);
-    res.status(201).json({ ...evento, google_sync: googleSync });
+    res.status(201).json({ ...evento, google_sync: googleSync, cancelado_anterior: canceladoAnterior });
 });
 
 router.patch('/:id', (req, res) => {

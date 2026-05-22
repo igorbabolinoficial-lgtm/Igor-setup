@@ -1,7 +1,7 @@
 // Orquestrador da conversa: recebe mensagem do lead -> monta contexto -> chama Groq -> envia resposta.
 import { chat } from './groq.js';
 import { resumoCatalogo, linkImovel, imovelPorId, formatarImovelDestaque } from './catalogo.js';
-import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syncLeadToIgor } from './storage.js';
+import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syncLeadToIgor, setUltimoEventId, getUltimoEventId } from './storage.js';
 import { sendText, sendVoice, resolveLidToPhone, setTyping, downloadMediaFromUrl } from './baileys.js';
 import { transcribeAudio } from './transcribe.js';
 import { gerarAudio, ttsHabilitado } from './tts.js';
@@ -30,7 +30,19 @@ async function buildSystemPrompt() {
   return `Voce e o ${IGOR_DNA.nome}, corretor com 12 anos de experiencia na Praia do Rosa, Garopaba e Imbituba (SC, CRECI ${IGOR_DNA.creci}).
 Voce atende clientes pelo WhatsApp. Seu papel: entender o que o cliente quer, coletar TODOS os dados de qualificacao e indicar imoveis do catalogo quando fizer sentido.
 
-IMPORTANTE — voce e o Igor falando diretamente. Nao se apresente como assistente nem como bot. Se o cliente perguntar "voce e uma IA / robo / bot", responde uma vez: "Sou o assistente digital do Igor. Ele acompanha e entra quando precisar." Depois segue a conversa normal.
+IMPORTANTE — voce e o Igor falando diretamente. Nao se apresente como assistente nem como bot.
+
+NUNCA diga frases do tipo:
+- "vou avisar o Igor"
+- "o Igor te responde em instantes"
+- "vou passar pro Igor"
+- "anotei pro Igor"
+Porque VOCE EH o Igor. Essas frases criam um terceiro inexistente e quebram a confianca.
+
+EXCECOES (so nesses casos voce pode mencionar "o Igor" em terceira pessoa):
+- Lead pergunta "voce e uma IA / robo / bot": responde 1 vez "Sou o assistente digital do Igor. Ele acompanha e entra quando precisar." Depois retoma a conversa normal sem repetir essa frase.
+- Lead pede explicitamente humano ("quero falar com humano", "atendente", "pessoa de verdade"): "Claro, em instantes o Igor te chama por aqui."
+Fora dessas 2 excecoes, voce eh o Igor, primeira pessoa.
 
 ESTILO DE ESCRITA — DNA IGOR (CRITICO — destilado de 34 audios reais do Igor humano):
 Voce e o Igor falando, nao um corretor generico. Soa como amigo da regiao que entende muito de imovel. Entusiasmo controlado, transparencia radical, convite presencial. NUNCA robotico, NUNCA formulario, NUNCA corporativo.
@@ -251,6 +263,18 @@ REGRAS DE BLOQUEIO (NAO gere o marker se):
 - Lead so disse dia OU so disse hora -> pergunta o que falta
 - NUNCA invente nome, email, imovel, data ou hora.
 
+REMARCACAO (lead pede pra mudar visita ja agendada):
+Quando o lead disser que precisa remarcar ("nao vou poder", "pode ser outro dia?", "remarca pra...", "preciso mudar"), faca:
+1. Acolhe sem alarme: "Tranquilo, [Nome], sem problema."
+2. Confirma o novo dia/horario com ele. Se ele ja deu, confirma e gera marker novo.
+3. Gera novo marker [[AGENDAR: {...}]] com a nova data. Use o MESMO nome, email, imovel e imovel_id ja conhecidos do contexto.
+4. O sistema cancela o evento anterior automaticamente E cria o novo. Voce nao precisa fazer mais nada alem do marker.
+5. Responde com confirmacao natural: "Show, remarquei pra [novo dia/horario]. Te mandei o convite atualizado no email."
+
+Exemplo:
+- Lead "Mariana" (email mariana@gmail.com, ja agendado quinta 14h pra Casa Frente Mar id 47) diz: "nao vou poder quinta, pode ser sexta mesmo horario?"
+  "Tranquilo Mariana, sem problema. Remarquei pra sexta dia 30, 14h. Te mando o convite atualizado no email. [[AGENDAR: {\"inicio\":\"2026-05-30T14:00:00-03:00\",\"nome\":\"Mariana\",\"email\":\"mariana@gmail.com\",\"imovel\":\"Casa Frente Mar em Garopaba\",\"imovel_id\":\"47\"}]]"
+
 CATALOGO ATUAL:
 ${catalogo}`;
 }
@@ -365,11 +389,12 @@ export async function processBatch(batch) {
     resposta = await chat(messages, { temperature: 0.65, maxTokens: 300 });
   } catch (err) {
     log.error('Falha no Groq', { err: err.message });
-    resposta = 'Anotei seu contato! O Igor te responde aqui em instantes.';
+    // Fallback neutro: nao usar "o Igor te responde" porque o bot EH o Igor
+    resposta = 'Opa, tive um problema aqui rapidinho. Pode me mandar de novo?';
   }
 
   if (!resposta || resposta.length < 5) {
-    resposta = 'Anotei sua mensagem. O Igor te chama aqui em instantes.';
+    resposta = 'Desculpa, nao entendi direito — pode me explicar?';
   }
 
   // Intercepta marker [[AGENDAR: {JSON}]] gerado pelo LLM -> cria evento no Calendar via parent.
@@ -417,6 +442,8 @@ export async function processBatch(batch) {
 
       if (parentReady()) {
         try {
+          // Se ja tem evento anterior, cancela automaticamente (remarcacao)
+          const eventIdAnterior = await getUltimoEventId(phone);
           const r = await criarAgenda({
             titulo,
             descricao,
@@ -425,10 +452,17 @@ export async function processBatch(batch) {
             fim: null,
             convidados: emailValido ? [emailValido] : [],
             localizacao: undefined,
+            cancelar_anterior_event_id: eventIdAnterior || undefined,
           });
+          if (r.ok && r.data?.google_sync?.event_id) {
+            await setUltimoEventId(phone, r.data.google_sync.event_id);
+          }
+          if (r.ok && r.data?.cancelado_anterior?.ok) {
+            log.info('Evento anterior cancelado', { phone, event_id: r.data.cancelado_anterior.event_id });
+          }
           if (r.ok && r.data?.google_sync?.link) {
             resposta += `\n\nLink no Calendar: ${r.data.google_sync.link}`;
-            log.info('Visita criada no Calendar', { phone, nome, imovel, link: r.data.google_sync.link });
+            log.info('Visita criada no Calendar', { phone, nome, imovel, link: r.data.google_sync.link, remarcacao: !!eventIdAnterior });
           } else if (r.ok) {
             log.info('Visita criada local (Calendar nao sincou)', { phone, nome, imovel });
           } else {
