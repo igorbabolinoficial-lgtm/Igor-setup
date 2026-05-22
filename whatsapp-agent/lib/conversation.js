@@ -374,23 +374,56 @@ async function enviarResposta(phone, body, leadId, opts = {}) {
 
   // Se cliente mandou audio e TTS habilitado, manda 1 audio unico com a resposta toda
   // (em vez de quebrar em chunks de texto). Mais natural quando lead esta no audio.
+  // EXCEPCAO: URLs nao vao pro audio (TTS leria "agá tê tê pê ess..."). URLs sao
+  // extraidas e enviadas como bolha de TEXTO depois do audio.
   if (opts.comoAudio && ttsHabilitado()) {
     try {
       const textoCompleto = chunks.join(' ');
-      const { buffer, mime } = await gerarAudio(textoCompleto);
+      // Extrai URLs (http/https) — vao em bolha de texto separada
+      const URL_RE = /(https?:\/\/[^\s]+)/g;
+      const urls = textoCompleto.match(URL_RE) || [];
+      // Texto pro audio: sem URL e sem prefixo orfao tipo "Link:", "Aqui:", "Olha:"
+      let textoAudio = textoCompleto
+        .replace(URL_RE, '')
+        .replace(/\b(?:Link|Aqui|Olha|Veja|Segue)\s*:\s*(?=\s|$|[.,!?])/gi, '')
+        .replace(/\s{2,}/g, ' ')
+        .replace(/\s+([.,!?])/g, '$1')
+        .trim();
+      // Se sobrou pouco / nada, fallback pra texto (manda tudo como bolha de texto)
+      if (textoAudio.length < 8) {
+        log.info('Audio pulado (texto sem URL muito curto), caindo pra texto', { phone });
+        throw new Error('audio_skip');
+      }
+      const { buffer, mime } = await gerarAudio(textoAudio);
       await setTyping(phone, true, opts.remoteJid);
-      await sleep(tempoDigitacao(textoCompleto.length));
+      await sleep(tempoDigitacao(textoAudio.length));
       await setTyping(phone, false, opts.remoteJid);
       const sent = await sendVoice(phone, buffer, mime, opts.remoteJid);
       await saveMessage({
-        phone, direction: 'out', body: textoCompleto, leadId,
+        phone, direction: 'out', body: textoAudio, leadId,
         wahaMessageId: sent?.key?.id, agentResponse: !!opts.agent,
         meta: { ...(opts.escalate ? { escalate_to_human: true } : {}), audio: true, bytes: buffer.length },
       });
-      log.info('Resposta enviada em audio', { phone, bytes: buffer.length, chars: textoCompleto.length });
-      return { sent: true, audio: true };
+      log.info('Resposta enviada em audio', { phone, bytes: buffer.length, chars: textoAudio.length, urls: urls.length });
+      // Manda URLs como bolhas de texto separadas, uma por uma
+      for (const url of urls) {
+        await sleep(jitter(900, 600));
+        await setTyping(phone, true, opts.remoteJid);
+        await sleep(tempoDigitacao(url.length));
+        await setTyping(phone, false, opts.remoteJid);
+        const sentUrl = await sendText(phone, url, opts.remoteJid);
+        await saveMessage({
+          phone, direction: 'out', body: url, leadId,
+          wahaMessageId: sentUrl?.key?.id, agentResponse: !!opts.agent,
+          meta: { link: true, follow_audio: true },
+        });
+        log.info('URL enviada como texto pos-audio', { phone, url });
+      }
+      return { sent: true, audio: true, urls: urls.length };
     } catch (err) {
-      log.warn('Falha TTS, caindo pra texto', { phone, err: err.message });
+      if (err.message !== 'audio_skip') {
+        log.warn('Falha TTS, caindo pra texto', { phone, err: err.message });
+      }
       // continua fluxo de texto abaixo
     }
   }
