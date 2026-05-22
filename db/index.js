@@ -33,6 +33,9 @@ adicionarColuna('leads', 'tags_ia', 'TEXT');                   // JSON array de 
 adicionarColuna('leads', 'segmento', 'TEXT');                  // segmento principal: investidor / morar / veranear / urgente / longo_prazo
 adicionarColuna('aprovacoes', 'expirada_em', 'TEXT');          // marca quando o TTL atingiu
 adicionarColuna('leads', 'arquivado', 'INTEGER DEFAULT 0');    // soft-delete pra esconder sem perder histórico
+adicionarColuna('agenda', 'google_event_id', 'TEXT');          // id do evento no Google Calendar (best-effort sync)
+adicionarColuna('agenda', 'google_event_link', 'TEXT');        // htmlLink do Calendar
+adicionarColuna('agenda', 'google_meet_link', 'TEXT');         // hangoutLink (Meet) gerado automaticamente
 
 // === Seed dos 6 novos agentes (Consultores + Marketing expandido) ===
 // Idempotente: INSERT OR IGNORE não duplica se a chave já existe

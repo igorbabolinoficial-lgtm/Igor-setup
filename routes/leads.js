@@ -1,5 +1,6 @@
 const express = require('express');
 const { db, uid, nowIso, registrarLog } = require('../db');
+const googleLib = require('../lib/google');
 
 const router = express.Router();
 
@@ -149,6 +150,15 @@ router.post('/', (req, res) => {
         agente: 'sdr', nivel: 'info', template: 'boas_vindas',
         mensagem: `Novo lead criado: ${nome}`, contexto: { lead_id: id, origem }
     });
+
+    // Best-effort: append na Sheet do Igor (se OAuth configurado)
+    if (googleLib.isReady()) {
+        googleLib.sheets.appendLead({
+            nome, telefone: telefone || '', origem, interesse: interesse || '', mensagem: notas || '',
+        }).catch((err) => {
+            console.error('[leads] Falha append Sheet:', err.message);
+        });
+    }
 
     res.status(201).json(normalizar(db.prepare('SELECT * FROM leads WHERE id = ?').get(id)));
 });

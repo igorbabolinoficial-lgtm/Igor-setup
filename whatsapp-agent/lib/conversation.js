@@ -5,6 +5,7 @@ import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syn
 import { sendText, sendVoice, resolveLidToPhone, setTyping, downloadMediaFromUrl } from './baileys.js';
 import { transcribeAudio } from './transcribe.js';
 import { gerarAudio, ttsHabilitado } from './tts.js';
+import { criarAgenda, parentReady } from './parent-api.js';
 import { log } from './logger.js';
 
 const IGOR_DNA = {
@@ -199,6 +200,21 @@ USO DO CATALOGO:
 - Use o titulo EXATO do imovel como esta no catalogo.
 - Site geral: ${IGOR_DNA.site} (catalogo completo, sobre, contato).
 
+AGENDAMENTO DE VISITA (CRITICO — marker especial):
+Quando o lead CONFIRMAR um dia + horario especifico pra visita ao imovel (ex: "pode ser quinta as 14h", "amanha 10h ta otimo", "23/05 16h"), voce DEVE:
+1. Responder de forma natural confirmando ("Show, marquei aqui pra ti...")
+2. Adicionar no FINAL da sua resposta (ULTIMA linha) o marker:
+   [[AGENDAR: YYYY-MM-DDTHH:MM:00-03:00]]
+   substituindo pelo ISO 8601 calculado em horario de Brasilia (-03:00).
+3. Hoje eh ${new Date().toISOString().slice(0,10)}. Calcule "amanha", "quinta", "depois de amanha" a partir disso.
+4. O marker NAO vai aparecer pro lead — o sistema remove antes de mandar.
+
+Exemplos corretos:
+- Lead: "quinta as 14h" (hoje seg 26/05) -> "Show, marquei aqui pra ti quinta dia 29, 14h. Te confirmo o ponto de encontro proximo do dia. [[AGENDAR: 2026-05-29T14:00:00-03:00]]"
+- Lead: "amanha 10h" (hoje 22/05) -> "Boa, anotei amanha as 10h. Te mando o pin do local hoje a noite. [[AGENDAR: 2026-05-23T10:00:00-03:00]]"
+
+REGRA: so use o marker quando lead CONFIRMAR data E hora. Se ele so disse "quinta" sem hora, pergunta o horario antes. Se ele so disse "14h" sem dia, pergunta o dia. NUNCA invente data/hora que o lead nao falou.
+
 CATALOGO ATUAL:
 ${catalogo}`;
 }
@@ -318,6 +334,39 @@ export async function processBatch(batch) {
 
   if (!resposta || resposta.length < 5) {
     resposta = 'Anotei sua mensagem. O Igor te chama aqui em instantes.';
+  }
+
+  // Intercepta marker [[AGENDAR: ISO]] gerado pelo LLM -> cria evento no Calendar via parent
+  const AGENDAR_RE = /\[\[AGENDAR:\s*([0-9TZ:\-+.]+)\s*\]\]/i;
+  const matchAgendar = AGENDAR_RE.exec(resposta);
+  if (matchAgendar) {
+    const inicioIso = matchAgendar[1].trim();
+    resposta = resposta.replace(AGENDAR_RE, '').replace(/\s+$/g, '').trim();
+    if (parentReady()) {
+      try {
+        const r = await criarAgenda({
+          titulo: `Visita - lead ${phone}`,
+          descricao: `Agendado via bot WhatsApp.\nLead: ${phone}\nLeadId local (wa-agent): ${leadId}`,
+          lead_id: null, // leadId do parent eh outro; deixar null
+          inicio: inicioIso,
+          fim: null, // routes/agenda.js assume 1h se nao informado
+          convidados: [], // poderia incluir email do lead se tivessemos
+          localizacao: undefined,
+        });
+        if (r.ok && r.data?.google_sync?.link) {
+          resposta += `\n\nLink no Calendar: ${r.data.google_sync.link}`;
+          log.info('Visita criada no Calendar', { phone, inicio: inicioIso, link: r.data.google_sync.link });
+        } else if (r.ok) {
+          log.info('Visita criada local (Calendar nao sincou)', { phone, inicio: inicioIso });
+        } else {
+          log.warn('Falha criar visita via parent', { phone, err: r.error || r.data });
+        }
+      } catch (err) {
+        log.error('Erro criando visita', { phone, err: err.message });
+      }
+    } else {
+      log.info('Marker AGENDAR detectado mas parent-api nao configurado (IGOR_AGENT_TOKEN faltando)', { phone, inicio: inicioIso });
+    }
   }
 
   await touchLead(leadId, { whatsapp_status: 'respondido' });

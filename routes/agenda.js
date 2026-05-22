@@ -1,5 +1,6 @@
 const express = require('express');
 const { db, uid } = require('../db');
+const googleLib = require('../lib/google');
 
 const router = express.Router();
 
@@ -21,8 +22,8 @@ router.get('/', (req, res) => {
     res.json({ inicio: inicio.toISOString(), fim: fim.toISOString(), total: eventos.length, eventos });
 });
 
-router.post('/', (req, res) => {
-    const { titulo, descricao, lead_id, inicio, fim, tipo = 'reuniao' } = req.body || {};
+router.post('/', async (req, res) => {
+    const { titulo, descricao, lead_id, inicio, fim, tipo = 'reuniao', convidados, localizacao } = req.body || {};
     if (!titulo || !inicio) return res.status(400).json({ erro: 'titulo e inicio são obrigatórios' });
 
     const id = uid('evt');
@@ -31,7 +32,32 @@ router.post('/', (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(id, titulo, descricao, lead_id, inicio, fim, tipo);
 
-    res.status(201).json(db.prepare('SELECT * FROM agenda WHERE id = ?').get(id));
+    // Best-effort: criar evento no Google Calendar (se OAuth configurado)
+    let googleSync = null;
+    if (googleLib.isReady() && (tipo === 'reuniao' || tipo === 'ligacao')) {
+        try {
+            // Se nao tem fim, assume 1h de duracao (padrao pra visita)
+            const fimReal = fim || new Date(new Date(inicio).getTime() + 60 * 60 * 1000).toISOString();
+            const ev = await googleLib.calendar.criarEvento({
+                titulo,
+                descricao: descricao || '',
+                inicio,
+                fim: fimReal,
+                convidados: Array.isArray(convidados) ? convidados : [],
+                localizacao,
+            });
+            db.prepare(`
+                UPDATE agenda SET google_event_id = ?, google_event_link = ?, google_meet_link = ? WHERE id = ?
+            `).run(ev.id, ev.htmlLink, ev.hangoutLink, id);
+            googleSync = { ok: true, event_id: ev.id, link: ev.htmlLink, meet: ev.hangoutLink };
+        } catch (err) {
+            console.error('[agenda] Falha ao criar evento no Google Calendar:', err.message);
+            googleSync = { ok: false, error: err.message };
+        }
+    }
+
+    const evento = db.prepare('SELECT * FROM agenda WHERE id = ?').get(id);
+    res.status(201).json({ ...evento, google_sync: googleSync });
 });
 
 router.patch('/:id', (req, res) => {

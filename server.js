@@ -59,6 +59,7 @@ function eRotaPublica(pathname, method) {
     if (pathname === '/contato.html') return true;
     if (pathname === '/api/contato' && method === 'POST') return true;
     if (pathname.startsWith('/api/auth/')) return true;
+    if (pathname.startsWith('/auth/google')) return true;  // OAuth Google (setup 1x)
     if (pathname.startsWith('/api/ai/publica')) return true;
     if (pathname === '/api/saude') return true;
     if (pathname === '/api/voz/status') return true;
@@ -114,6 +115,12 @@ function authMiddleware(req, res, next) {
     // req.path = pathname sem querystring (req.url inclui ?next=... e quebra match estrito)
     if (eRotaPublica(req.path, req.method)) return next();
 
+    // Bypass via X-Agent-Token (usado pelo whatsapp-agent e outros serviços internos)
+    const AGENT_TOKEN = process.env.IGOR_AGENT_TOKEN;
+    if (AGENT_TOKEN && req.headers['x-agent-token'] === AGENT_TOKEN) {
+        return next();
+    }
+
     const cookies = parseCookies(req);
     const sessao = validarToken(cookies[COOKIE_NAME]);
     if (sessao) return next();
@@ -162,6 +169,54 @@ app.get('/api/auth/me', (req, res) => {
     res.json({ auth_enabled: true, user: sessao ? sessao.user : null });
 });
 
+// ─── OAuth Google (setup 1x — captura refresh_token) ──────────────────────────────
+// Fluxo: Levi abre /auth/google → consente → Google redireciona p/ callback
+// com code → callback troca por tokens e renderiza refresh_token p/ Levi copiar p/ env.
+const googleLib = require('./lib/google');
+
+app.get('/auth/google', (_req, res) => {
+    try {
+        const url = googleLib.getConsentUrl();
+        res.redirect(url);
+    } catch (err) {
+        res.status(500).send(`<pre>Erro: ${err.message}\n\nVerifique GOOGLE_OAUTH_CLIENT_ID e GOOGLE_OAUTH_CLIENT_SECRET no .env</pre>`);
+    }
+});
+
+app.get('/auth/google/callback', async (req, res) => {
+    const { code, error } = req.query;
+    if (error) return res.status(400).send(`<pre>Erro do Google: ${error}</pre>`);
+    if (!code) return res.status(400).send('<pre>Faltando ?code= na URL</pre>');
+    try {
+        const tokens = await googleLib.exchangeCodeForTokens(code);
+        if (!tokens.refresh_token) {
+            return res.send(`
+                <pre>Tokens recebidos, mas SEM refresh_token. Provavelmente esse usuario ja autorizou antes.
+Solucoes:
+  1. Vai em https://myaccount.google.com/permissions → Remove "Igor Babolin Bot" → tenta de novo
+  2. Ou usa outro Google account no consent
+
+Tokens recebidos:
+${JSON.stringify(tokens, null, 2)}</pre>
+            `);
+        }
+        res.send(`
+            <html><body style="font-family: monospace; padding: 24px; background: #111; color: #eee;">
+            <h1>OAuth Google OK</h1>
+            <p>Copia o refresh_token abaixo e cola no Coolify do card <b>igor-neural-system</b>:</p>
+            <h3>GOOGLE_OAUTH_REFRESH_TOKEN</h3>
+            <textarea readonly style="width:100%; height:80px; padding:8px; background:#000; color:#0f0; font-size:14px;">${tokens.refresh_token}</textarea>
+            <p>Tambem precisa setar no card <b>whatsapp-agent</b> a mesma var (se for usar chamadas Google direto de lá), ou deixar so no parent e o wa-agent chama via HTTP.</p>
+            <hr>
+            <p><b>Outros tokens (informativo):</b></p>
+            <pre>${JSON.stringify({ ...tokens, refresh_token: '<<copiado acima>>' }, null, 2)}</pre>
+            </body></html>
+        `);
+    } catch (err) {
+        res.status(500).send(`<pre>Erro ao trocar code: ${err.message}\n\n${err.stack}</pre>`);
+    }
+});
+
 app.use(authMiddleware);
 
 // Em prod, fotos dos imóveis ficam no volume persistente /data/assets/imoveis.
@@ -189,23 +244,72 @@ app.use('/api/skills',      skillsRoutes);
 
 app.get('/api/saude', (_req, res) => res.json({ ok: true, projeto: 'igor-neural-system', versao: '0.1.0' }));
 
+// Envio de email via Gmail do Igor (chamado pelo whatsapp-agent ou agentes internos)
+// Auth: X-Agent-Token. Body: { to, subject, html, text, replyTo }
+app.post('/api/email', async (req, res) => {
+    try {
+        const { to, subject, html, text, replyTo } = req.body || {};
+        if (!to || !subject || (!html && !text)) {
+            return res.status(400).json({ erro: 'to, subject e (html ou text) obrigatorios' });
+        }
+        if (!googleLib.isReady()) {
+            return res.status(503).json({ erro: 'Google OAuth nao configurado no servidor' });
+        }
+        const r = await googleLib.gmail.sendEmail({ to, subject, html, text, replyTo });
+        res.json(r);
+    } catch (err) {
+        console.error('[email] erro:', err.message);
+        res.status(500).json({ erro: err.message });
+    }
+});
+
+// Upload de midia pro Google Drive (chamado pelo whatsapp-agent quando lead manda foto/audio)
+// Auth: X-Agent-Token (ja validado pelo authMiddleware)
+// Body: { leadId, nome, mimeType, base64 }
+app.post('/api/midia', async (req, res) => {
+    try {
+        const { leadId, nome, mimeType, base64 } = req.body || {};
+        if (!nome || !mimeType || !base64) {
+            return res.status(400).json({ erro: 'nome, mimeType e base64 obrigatorios' });
+        }
+        if (!googleLib.isReady()) {
+            return res.status(503).json({ erro: 'Google OAuth nao configurado no servidor' });
+        }
+        const buffer = Buffer.from(base64, 'base64');
+        const r = await googleLib.drive.uploadFile({ buffer, nome, mimeType, leadId });
+        res.json({ ok: true, ...r });
+    } catch (err) {
+        console.error('[midia] erro:', err.message);
+        res.status(500).json({ erro: err.message });
+    }
+});
+
 // Formulario publico de contato (pagina /contato.html). Cria lead no funil.
-app.post('/api/contato', (req, res) => {
+app.post('/api/contato', async (req, res) => {
     const { nome, telefone, email, interesse, mensagem } = req.body || {};
     if (!nome || !telefone) return res.status(400).json({ erro: 'nome e telefone obrigatorios' });
     const { db, uid, registrarLog } = require('./db');
     const id = uid('lead');
-    const interesseTexto = interesse || 'site_contato';
+    const origem = req.body?.origem || 'site_contato';
+    const interesseTexto = interesse || origem;
     const notas = mensagem || null;
     db.prepare(`
         INSERT INTO leads (id, nome, interesse, telefone, email, origem, score_ia, notas)
-        VALUES (?, ?, ?, ?, ?, 'site_contato', 0, ?)
-    `).run(id, nome, interesseTexto, telefone, email || null, notas);
+        VALUES (?, ?, ?, ?, ?, ?, 0, ?)
+    `).run(id, nome, interesseTexto, telefone, email || null, origem, notas);
     registrarLog({
         agente: 'sdr', nivel: 'info',
-        mensagem: `Novo contato pelo site: ${nome}`,
-        contexto: { lead_id: id, interesse: interesseTexto }
+        mensagem: `Novo contato (${origem}): ${nome}`,
+        contexto: { lead_id: id, interesse: interesseTexto, origem }
     });
+    // Best-effort: append na Sheet do Igor (se OAuth configurado)
+    if (googleLib.isReady()) {
+        googleLib.sheets.appendLead({
+            nome, telefone, origem, interesse: interesseTexto, mensagem: notas || '',
+        }).catch((err) => {
+            console.error('[contato] Falha append Sheet:', err.message);
+        });
+    }
     res.json({ ok: true, lead_id: id });
 });
 
