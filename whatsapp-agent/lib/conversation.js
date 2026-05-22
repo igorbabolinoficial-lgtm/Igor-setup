@@ -178,11 +178,26 @@ So pergunte o PROXIMO ponto que NAO esta checado. NUNCA repita pergunta cuja res
 
 OBJETIVO: completar TODOS os 9 pontos antes de encerrar. NAO desista antes de coletar tudo.
 
-QUANDO TODOS OS PONTOS ESTIVEREM CHECADOS:
-Se ja tem >= 8 pontos coletados:
-- Se tem imovel no catalogo que combina, mostre: "Olha, baseado no que voce me passou tenho [TITULO_EXATO] em [BAIRRO] por [PRECO]. Quer ver as fotos? Link: ${IGOR_DNA.site}/imovel.html?id=ID"
-- Se nao tem nada que combine perfeitamente, diga: "Anotei seu perfil, ainda nao tenho exatamente isso mas estou em contato com proprietarios da regiao. Te aviso assim que aparecer algo do seu jeito."
-Depois disso, mantem a conversa aberta — responda perguntas pontuais, marque visita se pedir.
+INDICACAO PROATIVA DE IMOVEL (CRITICO — comportamento padrao):
+NUNCA pergunte "quer ver as fotos?" antes de mandar link. JA MANDE o(s) link(s) direto assim que o lead der QUALQUER criterio especifico que permita filtrar o catalogo. Criterio especifico = combinacao minima de TIPO + (quartos OU regiao OU faixa de preco).
+
+Exemplos do que dispara indicacao DIRETA:
+- "quero apartamento de 3 quartos" -> ja manda ate 3 opcoes do catalogo que batem
+- "casa no rosa ate 1 milhao" -> ja manda ate 3 opcoes
+- "terreno em garopaba" -> ja manda ate 3 opcoes
+- "tem alguma pousada?" -> ja manda ate 3 opcoes
+
+COMO mandar (formato obrigatorio):
+1. Bolha curta de contexto: "Olha, tenho essas opcoes que batem com o que tu falou:"
+2. Pra cada imovel (max 3): UMA linha com TITULO_EXATO + bairro + preco + link
+   Formato: "- [TITULO] em [BAIRRO] por [PRECO]: ${IGOR_DNA.site}/imovel.html?id=ID"
+3. UMA pergunta de fechamento curta no final: "Algum desses te chama mais a atencao?" ou "Quer dar um pulo pra ver algum?"
+
+QUANDO MOSTRAR MAIS IMOVEIS (CHECADOS >= 6 pontos da pipeline):
+- Se ja indicou opcoes e agora tem mais dados (preco, regiao mais especifica), pode refinar e mandar 1-2 novas opcoes melhores.
+- Se nao tem nada que combina mais com o perfil completo: "Anotei teu perfil completo, ainda nao tenho exatamente isso, mas tou em contato com proprietarios da regiao. Te aviso assim que aparecer."
+
+REGRA: nao desiste da pipeline so porque mandou link. Continue coletando os pontos faltantes na mesma resposta ou na proxima. Ex: depois de mandar link, pode perguntar a faixa de preco ou prazo na proxima mensagem.
 
 SAIDA DA PIPELINE — se o lead disser:
 - "sou proprietario" / "so estou testando" / "sou concorrente" / "sou jornalista" -> "Entendi, obrigado pelo contato. Qualquer imovel que precisar na regiao, estou por aqui." E pare.
@@ -200,20 +215,41 @@ USO DO CATALOGO:
 - Use o titulo EXATO do imovel como esta no catalogo.
 - Site geral: ${IGOR_DNA.site} (catalogo completo, sobre, contato).
 
-AGENDAMENTO DE VISITA (CRITICO — marker especial):
-Quando o lead CONFIRMAR um dia + horario especifico pra visita ao imovel (ex: "pode ser quinta as 14h", "amanha 10h ta otimo", "23/05 16h"), voce DEVE:
-1. Responder de forma natural confirmando ("Show, marquei aqui pra ti...")
-2. Adicionar no FINAL da sua resposta (ULTIMA linha) o marker:
-   [[AGENDAR: YYYY-MM-DDTHH:MM:00-03:00]]
-   substituindo pelo ISO 8601 calculado em horario de Brasilia (-03:00).
-3. Hoje eh ${new Date().toISOString().slice(0,10)}. Calcule "amanha", "quinta", "depois de amanha" a partir disso.
-4. O marker NAO vai aparecer pro lead — o sistema remove antes de mandar.
+AGENDAMENTO DE VISITA (CRITICO — marker especial em JSON):
+
+PRE-REQUISITOS INVIOLAVEIS (antes de gerar o marker):
+1. NOME do lead — se nao tem, pergunta: "Show, antes de marcar — qual o seu nome?"
+2. EMAIL do lead — se nao tem, pergunta: "E o seu email? Vou te mandar o convite com lembrete por la." Se o lead recusar ou disser que nao tem, agenda sem (deixa "email" vazio no JSON).
+3. IMOVEL especifico — se a conversa nao deixou claro qual, pergunta: "E pra ver qual imovel especificamente?"
+4. DATA + HORA confirmadas — se faltar uma das duas, pergunta antes.
+
+So depois de TER os 4 (ou nome+imovel+data/hora se lead recusou email), gere o marker.
+
+FORMATO DO MARKER (JSON em uma linha unica no FINAL da resposta):
+[[AGENDAR: {"inicio":"YYYY-MM-DDTHH:MM:00-03:00","nome":"Nome do Lead","email":"email@dominio.com","imovel":"Titulo exato do imovel do catalogo","imovel_id":"ID_do_catalogo_ou_vazio"}]]
+
+Regras do JSON:
+- "inicio": ISO 8601 com timezone -03:00 (Brasilia). Hoje eh ${new Date().toISOString().slice(0,10)}.
+- "nome": nome confirmado do lead (capitalize: "Joao Silva", nao "joao silva")
+- "email": email confirmado do lead em minusculas. Se lead recusou ou nao tem, deixa "" (string vazia).
+- "imovel": titulo EXATO conforme catalogo. Se for terreno generico sem titulo claro, descreva curto ("Terreno Rua dos Poncianos")
+- "imovel_id": id numerico do catalogo se ja foi indicado link. Se nao sabe, deixa "".
+
+O marker NAO vai aparecer pro lead — o sistema remove antes de mandar. O Google Calendar manda convite automatico pro email do lead.
 
 Exemplos corretos:
-- Lead: "quinta as 14h" (hoje seg 26/05) -> "Show, marquei aqui pra ti quinta dia 29, 14h. Te confirmo o ponto de encontro proximo do dia. [[AGENDAR: 2026-05-29T14:00:00-03:00]]"
-- Lead: "amanha 10h" (hoje 22/05) -> "Boa, anotei amanha as 10h. Te mando o pin do local hoje a noite. [[AGENDAR: 2026-05-23T10:00:00-03:00]]"
+- Mariana com email confirmado, quinta 14h, Casa Frente Mar em Garopaba (id 47):
+  "Show Mariana, marquei pra ti quinta dia 29, 14h pra ver a Casa Frente Mar em Garopaba. Mandei o convite no teu email tambem. Te confirmo o ponto de encontro proximo do dia. [[AGENDAR: {\"inicio\":\"2026-05-29T14:00:00-03:00\",\"nome\":\"Mariana\",\"email\":\"mariana@gmail.com\",\"imovel\":\"Casa Frente Mar em Garopaba\",\"imovel_id\":\"47\"}]]"
 
-REGRA: so use o marker quando lead CONFIRMAR data E hora. Se ele so disse "quinta" sem hora, pergunta o horario antes. Se ele so disse "14h" sem dia, pergunta o dia. NUNCA invente data/hora que o lead nao falou.
+- Joao recusou dar email, amanha 10h, terreno do Vale:
+  "Boa Joao, anotei amanha as 10h pra ver o terreninho la do Vale. Te mando o pin do local hoje a noite. [[AGENDAR: {\"inicio\":\"2026-05-23T10:00:00-03:00\",\"nome\":\"Joao\",\"email\":\"\",\"imovel\":\"Terreno Caminho do Vale\",\"imovel_id\":\"\"}]]"
+
+REGRAS DE BLOQUEIO (NAO gere o marker se):
+- Nao tem nome -> pergunta o nome primeiro
+- Nao perguntou email ainda -> pergunta o email
+- Nao tem imovel especifico -> pergunta qual imovel
+- Lead so disse dia OU so disse hora -> pergunta o que falta
+- NUNCA invente nome, email, imovel, data ou hora.
 
 CATALOGO ATUAL:
 ${catalogo}`;
@@ -336,36 +372,74 @@ export async function processBatch(batch) {
     resposta = 'Anotei sua mensagem. O Igor te chama aqui em instantes.';
   }
 
-  // Intercepta marker [[AGENDAR: ISO]] gerado pelo LLM -> cria evento no Calendar via parent
-  const AGENDAR_RE = /\[\[AGENDAR:\s*([0-9TZ:\-+.]+)\s*\]\]/i;
+  // Intercepta marker [[AGENDAR: {JSON}]] gerado pelo LLM -> cria evento no Calendar via parent.
+  // Aceita tambem formato legado [[AGENDAR: ISO]] (so data) com fallback minimo.
+  const AGENDAR_RE = /\[\[AGENDAR:\s*(\{[\s\S]+?\}|[0-9TZ:\-+.]+)\s*\]\]/i;
   const matchAgendar = AGENDAR_RE.exec(resposta);
   if (matchAgendar) {
-    const inicioIso = matchAgendar[1].trim();
+    const raw = matchAgendar[1].trim();
     resposta = resposta.replace(AGENDAR_RE, '').replace(/\s+$/g, '').trim();
-    if (parentReady()) {
-      try {
-        const r = await criarAgenda({
-          titulo: `Visita - lead ${phone}`,
-          descricao: `Agendado via bot WhatsApp.\nLead: ${phone}\nLeadId local (wa-agent): ${leadId}`,
-          lead_id: null, // leadId do parent eh outro; deixar null
-          inicio: inicioIso,
-          fim: null, // routes/agenda.js assume 1h se nao informado
-          convidados: [], // poderia incluir email do lead se tivessemos
-          localizacao: undefined,
-        });
-        if (r.ok && r.data?.google_sync?.link) {
-          resposta += `\n\nLink no Calendar: ${r.data.google_sync.link}`;
-          log.info('Visita criada no Calendar', { phone, inicio: inicioIso, link: r.data.google_sync.link });
-        } else if (r.ok) {
-          log.info('Visita criada local (Calendar nao sincou)', { phone, inicio: inicioIso });
-        } else {
-          log.warn('Falha criar visita via parent', { phone, err: r.error || r.data });
-        }
-      } catch (err) {
-        log.error('Erro criando visita', { phone, err: err.message });
+
+    let payload;
+    if (raw.startsWith('{')) {
+      try { payload = JSON.parse(raw); }
+      catch (e) {
+        log.warn('Marker AGENDAR com JSON invalido', { phone, raw, err: e.message });
+        payload = null;
       }
     } else {
-      log.info('Marker AGENDAR detectado mas parent-api nao configurado (IGOR_AGENT_TOKEN faltando)', { phone, inicio: inicioIso });
+      // formato legado: so a data
+      payload = { inicio: raw };
+    }
+
+    if (payload && payload.inicio) {
+      const nome = (payload.nome || '').trim();
+      const email = (payload.email || '').trim().toLowerCase();
+      const imovel = (payload.imovel || '').trim();
+      const imovelId = (payload.imovel_id || '').trim();
+      const linkImovel = imovelId ? `${IGOR_DNA.site}/imovel.html?id=${imovelId}` : '';
+
+      // Validacao basica de email (regex simples — rejeita string vazia ou sem @)
+      const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const emailValido = email && EMAIL_RE.test(email) ? email : null;
+
+      const titulo = `Visita - ${nome || 'Lead'} - ${imovel || 'a definir'}`;
+      const descricao = [
+        `Visita agendada via bot WhatsApp do Igor.`,
+        ``,
+        `Lead: ${nome || '(nome nao informado)'}`,
+        `Telefone: ${phone}`,
+        emailValido ? `Email: ${emailValido}` : null,
+        `Imovel: ${imovel || '(imovel nao informado)'}`,
+        linkImovel ? `Link do imovel: ${linkImovel}` : null,
+        `LeadId interno (wa-agent): ${leadId}`,
+      ].filter(Boolean).join('\n');
+
+      if (parentReady()) {
+        try {
+          const r = await criarAgenda({
+            titulo,
+            descricao,
+            lead_id: null,
+            inicio: payload.inicio,
+            fim: null,
+            convidados: emailValido ? [emailValido] : [],
+            localizacao: undefined,
+          });
+          if (r.ok && r.data?.google_sync?.link) {
+            resposta += `\n\nLink no Calendar: ${r.data.google_sync.link}`;
+            log.info('Visita criada no Calendar', { phone, nome, imovel, link: r.data.google_sync.link });
+          } else if (r.ok) {
+            log.info('Visita criada local (Calendar nao sincou)', { phone, nome, imovel });
+          } else {
+            log.warn('Falha criar visita via parent', { phone, err: r.error || r.data });
+          }
+        } catch (err) {
+          log.error('Erro criando visita', { phone, err: err.message });
+        }
+      } else {
+        log.info('Marker AGENDAR detectado mas parent-api nao configurado', { phone, payload });
+      }
     }
   }
 
