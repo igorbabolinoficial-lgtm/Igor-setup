@@ -11,6 +11,8 @@
     "test-groq": "node scripts/test-groq.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0",
+    "@google/generative-ai": "^0.24.1",
     "@whiskeysockets/baileys": "^7.0.0-rc11",
     "axios": "^1.7.7",
     "better-sqlite3": "^11.3.0",

@@ -1,5 +1,5 @@
 // Orquestrador da conversa: recebe mensagem do lead -> monta contexto -> chama Groq -> envia resposta.
-import { chat } from './groq.js';
+import { chat } from './llm.js';
 import { resumoCatalogo, linkImovel, imovelPorId, formatarImovelDestaque } from './catalogo.js';
 import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syncLeadToIgor, setUltimoEventId, getUltimoEventId } from './storage.js';
 import { sendText, sendVoice, resolveLidToPhone, setTyping, downloadMediaFromUrl } from './baileys.js';
