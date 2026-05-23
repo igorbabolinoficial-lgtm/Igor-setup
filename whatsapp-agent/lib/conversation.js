@@ -373,7 +373,8 @@ export async function processBatch(batch) {
 
   // Historico ja contem as inbounds que persistIncoming salvou.
   // Groq rejeita content null/vazio — filtra mensagens sem conteudo textual.
-  const recent = await getRecentMessages(phone, 16);
+  // Janela de 12 — equilibrio entre contexto (lembrar agendamento, nome, imovel) e custo de tokens.
+  const recent = await getRecentMessages(phone, 12);
   const historyForLLM = recent
     .filter((m) => m.body && String(m.body).trim().length > 0)
     .map((m) => ({
@@ -385,27 +386,25 @@ export async function processBatch(batch) {
   const messages = [{ role: 'system', content: system }, ...historyForLLM];
 
   let resposta;
+  let groqFalhou = false;
   try {
     resposta = await chat(messages, { temperature: 0.65, maxTokens: 300 });
   } catch (err) {
     log.error('Falha no Groq', { err: err.message });
-    // Fallback neutro: nao usar "o Igor te responde" porque o bot EH o Igor
+    groqFalhou = true;
     resposta = 'Opa, tive um problema aqui rapidinho. Pode me mandar de novo?';
   }
-
-  if (!resposta || resposta.length < 5) {
-    resposta = 'Desculpa, nao entendi direito — pode me explicar?';
-  }
+  resposta = (resposta || '').trim();
 
   // Intercepta marker [[AGENDAR: {JSON}]] gerado pelo LLM -> cria evento no Calendar via parent.
   // Aceita tambem formato legado [[AGENDAR: ISO]] (so data) com fallback minimo.
   const AGENDAR_RE = /\[\[AGENDAR:\s*(\{[\s\S]+?\}|[0-9TZ:\-+.]+)\s*\]\]/i;
   const matchAgendar = AGENDAR_RE.exec(resposta);
+  let payload = null;
   if (matchAgendar) {
     const raw = matchAgendar[1].trim();
     resposta = resposta.replace(AGENDAR_RE, '').replace(/\s+$/g, '').trim();
 
-    let payload;
     if (raw.startsWith('{')) {
       try { payload = JSON.parse(raw); }
       catch (e) {
@@ -416,8 +415,26 @@ export async function processBatch(batch) {
       // formato legado: so a data
       payload = { inicio: raw };
     }
+  }
 
-    if (payload && payload.inicio) {
+  // Fallback inteligente quando resposta vazia / muito curta:
+  // - Se LLM gerou marker mas esqueceu de gerar texto -> resposta natural baseada no payload
+  // - Se nao tem marker E resposta vazia -> fallback generico
+  if (!resposta || resposta.length < 3) {
+    if (payload && payload.nome) {
+      resposta = payload.email
+        ? `Show ${payload.nome}, marquei aqui pra ti. Te mando o convite no email.`
+        : `Show ${payload.nome}, marquei aqui pra ti. Te confirmo o ponto de encontro proximo do dia.`;
+    } else if (payload) {
+      resposta = 'Show, marquei aqui pra ti. Te confirmo proximo do dia.';
+    } else if (!groqFalhou) {
+      resposta = 'Opa, pode me mandar de novo? Acho que cortou aqui.';
+    }
+    // Se groqFalhou, mantem o fallback do catch ("tive um problema aqui rapidinho")
+  }
+
+  if (payload) {
+    if (payload.inicio) {
       const nome = (payload.nome || '').trim();
       const email = (payload.email || '').trim().toLowerCase();
       const imovel = (payload.imovel || '').trim();
