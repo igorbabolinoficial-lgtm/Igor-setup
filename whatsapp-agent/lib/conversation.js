@@ -1,7 +1,7 @@
 // Orquestrador da conversa: recebe mensagem do lead -> monta contexto -> chama Groq -> envia resposta.
 import { chat } from './llm.js';
 import { resumoCatalogo, linkImovel, imovelPorId, formatarImovelDestaque, buscarPorPreco, buscarPorNome, formatarResultadoBusca } from './catalogo.js';
-import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syncLeadToIgor, setUltimoEventId, getUltimoEventId, setPreferencias, getPreferencias } from './storage.js';
+import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syncLeadToIgor, setUltimoEventId, getUltimoEventId, setPreferencias, getPreferencias, db } from './storage.js';
 import { sendText, sendVoice, resolveLidToPhone, setTyping, downloadMediaFromUrl } from './baileys.js';
 import { transcribeAudio } from './transcribe.js';
 import { gerarAudio, ttsHabilitado } from './tts.js';
@@ -16,22 +16,26 @@ const IGOR_DNA = {
   site: process.env.IGOR_SITE || 'https://babolin.tech',
 };
 
-async function buildSystemPrompt(prefsSalvas = null) {
+async function buildSystemPrompt(prefsSalvas = null, leadName = null) {
   const catalogo = await resumoCatalogo();
 
   // Prefs salvas no banco — vai no TOPO do prompt pra ter máxima prioridade
   let prefsBlockTopo = '';
-  if (prefsSalvas && Object.keys(prefsSalvas).length) {
+  const temPrefs = prefsSalvas && Object.keys(prefsSalvas).length;
+  const temNome  = leadName && leadName.length > 1;
+  if (temPrefs || temNome) {
     const linhas = [];
-    if (prefsSalvas.tipo)        linhas.push(`- Tipo de imóvel: ${prefsSalvas.tipo}`);
-    if (prefsSalvas.quartos)     linhas.push(`- Quartos: ${prefsSalvas.quartos}`);
-    if (prefsSalvas.regiao)      linhas.push(`- Região: ${prefsSalvas.regiao}`);
-    if (prefsSalvas.preco_min)   linhas.push(`- Preço mínimo: R$${prefsSalvas.preco_min.toLocaleString('pt-BR')}`);
-    if (prefsSalvas.preco_max)   linhas.push(`- Preço máximo / orçamento: R$${prefsSalvas.preco_max.toLocaleString('pt-BR')}`);
-    if (prefsSalvas.finalidade)  linhas.push(`- Finalidade: ${prefsSalvas.finalidade}`);
-    if (prefsSalvas.urgencia)    linhas.push(`- Urgência: ${prefsSalvas.urgencia}`);
-    if (prefsSalvas.observacoes) linhas.push(`- Obs: ${prefsSalvas.observacoes}`);
-    prefsBlockTopo = `\n=== INFO JA SALVA DESSE LEAD (NAO PERGUNTE NOVAMENTE) ===\n${linhas.join('\n')}\n=== FIM INFO LEAD ===\n\nREGRA CRITICA: Os dados acima JA FORAM coletados em conversas anteriores. NUNCA pergunte de novo sobre tipo, quartos, regiao, preco ou finalidade se ja estiver listado acima. Use direto pra indicar imoveis.\n`;
+    if (temNome)                 linhas.push(`- Nome do lead: ${leadName}`);
+    if (prefsSalvas?.tipo)       linhas.push(`- Tipo de imóvel: ${prefsSalvas.tipo}`);
+    if (prefsSalvas?.quartos)    linhas.push(`- Quartos: ${prefsSalvas.quartos}`);
+    if (prefsSalvas?.regiao)     linhas.push(`- Região: ${prefsSalvas.regiao}`);
+    if (prefsSalvas?.preco_min)  linhas.push(`- Preço mínimo: R$${prefsSalvas.preco_min.toLocaleString('pt-BR')}`);
+    if (prefsSalvas?.preco_max)  linhas.push(`- Preço máximo / orçamento: R$${prefsSalvas.preco_max.toLocaleString('pt-BR')}`);
+    if (prefsSalvas?.finalidade) linhas.push(`- Finalidade: ${prefsSalvas.finalidade}`);
+    if (prefsSalvas?.urgencia)   linhas.push(`- Urgência: ${prefsSalvas.urgencia}`);
+    if (prefsSalvas?.observacoes)linhas.push(`- Obs: ${prefsSalvas.observacoes}`);
+    const nomeBloqueio = temNome ? ' NUNCA pergunte o nome desta pessoa novamente.' : '';
+    prefsBlockTopo = `\n=== INFO JA SALVA DESSE LEAD (NAO PERGUNTE NOVAMENTE) ===\n${linhas.join('\n')}\n=== FIM INFO LEAD ===\n\nREGRA CRITICA: Os dados acima JA FORAM coletados em conversas anteriores. NUNCA pergunte de novo sobre tipo, quartos, regiao, preco ou finalidade se ja estiver listado acima. Use direto pra indicar imoveis.${nomeBloqueio}\n`;
   }
   const prefsBlock = ''; // mantido vazio — bloco moveu pro topo
 
@@ -293,11 +297,13 @@ Exemplo:
   "Tranquilo Mariana, sem problema. Remarquei pra sexta dia 30, 14h. Te mando o convite atualizado no email. [[AGENDAR: {\"inicio\":\"2026-05-30T14:00:00-03:00\",\"nome\":\"Mariana\",\"email\":\"mariana@gmail.com\",\"imovel\":\"Casa Frente Mar em Garopaba\",\"imovel_id\":\"47\"}]]"
 
 SALVAR PREFERENCIAS DO LEAD (marker auxiliar — gere SEMPRE que aprender info nova):
-Sempre que descobrir uma preferencia/criterio do lead (tipo de imovel, faixa de preco, regiao, quartos, urgencia, finalidade morar/investir), inclua no FINAL da resposta o marker:
-[[LEAD_INFO: {"tipo":"casa|apartamento|terreno|cobertura","preco_min":N,"preco_max":N,"regiao":"texto","quartos":N,"finalidade":"morar|investir|veranear","urgencia":"alta|media|baixa","observacoes":"texto curto"}]]
+Sempre que descobrir o nome ou qualquer criterio do lead (tipo de imovel, faixa de preco, regiao, quartos, urgencia, finalidade morar/investir), inclua no FINAL da resposta o marker:
+[[LEAD_INFO: {"nome":"Nome do Lead","tipo":"casa|apartamento|terreno|cobertura","preco_min":N,"preco_max":N,"regiao":"texto","quartos":N,"finalidade":"morar|investir|veranear","urgencia":"alta|media|baixa","observacoes":"texto curto"}]]
 
-So inclua os campos que voce APRENDEU. Nao invente. Se o lead diz "casa de 600 mil no Rosa pra investir", marker:
-[[LEAD_INFO: {"tipo":"casa","preco_max":600000,"regiao":"Praia do Rosa","finalidade":"investir"}]]
+So inclua os campos que voce APRENDEU. Nao invente.
+- Lead diz o nome "sou a Ana" -> marker: [[LEAD_INFO: {"nome":"Ana"}]]
+- Lead diz "casa de 600 mil no Rosa pra investir" -> marker: [[LEAD_INFO: {"tipo":"casa","preco_max":600000,"regiao":"Praia do Rosa","finalidade":"investir"}]]
+- Ambos juntos: [[LEAD_INFO: {"nome":"Ana","tipo":"casa","preco_max":600000,"regiao":"Praia do Rosa","finalidade":"investir"}]]
 
 O marker é SILENCIOSO — nao aparece pro cliente, sai automatico do texto. Pode coexistir com [[AGENDAR]] na mesma resposta.
 ${prefsBlock}
@@ -408,6 +414,16 @@ export async function processBatch(batch) {
       content: String(m.body),
     }));
 
+  // Busca nome salvo do lead — injetado no system prompt pra bot nunca perguntar de novo
+  const leadRow = db.prepare('SELECT name FROM leads WHERE id = ?').get(leadId);
+  const leadNameSalvo = (() => {
+    const n = leadRow?.name || '';
+    // Ignora se o "nome" é na verdade o próprio número de telefone (padrão quando não tinha nome)
+    const digits = n.replace(/\D/g, '');
+    if (digits.length >= 8 && digits === phone.replace(/\D/g, '').slice(-digits.length)) return null;
+    return n.length > 1 ? n : null;
+  })();
+
   const prefsSalvas = (await getPreferencias(phone)) || {};
 
   // Auto-extração de prefs do histórico (sem depender de marker do LLM)
@@ -450,7 +466,7 @@ export async function processBatch(batch) {
     await setPreferencias(phone, prefsMerged).catch(() => {});
   }
 
-  const system = await buildSystemPrompt(prefsMerged);
+  const system = await buildSystemPrompt(prefsMerged, leadNameSalvo);
 
   // Pré-busca: extrai preço ou nome da mensagem e injeta resultados relevantes no contexto
   let contextoBusca = '';
@@ -521,8 +537,15 @@ export async function processBatch(batch) {
     resposta = resposta.replace(LEAD_INFO_RE, '').replace(/\s+$/g, '').trim();
     try {
       const prefs = JSON.parse(matchLeadInfo[1]);
-      await setPreferencias(phone, prefs);
-      log.info('Preferencias do lead salvas', { phone, prefs });
+      // Salva nome no registro do lead se veio no marker
+      if (prefs.nome && prefs.nome.trim().length > 1) {
+        await touchLead(leadId, { name: prefs.nome.trim() });
+        log.info('Nome do lead salvo', { phone, nome: prefs.nome });
+      }
+      // Remove campo nome antes de salvar nas prefs (prefs é só critérios de busca)
+      const { nome: _nome, ...prefsLimpo } = prefs;
+      await setPreferencias(phone, prefsLimpo);
+      log.info('Preferencias do lead salvas', { phone, prefs: prefsLimpo });
       // Sinca pro dashboard como string de interesse legível
       const partes = [];
       if (prefs.tipo) partes.push(prefs.tipo);
