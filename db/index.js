@@ -37,6 +37,18 @@ adicionarColuna('agenda', 'google_event_id', 'TEXT');          // id do evento n
 adicionarColuna('agenda', 'google_event_link', 'TEXT');        // htmlLink do Calendar
 adicionarColuna('agenda', 'google_meet_link', 'TEXT');         // hangoutLink (Meet) gerado automaticamente
 
+// === Campos enriquecidos de imóveis (v2) ===
+adicionarColuna('imoveis', 'suites',           'INTEGER');                       // suítes (subset de quartos)
+adicionarColuna('imoveis', 'garagem',          'INTEGER');                       // vagas de garagem
+adicionarColuna('imoveis', 'area_terreno_m2',  'REAL');                          // área total do terreno
+adicionarColuna('imoveis', 'negocio',          'TEXT DEFAULT \'venda\'');        // venda | locacao | temporada | permuta
+adicionarColuna('imoveis', 'forma_pagamento',  'TEXT');                          // JSON array: ["financiamento","fgts","avista","permuta"]
+adicionarColuna('imoveis', 'iptu_anual',       'REAL');                          // R$ IPTU/ano
+adicionarColuna('imoveis', 'condominio_mensal','REAL');                          // R$ condomínio/mês
+adicionarColuna('imoveis', 'aceita_fgts',      'INTEGER DEFAULT 0');             // 0=não/desconhecido 1=sim
+adicionarColuna('imoveis', 'codigo_ref',       'TEXT');                          // código de referência do imóvel
+adicionarColuna('imoveis', 'caracteristicas',  'TEXT');                          // JSON array: ["piscina","vista mar",...]
+
 // === Seed dos 6 novos agentes (Consultores + Marketing expandido) ===
 // Idempotente: INSERT OR IGNORE não duplica se a chave já existe
 db.prepare(`INSERT OR IGNORE INTO agentes (chave, nome, descricao, tipos_aceitos) VALUES (?, ?, ?, ?)`).run(

@@ -130,7 +130,129 @@ function parsePropriedade(html, urlOrigem) {
     else if (/rosa/.test(slugLower)) bairro = 'Praia do Rosa';
     else if (/vigia/.test(slugLower)) bairro = 'Praia da Vigia';
 
-    return { id: idHash, slug, titulo, descricao, preco, tipo, bairro, fotosUrls, urlOrigem };
+    // ---- Campos enriquecidos (v2) ----
+    const descLower = (descricao || '').toLowerCase();
+
+    // Quartos / Suítes / Banheiros / Garagem / Área — tenta selectors primeiro, fallback regex na desc
+    function extrairInt(seletores, regexes, html2) {
+        const $2 = cheerio.load(html2);
+        for (const s of seletores) {
+            const t = $2(s).first().text().trim();
+            const n = parseInt(t, 10);
+            if (!isNaN(n) && n > 0) return n;
+        }
+        for (const rx of regexes) {
+            const m = descLower.match(rx);
+            if (m) { const n = parseInt(m[1], 10); if (!isNaN(n)) return n; }
+        }
+        return null;
+    }
+    function extrairFloat(seletores, regexes, html2) {
+        const $2 = cheerio.load(html2);
+        for (const s of seletores) {
+            const t = $2(s).first().text().replace(/[^\d.,]/g, '').replace(',', '.');
+            const n = parseFloat(t);
+            if (!isNaN(n) && n > 0) return n;
+        }
+        for (const rx of regexes) {
+            const m = descLower.match(rx);
+            if (m) { const n = parseFloat(m[1].replace(',', '.')); if (!isNaN(n)) return n; }
+        }
+        return null;
+    }
+
+    const quartos = extrairInt(
+        ['.dormitorios', '.quartos', '[class*="bedroom"]', '[title*="dormit"]', '[title*="quarto"]'],
+        [/(\d+)\s*(?:dormit[oó]rio|quarto|suite?)/],
+        html
+    );
+    const suites = extrairInt(
+        ['.suites', '[class*="suite"]', '[title*="su[ií]te"]'],
+        [/(\d+)\s*su[ií]te/],
+        html
+    );
+    const banheiros = extrairInt(
+        ['.banheiros', '[class*="bathroom"]', '[title*="banheiro"]'],
+        [/(\d+)\s*banheiro/],
+        html
+    );
+    const garagem = extrairInt(
+        ['.garagem', '.vagas', '[class*="garage"]', '[class*="vaga"]', '[title*="garagem"]', '[title*="vaga"]'],
+        [/(\d+)\s*(?:vaga|garagem)/],
+        html
+    );
+    const area_m2 = extrairFloat(
+        ['.area', '.m2', '[class*="area"]', '[title*="área"]', '[title*="m²"]'],
+        [/(\d+(?:[,.]\d+)?)\s*m[²2]/],
+        html
+    );
+    const area_terreno_m2 = extrairFloat(
+        ['.area-terreno', '[class*="terreno"]'],
+        [/[áa]rea\s*(?:do\s*)?terreno[:\s]+(\d+(?:[,.]\d+)?)\s*m[²2]/],
+        html
+    );
+
+    // Tipo de negócio
+    let negocio = 'venda';
+    if (/temporada|aluguel\s*de\s*temporada|short.?stay/.test(descLower)) negocio = 'temporada';
+    else if (/loca[çc][aã]o|aluguel|alugar/.test(descLower)) negocio = 'locacao';
+    else if (/permuta/.test(descLower)) negocio = 'permuta';
+
+    // Forma de pagamento
+    const formas = [];
+    if (/financiamento|financiado|financiar/.test(descLower)) formas.push('financiamento');
+    if (/fgts/.test(descLower)) formas.push('fgts');
+    if (/[àa]\s*vista|avista/.test(descLower)) formas.push('avista');
+    if (/permuta/.test(descLower)) formas.push('permuta');
+    if (/consorcio|consórcio/.test(descLower)) formas.push('consorcio');
+    const forma_pagamento = formas.length ? formas : null;
+
+    // IPTU anual
+    let iptu_anual = null;
+    const mIptu = descLower.match(/iptu[:\s]+r?\$?\s*([\d.,]+)/);
+    if (mIptu) iptu_anual = parsePreco(mIptu[1]);
+
+    // Condomínio mensal
+    let condominio_mensal = null;
+    const mCond = descLower.match(/condom[íi]nio[:\s]+r?\$?\s*([\d.,]+)/);
+    if (mCond) condominio_mensal = parsePreco(mCond[1]);
+
+    // Aceita FGTS
+    const aceita_fgts = /fgts/.test(descLower) ? 1 : 0;
+
+    // Código de referência
+    let codigo_ref = null;
+    const mCod = html.match(/(?:c[oó]digo|ref(?:er[eê]ncia)?|cod)[:\s#.]+([A-Z0-9\-]+)/i);
+    if (mCod) codigo_ref = mCod[1];
+
+    // Características (amenidades)
+    const AMENIDADES = [
+        ['piscina', 'piscina'],
+        ['churrasqueira', 'churrasqueira'],
+        ['sauna', 'sauna'],
+        ['vista[\\s-]?mar', 'vista mar'],
+        ['p[eé]\\s*na\\s*areia|beira[\\s-]?mar', 'beira mar'],
+        ['academia', 'academia'],
+        ['elevador', 'elevador'],
+        ['portaria\\s*24h', 'portaria 24h'],
+        ['playground', 'playground'],
+        ['varanda\\s*gourmet', 'varanda gourmet'],
+        ['area\\s*gourmet|[áa]rea\\s*gourmet', 'área gourmet'],
+        ['mobiliado|mobili[áa]do', 'mobiliado'],
+        ['ar.condicionado', 'ar condicionado'],
+        ['energia\\s*solar', 'energia solar'],
+    ];
+    const caracteristicas = AMENIDADES
+        .filter(([rx]) => new RegExp(rx).test(descLower))
+        .map(([, nome]) => nome);
+
+    return {
+        id: idHash, slug, titulo, descricao, preco, tipo, bairro, fotosUrls, urlOrigem,
+        quartos, suites, banheiros, garagem, area_m2, area_terreno_m2,
+        negocio, forma_pagamento, iptu_anual, condominio_mensal,
+        aceita_fgts, codigo_ref,
+        caracteristicas: caracteristicas.length ? caracteristicas : null,
+    };
 }
 
 function ehHomepage(html) {
@@ -208,16 +330,35 @@ async function migrarImovel(url, log, opts = {}) {
 
     if (!opts.dry) {
         db.prepare(`
-            INSERT INTO imoveis (id, slug, titulo, descricao, preco, tipo, bairro, fotos, url_origem)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO imoveis (
+                id, slug, titulo, descricao, preco, tipo, bairro, fotos, url_origem,
+                quartos, suites, banheiros, garagem, area_m2, area_terreno_m2,
+                negocio, forma_pagamento, iptu_anual, condominio_mensal,
+                aceita_fgts, codigo_ref, caracteristicas
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 titulo=excluded.titulo, descricao=excluded.descricao,
                 preco=excluded.preco, tipo=excluded.tipo, bairro=excluded.bairro,
-                fotos=excluded.fotos, importado_em=datetime('now')
+                fotos=excluded.fotos, importado_em=datetime('now'),
+                quartos=excluded.quartos, suites=excluded.suites,
+                banheiros=excluded.banheiros, garagem=excluded.garagem,
+                area_m2=excluded.area_m2, area_terreno_m2=excluded.area_terreno_m2,
+                negocio=excluded.negocio, forma_pagamento=excluded.forma_pagamento,
+                iptu_anual=excluded.iptu_anual, condominio_mensal=excluded.condominio_mensal,
+                aceita_fgts=excluded.aceita_fgts, codigo_ref=excluded.codigo_ref,
+                caracteristicas=excluded.caracteristicas
         `).run(
             data.id, data.slug, data.titulo, data.descricao,
             data.preco, data.tipo, data.bairro,
-            JSON.stringify(fotosLocais), data.urlOrigem
+            JSON.stringify(fotosLocais), data.urlOrigem,
+            data.quartos, data.suites, data.banheiros, data.garagem,
+            data.area_m2, data.area_terreno_m2,
+            data.negocio,
+            data.forma_pagamento ? JSON.stringify(data.forma_pagamento) : null,
+            data.iptu_anual, data.condominio_mensal,
+            data.aceita_fgts, data.codigo_ref,
+            data.caracteristicas ? JSON.stringify(data.caracteristicas) : null
         );
     }
 

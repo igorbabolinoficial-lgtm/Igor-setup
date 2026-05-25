@@ -7,7 +7,9 @@ function decode(linha) {
     if (!linha) return linha;
     return {
         ...linha,
-        fotos: linha.fotos ? JSON.parse(linha.fotos) : []
+        fotos:           linha.fotos           ? JSON.parse(linha.fotos)           : [],
+        forma_pagamento: linha.forma_pagamento  ? JSON.parse(linha.forma_pagamento) : [],
+        caracteristicas: linha.caracteristicas  ? JSON.parse(linha.caracteristicas) : [],
     };
 }
 

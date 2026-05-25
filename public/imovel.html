@@ -57,6 +57,18 @@
         .info-meta .item { background: var(--bg); padding: 14px 16px; border-radius: 6px; }
         .info-meta .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 4px; }
         .info-meta .valor { font-size: 1rem; font-weight: 500; }
+        .negocio-bloco { background: var(--bg); border-radius: 6px; padding: 18px 16px; margin-bottom: 24px; }
+        .negocio-bloco .negocio-titulo { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 12px; }
+        .negocio-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .negocio-item .label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 2px; }
+        .negocio-item .valor { font-size: 0.9rem; font-weight: 500; }
+        .formas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+        .forma-pill { background: #e8f5e9; color: #2e7d32; border-radius: 20px; padding: 3px 10px; font-size: 0.72rem; font-weight: 500; }
+        .fgts-badge { background: #fff3e0; color: #e65100; border-radius: 20px; padding: 3px 10px; font-size: 0.72rem; font-weight: 500; }
+        .carac-bloco { margin-bottom: 24px; }
+        .carac-titulo { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 10px; }
+        .carac-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+        .carac-pill { background: var(--bg); border: 1px solid var(--border); border-radius: 20px; padding: 5px 14px; font-size: 0.8rem; color: var(--text); }
         .cta-grupo { display: flex; flex-direction: column; gap: 10px; }
         .cta-grupo a, .cta-grupo button { padding: 16px 24px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; text-align: center; transition: var(--transition); cursor: pointer; border: none; font-family: inherit; }
         .cta-grupo .btn-wpp-full { background: #25D366; color: #fff; }
@@ -174,11 +186,52 @@
             const fotoCapa = fotos[0] || '';
 
             const meta = [
-                im.area_m2 ? { label: 'Área', valor: `${im.area_m2} m²` } : null,
-                im.quartos ? { label: 'Quartos', valor: im.quartos } : null,
-                im.banheiros ? { label: 'Banheiros', valor: im.banheiros } : null,
-                im.tipo ? { label: 'Tipo', valor: im.tipo.charAt(0).toUpperCase() + im.tipo.slice(1) } : null,
+                im.area_m2        ? { label: 'Área construída', valor: `${im.area_m2} m²` }         : null,
+                im.area_terreno_m2 ? { label: 'Área terreno',   valor: `${im.area_terreno_m2} m²` } : null,
+                im.quartos        ? { label: 'Quartos',          valor: im.quartos }                 : null,
+                im.suites         ? { label: 'Suítes',           valor: im.suites }                  : null,
+                im.banheiros      ? { label: 'Banheiros',        valor: im.banheiros }               : null,
+                im.garagem        ? { label: 'Garagem',          valor: `${im.garagem} vaga${im.garagem > 1 ? 's' : ''}` } : null,
+                im.tipo           ? { label: 'Tipo',             valor: im.tipo.charAt(0).toUpperCase() + im.tipo.slice(1) } : null,
+                im.codigo_ref     ? { label: 'Cód. ref.',        valor: im.codigo_ref }              : null,
             ].filter(Boolean);
+
+            // Bloco de negócio
+            const negocioLabel = { venda: 'Compra e Venda', locacao: 'Locação', temporada: 'Temporada', permuta: 'Permuta' };
+            const formaLabel   = { financiamento: 'Financiamento', fgts: 'FGTS', avista: 'À vista', permuta: 'Permuta', consorcio: 'Consórcio' };
+            const formas       = Array.isArray(im.forma_pagamento) ? im.forma_pagamento : [];
+            const carac        = Array.isArray(im.caracteristicas)  ? im.caracteristicas  : [];
+
+            const negocioHtml = `
+                <div class="negocio-bloco">
+                    <div class="negocio-titulo">Dados do negócio</div>
+                    <div class="negocio-grid">
+                        <div class="negocio-item">
+                            <div class="label">Tipo de negócio</div>
+                            <div class="valor">${negocioLabel[im.negocio] || 'Compra e Venda'}</div>
+                        </div>
+                        ${im.iptu_anual ? `<div class="negocio-item"><div class="label">IPTU anual</div><div class="valor">${fmtBRL(im.iptu_anual)}</div></div>` : ''}
+                        ${im.condominio_mensal ? `<div class="negocio-item"><div class="label">Condomínio/mês</div><div class="valor">${fmtBRL(im.condominio_mensal)}</div></div>` : ''}
+                    </div>
+                    ${formas.length ? `
+                        <div style="margin-top:14px;">
+                            <div class="label" style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:6px;">Formas de pagamento</div>
+                            <div class="formas">
+                                ${formas.map(f => `<span class="${f === 'fgts' ? 'fgts-badge' : 'forma-pill'}">${formaLabel[f] || f}</span>`).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+
+            const caracHtml = carac.length ? `
+                <div class="carac-bloco">
+                    <div class="carac-titulo">Características</div>
+                    <div class="carac-pills">
+                        ${carac.map(c => `<span class="carac-pill">${c.charAt(0).toUpperCase() + c.slice(1)}</span>`).join('')}
+                    </div>
+                </div>
+            ` : '';
 
             const msg = encodeURIComponent(`Olá Igor, tenho interesse no imóvel "${im.titulo}" (${fmtBRL(im.preco)}). Pode me passar mais detalhes?`);
 
@@ -202,6 +255,8 @@
                                 ${meta.map(m => `<div class="item"><div class="label">${m.label}</div><div class="valor">${m.valor}</div></div>`).join('')}
                             </div>
                         ` : ''}
+                        ${negocioHtml}
+                        ${caracHtml}
                         <div class="cta-grupo">
                             <a class="btn-wpp-full" href="https://wa.me/554891493622?text=${msg}" target="_blank">💬 Falar com Igor no WhatsApp</a>
                             <a class="btn-visitar" href="/contato.html?imovel=${encodeURIComponent(im.titulo)}">Agendar visita</a>
