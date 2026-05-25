@@ -609,6 +609,7 @@ export async function processBatch(batch) {
             titulo,
             descricao,
             lead_id: null,
+            lead_phone: phone,
             inicio: payload.inicio,
             fim: null,
             convidados: emailValido ? [emailValido] : [],

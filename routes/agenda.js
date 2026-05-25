@@ -23,8 +23,22 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-    const { titulo, descricao, lead_id, inicio, fim, tipo = 'reuniao', convidados, localizacao, cancelar_anterior_event_id } = req.body || {};
+    const { titulo, descricao, lead_id, lead_phone, inicio, fim, tipo = 'reuniao', convidados, localizacao, cancelar_anterior_event_id } = req.body || {};
     if (!titulo || !inicio) return res.status(400).json({ erro: 'titulo e inicio são obrigatórios' });
+
+    // Resolve lead_id por telefone se nao veio direto (caso comum do wa-agent)
+    let leadIdResolvido = lead_id;
+    if (!leadIdResolvido && lead_phone) {
+        // Tenta variantes do telefone (com/sem 55, com/sem 9 inicial)
+        const digits = String(lead_phone).replace(/\D/g, '');
+        const variantes = [digits];
+        if (digits.startsWith('55')) variantes.push(digits.slice(2));
+        else variantes.push('55' + digits);
+        for (const v of variantes) {
+            const lead = db.prepare('SELECT id FROM leads WHERE telefone = ? OR telefone LIKE ?').get(v, `%${v}%`);
+            if (lead) { leadIdResolvido = lead.id; break; }
+        }
+    }
 
     // Se foi passado um event_id anterior, cancela antes de criar o novo (remarcacao)
     let canceladoAnterior = null;
@@ -42,11 +56,11 @@ router.post('/', async (req, res) => {
     // Defesa anti-duplicata: cancela TODOS eventos futuros pendentes do mesmo lead
     // (cobre o caso de LID mudar e cancelar_anterior_event_id ter vindo nulo)
     const canceladosAuto = [];
-    if (lead_id) {
+    if (leadIdResolvido) {
         const pendentes = db.prepare(`
             SELECT id, google_event_id, inicio, titulo FROM agenda
             WHERE lead_id = ? AND status = 'agendado' AND inicio >= datetime('now', '-1 hour')
-        `).all(lead_id);
+        `).all(leadIdResolvido);
         for (const p of pendentes) {
             if (p.google_event_id && googleLib.isReady()) {
                 try {
@@ -64,7 +78,7 @@ router.post('/', async (req, res) => {
     db.prepare(`
         INSERT INTO agenda (id, titulo, descricao, lead_id, inicio, fim, tipo)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(id, titulo, descricao, lead_id, inicio, fim, tipo);
+    `).run(id, titulo, descricao, leadIdResolvido, inicio, fim, tipo);
 
     // Best-effort: criar evento no Google Calendar (se OAuth configurado)
     let googleSync = null;
