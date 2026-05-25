@@ -422,17 +422,25 @@ export async function processBatch(batch) {
     }
   }
 
-  const matchPreco = combinedBody.match(/r?\$?\s*([\d.,]+)\s*(?:mil|k|reais)?/i);
-  if (matchPreco) {
-    let valor = parseFloat(matchPreco[1].replace(/\./g, '').replace(',', '.'));
-    if (valor < 10000) valor *= 1000; // "580 mil" → 580000
-    if (valor > 10000) {
-      const resultados = await buscarPorPreco(valor);
-      if (resultados.length) {
-        contextoBusca += `\n[BUSCA POR PREÇO ~R$${valor.toLocaleString('pt-BR')}]\n${formatarResultadoBusca(resultados)}`;
-      }
+  // Captura TODOS os números na mensagem e usa o maior (provavelmente o preço)
+  const numerosBrutos = [...combinedBody.matchAll(/r?\$?\s*(\d[\d.,]*)\s*(mil|k|reais)?/gi)];
+  let valorPreco = 0;
+  for (const m of numerosBrutos) {
+    let v = parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
+    if (m[2] && /mil|k/i.test(m[2])) v *= 1000;
+    else if (v < 10000) v *= 1000; // assume "580" sem unidade = "580 mil"
+    if (v > valorPreco) valorPreco = v;
+  }
+  // Fallback: usa preco_max das prefs salvas se mensagem não tiver número
+  if (!valorPreco && prefsSalvas?.preco_max) valorPreco = prefsSalvas.preco_max;
+
+  if (valorPreco >= 10000) {
+    const resultados = await buscarPorPreco(valorPreco);
+    if (resultados.length) {
+      contextoBusca += `\n[BUSCA POR PREÇO ~R$${valorPreco.toLocaleString('pt-BR')}]\n${formatarResultadoBusca(resultados)}`;
     }
   }
+  const matchPreco = valorPreco >= 10000; // pra manter o fluxo do buscarPorNome
   // Busca por nome se mensagem tem 4+ chars e nao é só numero
   if (!matchPreco && combinedBody.length >= 4) {
     const resultados = await buscarPorNome(combinedBody);
@@ -442,7 +450,7 @@ export async function processBatch(batch) {
   }
 
   const systemFinal = contextoBusca
-    ? `${system}\n\n---\nRESULTADOS DE BUSCA RELEVANTES (use estes se encaixarem na conversa):\n${contextoBusca}`
+    ? `${system}\n\n===\n*** RESULTADOS DA BUSCA DIRETA NO BANCO — USE ESTES IMÓVEIS NA SUA RESPOSTA. NÃO BUSQUE NO CATÁLOGO ACIMA. NÃO DIGA "NÃO ENCONTREI" SE OS RESULTADOS ABAIXO EXISTEM. ***\n${contextoBusca}\n===`
     : system;
 
   const messages = [{ role: 'system', content: systemFinal }, ...historyForLLM];
