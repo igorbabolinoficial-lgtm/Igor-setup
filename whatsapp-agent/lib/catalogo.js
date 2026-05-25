@@ -48,6 +48,37 @@ export async function buscar(query) {
   return (j.imoveis || []).slice(0, 5);
 }
 
+// Busca por faixa de preço (±15% do valor informado)
+export async function buscarPorPreco(preco, margemPct = 0.15) {
+  const min = Math.floor(preco * (1 - margemPct));
+  const max = Math.ceil(preco * (1 + margemPct));
+  const r = await fetch(`${API_BASE}/api/imoveis?preco_min=${min}&preco_max=${max}&ordenar=preco_asc`);
+  if (!r.ok) return [];
+  const j = await r.json();
+  return (j.imoveis || []).slice(0, 5);
+}
+
+// Busca por nome/título exato ou parcial
+export async function buscarPorNome(nome) {
+  if (!nome || nome.length < 3) return [];
+  const r = await fetch(`${API_BASE}/api/imoveis?q=${encodeURIComponent(nome)}`);
+  if (!r.ok) return [];
+  const j = await r.json();
+  return (j.imoveis || []).slice(0, 5);
+}
+
+// Formata resultado de busca pro bot usar na resposta
+export function formatarResultadoBusca(imoveis) {
+  if (!imoveis.length) return null;
+  return imoveis.map((p) => {
+    const preco = fmtBRL(p.preco);
+    const area = p.area_m2 ? ` · ${p.area_m2}m²` : '';
+    const quartos = p.quartos ? ` · ${p.quartos} quartos` : '';
+    const bairro = p.bairro ? ` · ${p.bairro}` : '';
+    return `id=${p.id} · ${p.titulo} — ${preco}${area}${quartos}${bairro}\nLink: ${linkImovel(p.id)}`;
+  }).join('\n\n');
+}
+
 export function linkImovel(id) {
   return `${API_BASE}/imovel.html?id=${id}`;
 }

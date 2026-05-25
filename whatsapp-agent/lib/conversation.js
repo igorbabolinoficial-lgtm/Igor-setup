@@ -1,6 +1,6 @@
 // Orquestrador da conversa: recebe mensagem do lead -> monta contexto -> chama Groq -> envia resposta.
 import { chat } from './llm.js';
-import { resumoCatalogo, linkImovel, imovelPorId, formatarImovelDestaque } from './catalogo.js';
+import { resumoCatalogo, linkImovel, imovelPorId, formatarImovelDestaque, buscarPorPreco, buscarPorNome, formatarResultadoBusca } from './catalogo.js';
 import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syncLeadToIgor, setUltimoEventId, getUltimoEventId } from './storage.js';
 import { sendText, sendVoice, resolveLidToPhone, setTyping, downloadMediaFromUrl } from './baileys.js';
 import { transcribeAudio } from './transcribe.js';
@@ -383,7 +383,33 @@ export async function processBatch(batch) {
     }));
 
   const system = await buildSystemPrompt();
-  const messages = [{ role: 'system', content: system }, ...historyForLLM];
+
+  // Pré-busca: extrai preço ou nome da mensagem e injeta resultados relevantes no contexto
+  let contextoBusca = '';
+  const matchPreco = combinedBody.match(/r?\$?\s*([\d.,]+)\s*(?:mil|k|reais)?/i);
+  if (matchPreco) {
+    let valor = parseFloat(matchPreco[1].replace(/\./g, '').replace(',', '.'));
+    if (valor < 10000) valor *= 1000; // "580 mil" → 580000
+    if (valor > 10000) {
+      const resultados = await buscarPorPreco(valor);
+      if (resultados.length) {
+        contextoBusca += `\n[BUSCA POR PREÇO ~R$${valor.toLocaleString('pt-BR')}]\n${formatarResultadoBusca(resultados)}`;
+      }
+    }
+  }
+  // Busca por nome se mensagem tem 4+ chars e nao é só numero
+  if (!matchPreco && combinedBody.length >= 4) {
+    const resultados = await buscarPorNome(combinedBody);
+    if (resultados.length) {
+      contextoBusca += `\n[BUSCA POR NOME "${combinedBody.slice(0, 40)}"]\n${formatarResultadoBusca(resultados)}`;
+    }
+  }
+
+  const systemFinal = contextoBusca
+    ? `${system}\n\n---\nRESULTADOS DE BUSCA RELEVANTES (use estes se encaixarem na conversa):\n${contextoBusca}`
+    : system;
+
+  const messages = [{ role: 'system', content: systemFinal }, ...historyForLLM];
 
   let resposta;
   let groqFalhou = false;
