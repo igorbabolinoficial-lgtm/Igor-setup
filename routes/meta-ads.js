@@ -1,5 +1,5 @@
 // routes/meta-ads.js — CRUD de campanhas Meta Lead Ads via Marketing API
-// Usa meta-ads.js (ESM) carregado via dynamic import()
+// Usa meta-ads.mjs (ESM) carregado via dynamic import()
 
 const express = require('express');
 const path    = require('path');
@@ -11,7 +11,7 @@ async function mod() {
     if (!_mod) {
         _mod = await import(
             /* webpackIgnore: true */
-            `file://${path.resolve(__dirname, '../lib/meta-ads.js').replace(/\\/g, '/')}`
+            `file://${path.resolve(__dirname, '../lib/meta-ads.mjs').replace(/\\/g, '/')}`
         );
     }
     return _mod;
