@@ -4,7 +4,7 @@
 
 import { log } from './logger.js';
 
-const PARENT_URL = process.env.PARENT_API_URL || 'https://babolin.tech';
+const PARENT_URL = process.env.PARENT_API_URL || 'https://imobiliariapraiadorosa.com.br';
 const AGENT_TOKEN = process.env.IGOR_AGENT_TOKEN || process.env.IGOR_API_TOKEN;
 
 async function chamarParent(path, body) {

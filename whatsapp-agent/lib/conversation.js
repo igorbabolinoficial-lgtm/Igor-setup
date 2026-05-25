@@ -13,7 +13,7 @@ const IGOR_DNA = {
   creci: process.env.IGOR_CRECI || '55601',
   whatsapp: process.env.IGOR_WHATSAPP || '4891493622',
   regiao: process.env.IGOR_REGIAO || 'Praia do Rosa, Garopaba e Imbituba (SC)',
-  site: process.env.IGOR_SITE || 'https://babolin.tech',
+  site: process.env.IGOR_SITE || 'https://imobiliariapraiadorosa.com.br',
 };
 
 async function buildSystemPrompt(prefsSalvas = null, leadName = null) {

@@ -1,7 +1,7 @@
-// Catalogo via API publica do igor-neural-system (https://babolin.tech/api/imoveis).
+// Catalogo via API publica do igor-neural-system (https://imobiliariapraiadorosa.com.br/api/imoveis).
 // Cache em memoria de 60s pra nao martelar a API.
 
-const API_BASE = process.env.IGOR_API_BASE || 'https://babolin.tech';
+const API_BASE = process.env.IGOR_API_BASE || 'https://imobiliariapraiadorosa.com.br';
 const CACHE_TTL_MS = 60_000;
 
 let _cache = { ts: 0, data: null };
