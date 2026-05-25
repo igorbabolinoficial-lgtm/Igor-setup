@@ -19,25 +19,54 @@ const IGOR_DNA = {
 async function buildSystemPrompt(prefsSalvas = null, leadName = null) {
   const catalogo = await resumoCatalogo();
 
-  // Prefs salvas no banco — vai no TOPO do prompt pra ter máxima prioridade
+  // ── Ficha do lead — injetada no TOPO do prompt ────────────────────────────
+  // Tudo que já sabemos sobre essa pessoa. O LLM usa isso pra NÃO perguntar de novo
+  // e pra retomar a conversa de forma natural mesmo após semanas/meses.
   let prefsBlockTopo = '';
-  const temPrefs = prefsSalvas && Object.keys(prefsSalvas).length;
-  const temNome  = leadName && leadName.length > 1;
-  if (temPrefs || temNome) {
+  const p = prefsSalvas || {};
+  const temNome = leadName && leadName.length > 1;
+  const camposPreenchidos = [
+    temNome,
+    p.tipo, p.quartos, p.regiao, p.preco_max, p.preco_min,
+    p.finalidade, p.pagamento, p.prazo, p.urgencia,
+    p.imoveis_curtidos?.length, p.resumo, p.observacoes,
+  ].filter(Boolean).length;
+
+  if (camposPreenchidos > 0) {
     const linhas = [];
-    if (temNome)                 linhas.push(`- Nome do lead: ${leadName}`);
-    if (prefsSalvas?.tipo)       linhas.push(`- Tipo de imóvel: ${prefsSalvas.tipo}`);
-    if (prefsSalvas?.quartos)    linhas.push(`- Quartos: ${prefsSalvas.quartos}`);
-    if (prefsSalvas?.regiao)     linhas.push(`- Região: ${prefsSalvas.regiao}`);
-    if (prefsSalvas?.preco_min)  linhas.push(`- Preço mínimo: R$${prefsSalvas.preco_min.toLocaleString('pt-BR')}`);
-    if (prefsSalvas?.preco_max)  linhas.push(`- Preço máximo / orçamento: R$${prefsSalvas.preco_max.toLocaleString('pt-BR')}`);
-    if (prefsSalvas?.finalidade) linhas.push(`- Finalidade: ${prefsSalvas.finalidade}`);
-    if (prefsSalvas?.urgencia)   linhas.push(`- Urgência: ${prefsSalvas.urgencia}`);
-    if (prefsSalvas?.observacoes)linhas.push(`- Obs: ${prefsSalvas.observacoes}`);
-    const nomeBloqueio = temNome ? ' NUNCA pergunte o nome desta pessoa novamente.' : '';
-    prefsBlockTopo = `\n=== INFO JA SALVA DESSE LEAD (NAO PERGUNTE NOVAMENTE) ===\n${linhas.join('\n')}\n=== FIM INFO LEAD ===\n\nREGRA CRITICA: Os dados acima JA FORAM coletados em conversas anteriores. NUNCA pergunte de novo sobre tipo, quartos, regiao, preco ou finalidade se ja estiver listado acima. Use direto pra indicar imoveis.${nomeBloqueio}\n`;
+    if (temNome)                      linhas.push(`- Nome: ${leadName}`);
+    if (p.resumo)                     linhas.push(`- Resumo: ${p.resumo}`);
+    if (p.tipo)                       linhas.push(`- Busca: ${p.tipo}`);
+    if (p.quartos)                    linhas.push(`- Quartos: ${p.quartos}`);
+    if (p.regiao)                     linhas.push(`- Região: ${p.regiao}`);
+    if (p.preco_min && p.preco_max)   linhas.push(`- Orçamento: R$${p.preco_min.toLocaleString('pt-BR')} – R$${p.preco_max.toLocaleString('pt-BR')}`);
+    else if (p.preco_max)             linhas.push(`- Orçamento máximo: R$${p.preco_max.toLocaleString('pt-BR')}`);
+    else if (p.preco_min)             linhas.push(`- Orçamento mínimo: R$${p.preco_min.toLocaleString('pt-BR')}`);
+    if (p.finalidade)                 linhas.push(`- Finalidade: ${p.finalidade}`);
+    if (p.pagamento)                  linhas.push(`- Pagamento: ${p.pagamento}`);
+    if (p.prazo)                      linhas.push(`- Prazo: ${p.prazo}`);
+    if (p.urgencia)                   linhas.push(`- Urgência: ${p.urgencia}`);
+    if (p.imoveis_curtidos?.length)   linhas.push(`- Imóveis que gostou: ${p.imoveis_curtidos.join(', ')}`);
+    if (p.observacoes)                linhas.push(`- Obs: ${p.observacoes}`);
+
+    // Quais pontos da pipeline AINDA faltam (pra bot saber o que perguntar)
+    const faltam = [];
+    if (!p.tipo)                      faltam.push('tipo de imóvel');
+    if (!p.finalidade)                faltam.push('finalidade (morar/investir/veranear)');
+    if (!p.regiao)                    faltam.push('região');
+    if (!p.quartos)                   faltam.push('quartos');
+    if (!p.preco_max)                 faltam.push('faixa de preço');
+    if (!p.pagamento)                 faltam.push('forma de pagamento');
+    if (!p.prazo)                     faltam.push('prazo/urgência');
+    if (!temNome)                     faltam.push('nome do lead');
+
+    const faltamStr = faltam.length
+      ? `\nAINDA FALTA COLETAR (pergunte 1 por turno): ${faltam.join(' | ')}`
+      : '\nPIPELINE COMPLETA — já tem tudo. Foque em indicar imóveis e fechar visita.';
+
+    prefsBlockTopo = `\n=== FICHA DO LEAD (dados acumulados de conversas anteriores) ===\n${linhas.join('\n')}${faltamStr}\n=== FIM DA FICHA ===\n\nREGRA ABSOLUTA: NUNCA pergunte algo que já está na ficha acima. Use o nome da pessoa naturalmente. Se o lead voltar após dias/semanas, abra retomando o contexto: "Oi [Nome], ainda tá buscando [tipo] em [região]?"\n\n`;
   }
-  const prefsBlock = ''; // mantido vazio — bloco moveu pro topo
+  const prefsBlock = '';
 
   // Imovel do anuncio atual (Meta Ads). Quando setado, IA abre direto nele.
   const promotedId = process.env.BROADCAST_PROMOTED_PROPERTY_ID || '';
@@ -296,16 +325,37 @@ Exemplo:
 - Lead "Mariana" (email mariana@gmail.com, ja agendado quinta 14h pra Casa Frente Mar id 47) diz: "nao vou poder quinta, pode ser sexta mesmo horario?"
   "Tranquilo Mariana, sem problema. Remarquei pra sexta dia 30, 14h. Te mando o convite atualizado no email. [[AGENDAR: {\"inicio\":\"2026-05-30T14:00:00-03:00\",\"nome\":\"Mariana\",\"email\":\"mariana@gmail.com\",\"imovel\":\"Casa Frente Mar em Garopaba\",\"imovel_id\":\"47\"}]]"
 
-SALVAR PREFERENCIAS DO LEAD (marker auxiliar — gere SEMPRE que aprender info nova):
-Sempre que descobrir o nome ou qualquer criterio do lead (tipo de imovel, faixa de preco, regiao, quartos, urgencia, finalidade morar/investir), inclua no FINAL da resposta o marker:
-[[LEAD_INFO: {"nome":"Nome do Lead","tipo":"casa|apartamento|terreno|cobertura","preco_min":N,"preco_max":N,"regiao":"texto","quartos":N,"finalidade":"morar|investir|veranear","urgencia":"alta|media|baixa","observacoes":"texto curto"}]]
+MEMORIA PERSISTENTE DO LEAD — REGRA CRITICA:
+Voce esta construindo a ficha desse lead a cada mensagem. Tudo que aprender fica salvo e aparece na "FICHA DO LEAD" na proxima conversa — mesmo daqui a 1 mes.
 
-So inclua os campos que voce APRENDEU. Nao invente.
-- Lead diz o nome "sou a Ana" -> marker: [[LEAD_INFO: {"nome":"Ana"}]]
-- Lead diz "casa de 600 mil no Rosa pra investir" -> marker: [[LEAD_INFO: {"tipo":"casa","preco_max":600000,"regiao":"Praia do Rosa","finalidade":"investir"}]]
-- Ambos juntos: [[LEAD_INFO: {"nome":"Ana","tipo":"casa","preco_max":600000,"regiao":"Praia do Rosa","finalidade":"investir"}]]
+SEMPRE que aprender qualquer coisa nova sobre o lead (nome, criterio, preferencia, contexto), emita no FINAL da resposta:
+[[LEAD_INFO: {campos que aprendeu}]]
 
-O marker é SILENCIOSO — nao aparece pro cliente, sai automatico do texto. Pode coexistir com [[AGENDAR]] na mesma resposta.
+SCHEMA COMPLETO (so inclua campos que voce realmente aprendeu — nao invente):
+{
+  "nome":            "Nome Completo do Lead",
+  "tipo":            "casa|apartamento|terreno|cobertura|pousada|sitio",
+  "quartos":         2,
+  "regiao":          "Praia do Rosa|Garopaba|Imbituba|Ibiraquera|tanto faz",
+  "preco_min":       300000,
+  "preco_max":       800000,
+  "finalidade":      "morar|investir|veranear|alugar",
+  "pagamento":       "a_vista|financiamento|fgts|troca|misto",
+  "prazo":           "urgente|meses|sem_pressa",
+  "urgencia":        "alta|media|baixa",
+  "imoveis_curtidos":["Título do imóvel 1", "Título do imóvel 2"],
+  "resumo":          "Frase curta resumindo o lead — ex: 'Ana, SP, quer casa 2q no Rosa pra veranear, ate 700k, financiamento, sem pressa'",
+  "observacoes":     "Contexto extra relevante — ex: 'tem filho pequeno', 'mora em SP, vem no verao', 'ja conhece Garopaba'"
+}
+
+EXEMPLOS:
+- "sou a Ana" -> [[LEAD_INFO: {"nome":"Ana"}]]
+- "casa de 600k no Rosa pra investir, financiamento" -> [[LEAD_INFO: {"tipo":"casa","preco_max":600000,"regiao":"Praia do Rosa","finalidade":"investir","pagamento":"financiamento"}]]
+- Lead gostou de um imovel -> [[LEAD_INFO: {"imoveis_curtidos":["Casa Frente Mar em Garopaba"]}]]
+- Ao final de uma conversa completa -> [[LEAD_INFO: {"resumo":"Ana, SP, casa 2q no Rosa, veranear, ate 700k, financiamento, sem pressa"}]]
+
+QUANDO EMITIR: em TODA resposta onde voce aprendeu algo novo. Se aprendeu nome + criterio na mesma mensagem, emite tudo junto num so marker.
+O marker e SILENCIOSO — o cliente nao ve. Pode coexistir com [[AGENDAR]] na mesma resposta.
 ${prefsBlock}
 CATALOGO ATUAL:
 ${catalogo}`;
@@ -445,8 +495,18 @@ export async function processBatch(batch) {
   else if (/ibiraquera/.test(textoUser)) prefsAuto.regiao = 'Ibiraquera';
   // Finalidade
   if (/morar|residir|familia/.test(textoUser)) prefsAuto.finalidade = 'morar';
-  else if (/investir|investimento|alugar|renda/.test(textoUser)) prefsAuto.finalidade = 'investir';
+  else if (/investir|investimento|renda/.test(textoUser)) prefsAuto.finalidade = 'investir';
   else if (/veranear|temporada|ferias/.test(textoUser)) prefsAuto.finalidade = 'veranear';
+  else if (/alugar|aluguel anual|locacao/.test(textoUser)) prefsAuto.finalidade = 'alugar';
+  // Pagamento
+  if (/a vista|avista/.test(textoUser)) prefsAuto.pagamento = 'a_vista';
+  else if (/fgts/.test(textoUser)) prefsAuto.pagamento = 'fgts';
+  else if (/financ/.test(textoUser)) prefsAuto.pagamento = 'financiamento';
+  else if (/troca|permut/.test(textoUser)) prefsAuto.pagamento = 'troca';
+  // Prazo
+  if (/urgent|preciso logo|o quanto antes|imediato/.test(textoUser)) prefsAuto.prazo = 'urgente';
+  else if (/sem pressa|calma|nao tem pressa|pensando ainda|vou pensar/.test(textoUser)) prefsAuto.prazo = 'sem_pressa';
+  else if (/mes|meses|proximo ano/.test(textoUser)) prefsAuto.prazo = 'meses';
   // Preço (maior número detectado no histórico)
   const numerosHist = [...textoUser.matchAll(/r?\$?\s*(\d[\d.,]*)\s*(mil|k|milhao|milhoes)?/gi)];
   let precoMax = 0;
@@ -542,10 +602,17 @@ export async function processBatch(batch) {
         await touchLead(leadId, { name: prefs.nome.trim() });
         log.info('Nome do lead salvo', { phone, nome: prefs.nome });
       }
-      // Remove campo nome antes de salvar nas prefs (prefs é só critérios de busca)
+      // imoveis_curtidos: faz merge com lista existente (nunca sobrescreve)
+      if (Array.isArray(prefs.imoveis_curtidos) && prefs.imoveis_curtidos.length) {
+        const atual = (await getPreferencias(phone)) || {};
+        const listaAtual = Array.isArray(atual.imoveis_curtidos) ? atual.imoveis_curtidos : [];
+        const merged = [...new Set([...listaAtual, ...prefs.imoveis_curtidos])];
+        prefs.imoveis_curtidos = merged;
+      }
+      // Remove campo nome antes de salvar nas prefs (prefs é só perfil de busca)
       const { nome: _nome, ...prefsLimpo } = prefs;
       await setPreferencias(phone, prefsLimpo);
-      log.info('Preferencias do lead salvas', { phone, prefs: prefsLimpo });
+      log.info('Ficha do lead atualizada', { phone, campos: Object.keys(prefsLimpo) });
       // Sinca pro dashboard como string de interesse legível
       const partes = [];
       if (prefs.tipo) partes.push(prefs.tipo);
