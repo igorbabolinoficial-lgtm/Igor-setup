@@ -477,9 +477,15 @@ export async function processBatch(batch) {
   if (!valorPreco && prefsMerged?.preco_max) valorPreco = prefsMerged.preco_max;
 
   if (valorPreco >= 10000) {
-    const resultados = await buscarPorPreco(valorPreco);
-    if (resultados.length) {
-      contextoBusca += `\n[BUSCA POR PREÇO ~R$${valorPreco.toLocaleString('pt-BR')}]\n${formatarResultadoBusca(resultados)}`;
+    log.info('Disparando busca por preço', { phone, valorPreco });
+    try {
+      const resultados = await buscarPorPreco(valorPreco);
+      log.info('Busca por preço retornou', { phone, valorPreco, qtd: resultados.length, ids: resultados.map(r => r.id) });
+      if (resultados.length) {
+        contextoBusca += `\n[BUSCA POR PREÇO ~R$${valorPreco.toLocaleString('pt-BR')}]\n${formatarResultadoBusca(resultados)}`;
+      }
+    } catch (e) {
+      log.error('Falha buscarPorPreco', { phone, valorPreco, err: e.message });
     }
   }
   const matchPreco = valorPreco >= 10000; // pra manter o fluxo do buscarPorNome
