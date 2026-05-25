@@ -32,11 +32,31 @@ router.post('/', async (req, res) => {
         try {
             await googleLib.calendar.cancelarEvento(cancelar_anterior_event_id);
             canceladoAnterior = { ok: true, event_id: cancelar_anterior_event_id };
-            // Marca o registro local correspondente como cancelado
             db.prepare(`UPDATE agenda SET status = 'cancelado' WHERE google_event_id = ?`).run(cancelar_anterior_event_id);
         } catch (err) {
             console.error('[agenda] Falha ao cancelar evento anterior:', err.message);
             canceladoAnterior = { ok: false, error: err.message };
+        }
+    }
+
+    // Defesa anti-duplicata: cancela TODOS eventos futuros pendentes do mesmo lead
+    // (cobre o caso de LID mudar e cancelar_anterior_event_id ter vindo nulo)
+    const canceladosAuto = [];
+    if (lead_id) {
+        const pendentes = db.prepare(`
+            SELECT id, google_event_id, inicio, titulo FROM agenda
+            WHERE lead_id = ? AND status = 'agendado' AND inicio >= datetime('now', '-1 hour')
+        `).all(lead_id);
+        for (const p of pendentes) {
+            if (p.google_event_id && googleLib.isReady()) {
+                try {
+                    await googleLib.calendar.cancelarEvento(p.google_event_id);
+                    canceladosAuto.push({ id: p.id, google_event_id: p.google_event_id, titulo: p.titulo });
+                } catch (err) {
+                    console.error('[agenda] Falha auto-cancelar:', err.message);
+                }
+            }
+            db.prepare(`UPDATE agenda SET status = 'cancelado' WHERE id = ?`).run(p.id);
         }
     }
 
@@ -71,7 +91,7 @@ router.post('/', async (req, res) => {
     }
 
     const evento = db.prepare('SELECT * FROM agenda WHERE id = ?').get(id);
-    res.status(201).json({ ...evento, google_sync: googleSync, cancelado_anterior: canceladoAnterior });
+    res.status(201).json({ ...evento, google_sync: googleSync, cancelado_anterior: canceladoAnterior, cancelados_auto: canceladosAuto });
 });
 
 router.patch('/:id', (req, res) => {
