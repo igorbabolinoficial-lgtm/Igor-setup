@@ -386,6 +386,16 @@ export async function processBatch(batch) {
 
   // Pré-busca: extrai preço ou nome da mensagem e injeta resultados relevantes no contexto
   let contextoBusca = '';
+
+  // 1. Link babolin.tech/imovel.html?id=X enviado pelo lead → busca direto pelo ID
+  const matchLink = combinedBody.match(/imovel\.html\?id=([a-z0-9]+)/i);
+  if (matchLink) {
+    const imovel = await imovelPorId(matchLink[1]);
+    if (imovel) {
+      contextoBusca += `\n[IMÓVEL DO LINK ENVIADO PELO LEAD]\n${formatarImovelDestaque(imovel)}`;
+    }
+  }
+
   const matchPreco = combinedBody.match(/r?\$?\s*([\d.,]+)\s*(?:mil|k|reais)?/i);
   if (matchPreco) {
     let valor = parseFloat(matchPreco[1].replace(/\./g, '').replace(',', '.'));
