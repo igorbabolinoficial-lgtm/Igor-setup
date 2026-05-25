@@ -35,7 +35,8 @@ export async function resumoCatalogo() {
     const bairro = p.bairro || '';
     const tipo = p.tipo ? `[${p.tipo}]` : '';
     const quartos = p.quartos ? ` · ${p.quartos}q` : '';
-    return `- id=${p.id} · ${tipo} ${p.titulo} — ${preco}${area ? ` · ${area}` : ''}${quartos}${bairro ? ` · ${bairro}` : ''}`;
+    const link = linkImovel(p);
+    return `- id=${p.id} · ${tipo} ${p.titulo} — ${preco}${area ? ` · ${area}` : ''}${quartos}${bairro ? ` · ${bairro}` : ''} → ${link}`;
   });
   return linhas.join('\n');
 }
@@ -78,12 +79,18 @@ export function formatarResultadoBusca(imoveis) {
     const area = p.area_m2 ? ` · ${p.area_m2}m²` : '';
     const quartos = p.quartos ? ` · ${p.quartos} quartos` : '';
     const bairro = p.bairro ? ` · ${p.bairro}` : '';
-    return `id=${p.id} · ${p.titulo} — ${preco}${area}${quartos}${bairro}\nLink: ${linkImovel(p.id)}`;
+    return `id=${p.id} · ${p.titulo} — ${preco}${area}${quartos}${bairro}\nLink: ${linkImovel(p)}`;
   }).join('\n\n');
 }
 
-export function linkImovel(id) {
-  return `${API_BASE}/imovel.html?id=${id}`;
+// Link do imovel — prioriza url_origem (imobiliariapraiadorosa.com.br) por SEO,
+// fallback pro babolin.tech se url_origem nao existir.
+export function linkImovel(idOuImovel) {
+  if (typeof idOuImovel === 'object' && idOuImovel) {
+    if (idOuImovel.url_origem) return idOuImovel.url_origem;
+    return `${API_BASE}/imovel.html?id=${idOuImovel.id}`;
+  }
+  return `${API_BASE}/imovel.html?id=${idOuImovel}`;
 }
 
 export async function imovelPorId(id) {
@@ -103,5 +110,5 @@ export function formatarImovelDestaque(p) {
   const area = p.area_m2 ? `${p.area_m2}m²` : '';
   const bairro = p.bairro || '';
   const tipo = p.tipo ? `[${p.tipo}]` : '';
-  return `id=${p.id} · ${p.titulo} ${tipo} ${preco}${area ? ` · ${area}` : ''}${bairro ? ` · ${bairro}` : ''}\nLink: ${linkImovel(p.id)}`;
+  return `id=${p.id} · ${p.titulo} ${tipo} ${preco}${area ? ` · ${area}` : ''}${bairro ? ` · ${bairro}` : ''}\nLink: ${linkImovel(p)}`;
 }
