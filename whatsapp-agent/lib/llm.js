@@ -101,18 +101,28 @@ async function chatAnthropic(messages, options) {
       content: String(m.content || ''),
     }));
 
+  // System como array com cache_control — desconto de 90% nos tokens cacheados (>=1024 tokens)
+  const systemForRequest = systemMsg
+    ? [{ type: 'text', text: systemMsg.content, cache_control: { type: 'ephemeral' } }]
+    : undefined;
+
   const result = await anthropicClient.messages.create({
     model: modelName,
-    system: systemMsg ? systemMsg.content : undefined,
+    system: systemForRequest,
     messages: conversa,
     max_tokens: options.maxTokens || 600,
     temperature: options.temperature ?? 0.7,
   });
 
-  // result.content eh um array de blocks; pegar o texto do primeiro block tipo 'text'
   const textBlock = (result.content || []).find((b) => b.type === 'text');
   const text = textBlock?.text?.trim() || '';
-  log.debug('Anthropic response', { model: modelName, input: result.usage?.input_tokens, output: result.usage?.output_tokens });
+  log.info('Anthropic response', {
+    model: modelName,
+    input: result.usage?.input_tokens,
+    output: result.usage?.output_tokens,
+    cache_read: result.usage?.cache_read_input_tokens,
+    cache_create: result.usage?.cache_creation_input_tokens,
+  });
   return text;
 }
 
