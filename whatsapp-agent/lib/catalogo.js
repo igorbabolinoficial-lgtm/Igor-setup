@@ -29,12 +29,13 @@ export async function listarTodos() {
 export async function resumoCatalogo() {
   const imoveis = await fetchTodos();
   if (!imoveis.length) return 'Catalogo vazio.';
-  const linhas = imoveis.slice(0, 60).map((p) => {
+  const linhas = imoveis.slice(0, 150).map((p) => {
     const preco = fmtBRL(p.preco);
     const area = p.area_m2 ? `${p.area_m2}m²` : '';
     const bairro = p.bairro || '';
     const tipo = p.tipo ? `[${p.tipo}]` : '';
-    return `- id=${p.id} · ${tipo} ${p.titulo} — ${preco}${area ? ` · ${area}` : ''}${bairro ? ` · ${bairro}` : ''}`;
+    const quartos = p.quartos ? ` · ${p.quartos}q` : '';
+    return `- id=${p.id} · ${tipo} ${p.titulo} — ${preco}${area ? ` · ${area}` : ''}${quartos}${bairro ? ` · ${bairro}` : ''}`;
   });
   return linhas.join('\n');
 }
