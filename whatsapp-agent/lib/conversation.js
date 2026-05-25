@@ -18,9 +18,22 @@ const IGOR_DNA = {
 
 async function buildSystemPrompt(prefsSalvas = null) {
   const catalogo = await resumoCatalogo();
-  const prefsBlock = prefsSalvas && Object.keys(prefsSalvas).length
-    ? `\nPREFERENCIAS JA COLETADAS DESSE LEAD (use pra nao perguntar de novo):\n${JSON.stringify(prefsSalvas, null, 2)}\n`
-    : '';
+
+  // Prefs salvas no banco — vai no TOPO do prompt pra ter máxima prioridade
+  let prefsBlockTopo = '';
+  if (prefsSalvas && Object.keys(prefsSalvas).length) {
+    const linhas = [];
+    if (prefsSalvas.tipo)        linhas.push(`- Tipo de imóvel: ${prefsSalvas.tipo}`);
+    if (prefsSalvas.quartos)     linhas.push(`- Quartos: ${prefsSalvas.quartos}`);
+    if (prefsSalvas.regiao)      linhas.push(`- Região: ${prefsSalvas.regiao}`);
+    if (prefsSalvas.preco_min)   linhas.push(`- Preço mínimo: R$${prefsSalvas.preco_min.toLocaleString('pt-BR')}`);
+    if (prefsSalvas.preco_max)   linhas.push(`- Preço máximo / orçamento: R$${prefsSalvas.preco_max.toLocaleString('pt-BR')}`);
+    if (prefsSalvas.finalidade)  linhas.push(`- Finalidade: ${prefsSalvas.finalidade}`);
+    if (prefsSalvas.urgencia)    linhas.push(`- Urgência: ${prefsSalvas.urgencia}`);
+    if (prefsSalvas.observacoes) linhas.push(`- Obs: ${prefsSalvas.observacoes}`);
+    prefsBlockTopo = `\n=== INFO JA SALVA DESSE LEAD (NAO PERGUNTE NOVAMENTE) ===\n${linhas.join('\n')}\n=== FIM INFO LEAD ===\n\nREGRA CRITICA: Os dados acima JA FORAM coletados em conversas anteriores. NUNCA pergunte de novo sobre tipo, quartos, regiao, preco ou finalidade se ja estiver listado acima. Use direto pra indicar imoveis.\n`;
+  }
+  const prefsBlock = ''; // mantido vazio — bloco moveu pro topo
 
   // Imovel do anuncio atual (Meta Ads). Quando setado, IA abre direto nele.
   const promotedId = process.env.BROADCAST_PROMOTED_PROPERTY_ID || '';
@@ -30,7 +43,7 @@ async function buildSystemPrompt(prefsSalvas = null) {
     destaque = formatarImovelDestaque(p);
   }
 
-  return `Voce e o ${IGOR_DNA.nome}, corretor com 12 anos de experiencia na Praia do Rosa, Garopaba e Imbituba (SC, CRECI ${IGOR_DNA.creci}).
+  return `${prefsBlockTopo}Voce e o ${IGOR_DNA.nome}, corretor com 12 anos de experiencia na Praia do Rosa, Garopaba e Imbituba (SC, CRECI ${IGOR_DNA.creci}).
 Voce atende clientes pelo WhatsApp. Seu papel: entender o que o cliente quer, coletar TODOS os dados de qualificacao e indicar imoveis do catalogo quando fizer sentido.
 
 IMPORTANTE — voce e o Igor falando diretamente. Nao se apresente como assistente nem como bot.
@@ -386,7 +399,7 @@ export async function processBatch(batch) {
   // Historico ja contem as inbounds que persistIncoming salvou.
   // Groq rejeita content null/vazio — filtra mensagens sem conteudo textual.
   // Janela de 12 — equilibrio entre contexto (lembrar agendamento, nome, imovel) e custo de tokens.
-  const recent = await getRecentMessages(phone, 12);
+  const recent = await getRecentMessages(phone, 40);
   const historyForLLM = recent
     .filter((m) => m.body && String(m.body).trim().length > 0)
     .map((m) => ({
