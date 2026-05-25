@@ -48,14 +48,17 @@ export async function buscar(query) {
   return (j.imoveis || []).slice(0, 5);
 }
 
-// Busca por faixa de preço (±15% do valor informado)
+// Busca por faixa de preço — ordena por proximidade do valor pedido
 export async function buscarPorPreco(preco, margemPct = 0.15) {
   const min = Math.floor(preco * (1 - margemPct));
   const max = Math.ceil(preco * (1 + margemPct));
   const r = await fetch(`${API_BASE}/api/imoveis?preco_min=${min}&preco_max=${max}&ordenar=preco_asc`);
   if (!r.ok) return [];
   const j = await r.json();
-  return (j.imoveis || []).slice(0, 5);
+  const imoveis = j.imoveis || [];
+  // Ordena pelo mais próximo do valor pedido (não pelo mais barato)
+  imoveis.sort((a, b) => Math.abs((a.preco || 0) - preco) - Math.abs((b.preco || 0) - preco));
+  return imoveis.slice(0, 3);
 }
 
 // Busca por nome/título exato ou parcial

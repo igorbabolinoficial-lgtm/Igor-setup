@@ -140,6 +140,34 @@ export async function getUltimoEventId(phone) {
     } catch { return null; }
 }
 
+// Salva preferências do lead (tipo, preço, região, quartos, urgência) extraídas pelo LLM
+export async function setPreferencias(phone, prefs) {
+    if (!phone || !prefs) return;
+    const row = db.prepare('SELECT meta FROM leads WHERE phone = ?').get(phone);
+    if (!row) return;
+    let meta = {};
+    try { meta = row.meta ? JSON.parse(row.meta) : {}; } catch { meta = {}; }
+    // Merge — só atualiza campos não-nulos do novo prefs
+    const atual = meta.preferencias || {};
+    const merged = { ...atual };
+    for (const k of Object.keys(prefs)) {
+        if (prefs[k] != null && prefs[k] !== '') merged[k] = prefs[k];
+    }
+    meta.preferencias = merged;
+    meta.preferencias_atualizado_em = new Date().toISOString();
+    db.prepare('UPDATE leads SET meta = ? WHERE phone = ?').run(JSON.stringify(meta), phone);
+}
+
+export async function getPreferencias(phone) {
+    if (!phone) return null;
+    const row = db.prepare('SELECT meta FROM leads WHERE phone = ?').get(phone);
+    if (!row || !row.meta) return null;
+    try {
+        const meta = JSON.parse(row.meta);
+        return meta.preferencias || null;
+    } catch { return null; }
+}
+
 // Pega historico recente da conversa (ultimas N mensagens) pro contexto do LLM.
 // Devolve ordem cronologica (antiga -> nova).
 export async function getRecentMessages(phone, limit = 12) {

@@ -1,7 +1,7 @@
 // Orquestrador da conversa: recebe mensagem do lead -> monta contexto -> chama Groq -> envia resposta.
 import { chat } from './llm.js';
 import { resumoCatalogo, linkImovel, imovelPorId, formatarImovelDestaque, buscarPorPreco, buscarPorNome, formatarResultadoBusca } from './catalogo.js';
-import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syncLeadToIgor, setUltimoEventId, getUltimoEventId } from './storage.js';
+import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syncLeadToIgor, setUltimoEventId, getUltimoEventId, setPreferencias, getPreferencias } from './storage.js';
 import { sendText, sendVoice, resolveLidToPhone, setTyping, downloadMediaFromUrl } from './baileys.js';
 import { transcribeAudio } from './transcribe.js';
 import { gerarAudio, ttsHabilitado } from './tts.js';
@@ -16,8 +16,11 @@ const IGOR_DNA = {
   site: process.env.IGOR_SITE || 'https://babolin.tech',
 };
 
-async function buildSystemPrompt() {
+async function buildSystemPrompt(prefsSalvas = null) {
   const catalogo = await resumoCatalogo();
+  const prefsBlock = prefsSalvas && Object.keys(prefsSalvas).length
+    ? `\nPREFERENCIAS JA COLETADAS DESSE LEAD (use pra nao perguntar de novo):\n${JSON.stringify(prefsSalvas, null, 2)}\n`
+    : '';
 
   // Imovel do anuncio atual (Meta Ads). Quando setado, IA abre direto nele.
   const promotedId = process.env.BROADCAST_PROMOTED_PROPERTY_ID || '';
@@ -275,6 +278,15 @@ Exemplo:
 - Lead "Mariana" (email mariana@gmail.com, ja agendado quinta 14h pra Casa Frente Mar id 47) diz: "nao vou poder quinta, pode ser sexta mesmo horario?"
   "Tranquilo Mariana, sem problema. Remarquei pra sexta dia 30, 14h. Te mando o convite atualizado no email. [[AGENDAR: {\"inicio\":\"2026-05-30T14:00:00-03:00\",\"nome\":\"Mariana\",\"email\":\"mariana@gmail.com\",\"imovel\":\"Casa Frente Mar em Garopaba\",\"imovel_id\":\"47\"}]]"
 
+SALVAR PREFERENCIAS DO LEAD (marker auxiliar — gere SEMPRE que aprender info nova):
+Sempre que descobrir uma preferencia/criterio do lead (tipo de imovel, faixa de preco, regiao, quartos, urgencia, finalidade morar/investir), inclua no FINAL da resposta o marker:
+[[LEAD_INFO: {"tipo":"casa|apartamento|terreno|cobertura","preco_min":N,"preco_max":N,"regiao":"texto","quartos":N,"finalidade":"morar|investir|veranear","urgencia":"alta|media|baixa","observacoes":"texto curto"}]]
+
+So inclua os campos que voce APRENDEU. Nao invente. Se o lead diz "casa de 600 mil no Rosa pra investir", marker:
+[[LEAD_INFO: {"tipo":"casa","preco_max":600000,"regiao":"Praia do Rosa","finalidade":"investir"}]]
+
+O marker é SILENCIOSO — nao aparece pro cliente, sai automatico do texto. Pode coexistir com [[AGENDAR]] na mesma resposta.
+${prefsBlock}
 CATALOGO ATUAL:
 ${catalogo}`;
 }
@@ -382,7 +394,8 @@ export async function processBatch(batch) {
       content: String(m.body),
     }));
 
-  const system = await buildSystemPrompt();
+  const prefsSalvas = await getPreferencias(phone);
+  const system = await buildSystemPrompt(prefsSalvas);
 
   // Pré-busca: extrai preço ou nome da mensagem e injeta resultados relevantes no contexto
   let contextoBusca = '';
@@ -431,6 +444,32 @@ export async function processBatch(batch) {
     resposta = 'Opa, tive um problema aqui rapidinho. Pode me mandar de novo?';
   }
   resposta = (resposta || '').trim();
+
+  // Intercepta marker [[LEAD_INFO: {JSON}]] -> salva preferências do lead no DB
+  const LEAD_INFO_RE = /\[\[LEAD_INFO:\s*(\{[\s\S]+?\})\s*\]\]/i;
+  const matchLeadInfo = LEAD_INFO_RE.exec(resposta);
+  if (matchLeadInfo) {
+    resposta = resposta.replace(LEAD_INFO_RE, '').replace(/\s+$/g, '').trim();
+    try {
+      const prefs = JSON.parse(matchLeadInfo[1]);
+      await setPreferencias(phone, prefs);
+      log.info('Preferencias do lead salvas', { phone, prefs });
+      // Sinca pro dashboard como string de interesse legível
+      const partes = [];
+      if (prefs.tipo) partes.push(prefs.tipo);
+      if (prefs.quartos) partes.push(`${prefs.quartos} quartos`);
+      if (prefs.regiao) partes.push(`em ${prefs.regiao}`);
+      if (prefs.preco_max) partes.push(`até R$${prefs.preco_max.toLocaleString('pt-BR')}`);
+      if (prefs.finalidade) partes.push(`(${prefs.finalidade})`);
+      const interesse = partes.join(' ');
+      if (interesse) {
+        const lead = { name: '', phone };
+        syncLeadToIgor(lead, interesse).catch(() => {});
+      }
+    } catch (e) {
+      log.warn('Marker LEAD_INFO com JSON invalido', { phone, raw: matchLeadInfo[1], err: e.message });
+    }
+  }
 
   // Intercepta marker [[AGENDAR: {JSON}]] gerado pelo LLM -> cria evento no Calendar via parent.
   // Aceita tambem formato legado [[AGENDAR: ISO]] (so data) com fallback minimo.
