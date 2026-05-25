@@ -407,8 +407,49 @@ export async function processBatch(batch) {
       content: String(m.body),
     }));
 
-  const prefsSalvas = await getPreferencias(phone);
-  const system = await buildSystemPrompt(prefsSalvas);
+  const prefsSalvas = (await getPreferencias(phone)) || {};
+
+  // Auto-extração de prefs do histórico (sem depender de marker do LLM)
+  // Análise simples por regex em todas as mensagens "user" do histórico
+  const textoUser = historyForLLM.filter(m => m.role === 'user').map(m => m.content).join(' ').toLowerCase();
+  const prefsAuto = {};
+  // Tipo
+  if (/casa\b/.test(textoUser)) prefsAuto.tipo = 'casa';
+  else if (/apartamento|apto\b/.test(textoUser)) prefsAuto.tipo = 'apartamento';
+  else if (/terreno|lote\b/.test(textoUser)) prefsAuto.tipo = 'terreno';
+  else if (/cobertura/.test(textoUser)) prefsAuto.tipo = 'cobertura';
+  // Quartos
+  const mQ = textoUser.match(/(\d+)\s*(quartos|dormit)/);
+  if (mQ) prefsAuto.quartos = parseInt(mQ[1], 10);
+  // Região
+  if (/rosa\b/.test(textoUser)) prefsAuto.regiao = 'Praia do Rosa';
+  else if (/garopaba/.test(textoUser)) prefsAuto.regiao = 'Garopaba';
+  else if (/imbituba/.test(textoUser)) prefsAuto.regiao = 'Imbituba';
+  else if (/ibiraquera/.test(textoUser)) prefsAuto.regiao = 'Ibiraquera';
+  // Finalidade
+  if (/morar|residir|familia/.test(textoUser)) prefsAuto.finalidade = 'morar';
+  else if (/investir|investimento|alugar|renda/.test(textoUser)) prefsAuto.finalidade = 'investir';
+  else if (/veranear|temporada|ferias/.test(textoUser)) prefsAuto.finalidade = 'veranear';
+  // Preço (maior número detectado no histórico)
+  const numerosHist = [...textoUser.matchAll(/r?\$?\s*(\d[\d.,]*)\s*(mil|k|milhao|milhoes)?/gi)];
+  let precoMax = 0;
+  for (const m of numerosHist) {
+    let v = parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
+    if (m[2] && /milhao|milhoes/i.test(m[2])) v *= 1_000_000;
+    else if (m[2] && /mil|k/i.test(m[2])) v *= 1000;
+    else if (v < 10000) v *= 1000;
+    if (v > precoMax && v < 50_000_000) precoMax = v;
+  }
+  if (precoMax) prefsAuto.preco_max = precoMax;
+
+  // Merge prefs auto sobre salvas (auto-detect é prioridade pra info mais recente)
+  const prefsMerged = { ...prefsSalvas, ...prefsAuto };
+  // Salva merge no banco se houver mudança
+  if (Object.keys(prefsAuto).length) {
+    await setPreferencias(phone, prefsMerged).catch(() => {});
+  }
+
+  const system = await buildSystemPrompt(prefsMerged);
 
   // Pré-busca: extrai preço ou nome da mensagem e injeta resultados relevantes no contexto
   let contextoBusca = '';
@@ -432,7 +473,7 @@ export async function processBatch(batch) {
     if (v > valorPreco) valorPreco = v;
   }
   // Fallback: usa preco_max das prefs salvas se mensagem não tiver número
-  if (!valorPreco && prefsSalvas?.preco_max) valorPreco = prefsSalvas.preco_max;
+  if (!valorPreco && prefsMerged?.preco_max) valorPreco = prefsMerged.preco_max;
 
   if (valorPreco >= 10000) {
     const resultados = await buscarPorPreco(valorPreco);
