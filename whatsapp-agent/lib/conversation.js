@@ -17,7 +17,8 @@ const IGOR_DNA = {
 };
 
 async function buildSystemPrompt(prefsSalvas = null, leadName = null) {
-  const catalogo = await resumoCatalogo();
+  const precoMaxLead = prefsSalvas?.preco_max || null;
+  const catalogo = await resumoCatalogo(precoMaxLead);
 
   // ── Ficha do lead — injetada no TOPO do prompt ────────────────────────────
   // Tudo que já sabemos sobre essa pessoa. O LLM usa isso pra NÃO perguntar de novo

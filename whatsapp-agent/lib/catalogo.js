@@ -26,9 +26,15 @@ export async function listarTodos() {
 }
 
 // Resume catalogo pro system prompt. Inclui id pro LLM referenciar link correto.
-export async function resumoCatalogo() {
-  const imoveis = await fetchTodos();
+// precoMax: quando informado, filtra imóveis acima desse valor (teto rígido do lead).
+export async function resumoCatalogo(precoMax = null) {
+  let imoveis = await fetchTodos();
   if (!imoveis.length) return 'Catalogo vazio.';
+  // Filtra pelo teto do lead — nunca mostrar acima do orçamento no catálogo
+  if (precoMax && precoMax > 0) {
+    imoveis = imoveis.filter((p) => !p.preco || p.preco <= precoMax);
+  }
+  if (!imoveis.length) return `Catalogo vazio para o orçamento informado (máximo R$${precoMax?.toLocaleString('pt-BR')}).`;
   const linhas = imoveis.map((p) => {
     const preco = fmtBRL(p.preco);
     const area = p.area_m2 ? `${p.area_m2}m²` : '';
@@ -49,15 +55,17 @@ export async function buscar(query) {
   return (j.imoveis || []).slice(0, 5);
 }
 
-// Busca por faixa de preço — ordena por proximidade do valor pedido
-export async function buscarPorPreco(preco, margemPct = 0.15) {
-  const min = Math.floor(preco * (1 - margemPct));
-  const max = Math.ceil(preco * (1 + margemPct));
+// Busca por faixa de preço.
+// precoMax é TETO RÍGIDO (nunca mostra acima). precoMin busca 30% abaixo pra dar opções.
+// margemAcimaPermitida só sobe acima do precoMax se o caller forçar (default 0 = sem margem acima).
+export async function buscarPorPreco(preco, margemAcimaPermitida = 0) {
+  const min = Math.floor(preco * 0.70);
+  const max = Math.ceil(preco * (1 + margemAcimaPermitida));
   const r = await fetch(`${API_BASE}/api/imoveis?preco_min=${min}&preco_max=${max}&ordenar=preco_asc`);
   if (!r.ok) return [];
   const j = await r.json();
   const imoveis = j.imoveis || [];
-  // Ordena pelo mais próximo do valor pedido (não pelo mais barato)
+  // Ordena pelo mais próximo do teto (não pelo mais barato)
   imoveis.sort((a, b) => Math.abs((a.preco || 0) - preco) - Math.abs((b.preco || 0) - preco));
   return imoveis.slice(0, 3);
 }
@@ -83,11 +91,9 @@ export function formatarResultadoBusca(imoveis) {
   }).join('\n\n');
 }
 
-// Link do imovel — prioriza url_origem (imobiliariapraiadorosa.com.br) por SEO,
-// fallback pro babolin.tech se url_origem nao existir.
+// Link do imovel — sempre usa /imovel.html?id= (url_origem era WordPress e está quebrada)
 export function linkImovel(idOuImovel) {
   if (typeof idOuImovel === 'object' && idOuImovel) {
-    if (idOuImovel.url_origem) return idOuImovel.url_origem;
     return `${API_BASE}/imovel.html?id=${idOuImovel.id}`;
   }
   return `${API_BASE}/imovel.html?id=${idOuImovel}`;
