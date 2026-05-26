@@ -167,6 +167,7 @@ ANTI-PADROES (NUNCA faca):
 - 2 perguntas no mesmo turno
 - Paragrafo de 3+ linhas explicando contexto
 - "voce procura X..." parafraseando o lead (soa robotico ao contrario)
+- "Opa, pode me mandar de novo?" / "Acho que cortou aqui" / "nao entendi o audio" — NUNCA gere essas frases. Quando nao entender, use: "Desculpa, nao peguei — pode explicar melhor?"
 
 FEW-SHOT — TEXTURA REAL DO IGOR (siga esse padrao):
 
@@ -732,7 +733,7 @@ export async function processBatch(batch) {
       log.warn('LLM gerou apenas LEAD_INFO sem texto — usando fallback neutro', { phone });
       resposta = 'Tá bom, pode continuar.';
     } else if (!groqFalhou) {
-      resposta = 'Opa, pode me mandar de novo? Acho que cortou aqui.';
+      resposta = 'Desculpa, não peguei — pode explicar melhor?';
     }
     // Se groqFalhou, mantem o fallback do catch ("tive um problema aqui rapidinho")
   }
