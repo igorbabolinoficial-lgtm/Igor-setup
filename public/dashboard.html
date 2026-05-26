@@ -339,6 +339,19 @@
         .fab:hover { transform: scale(1.1) rotate(8deg); }
         @keyframes fabPulse { 0%, 100% { box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 0 0 var(--accent-glow); } 50% { box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 0 16px transparent; } }
 
+        /* Modal evento agenda */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1100; display: none; align-items: center; justify-content: center; }
+        .modal-overlay.aberto { display: flex; }
+        .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 28px 32px; width: 380px; box-shadow: 0 30px 60px rgba(0,0,0,0.6); }
+        .modal-box h3 { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: var(--accent); margin-bottom: 20px; }
+        .modal-box label { display: block; font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 5px; margin-top: 14px; }
+        .modal-box input, .modal-box textarea, .modal-box select { width: 100%; background: #000; border: 1px solid var(--border); padding: 9px 12px; color: #FFF; outline: none; border-radius: 4px; font-size: 0.85rem; font-family: 'Inter Tight', sans-serif; }
+        .modal-box input:focus, .modal-box textarea:focus { border-color: var(--accent); }
+        .modal-box textarea { resize: vertical; min-height: 60px; }
+        .modal-row { display: flex; gap: 12px; }
+        .modal-row > div { flex: 1; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 22px; justify-content: flex-end; }
+
         .console-panel { position: fixed; bottom: 100px; right: 30px; width: 420px; max-height: 70vh; background: var(--surface); border: 1px solid var(--accent); border-radius: 8px; display: none; flex-direction: column; box-shadow: 0 30px 60px rgba(0,0,0,0.7); z-index: 998; overflow: hidden; }
         .console-panel.aberto { display: flex; animation: slideUp 0.3s ease; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -1266,6 +1279,33 @@
         </div>
     </main>
 
+    <!-- Modal criar evento na agenda -->
+    <div class="modal-overlay" id="modalEvento" onclick="if(event.target===this)fecharModalEvento()">
+        <div class="modal-box">
+            <h3 id="modalEventoTitulo">Novo evento</h3>
+            <label>Título *</label>
+            <input type="text" id="evTitulo" placeholder="Ex: Call com Leonardo">
+            <div class="modal-row">
+                <div>
+                    <label>Início *</label>
+                    <input type="datetime-local" id="evInicio">
+                </div>
+                <div>
+                    <label>Fim</label>
+                    <input type="datetime-local" id="evFim">
+                </div>
+            </div>
+            <label>Descrição</label>
+            <textarea id="evDescricao" placeholder="Opcional"></textarea>
+            <label>Local / Link</label>
+            <input type="text" id="evLocal" placeholder="Ex: https://meet.google.com/... ou Praia do Rosa">
+            <div class="modal-actions">
+                <button class="btn-ghost" onclick="fecharModalEvento()">Cancelar</button>
+                <button class="btn-elite" id="btnSalvarEvento" onclick="salvarEvento()">Salvar + Google Calendar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Lightbox de imóvel -->
     <div class="lightbox" id="lightbox">
         <div class="lightbox-header">
@@ -1471,11 +1511,8 @@
                 if (d.getMonth() !== mes) div.classList.add('outside');
                 if (d.getTime() === hoje.getTime()) div.classList.add('today');
 
-                // Clicar no dia vazio → criar evento no Google Calendar nessa data
-                const gcalDate = dStr.replace(/-/g, '');
-                div.onclick = () => {
-                    window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&dates=${gcalDate}/${gcalDate}`, '_blank');
-                };
+                // Clicar no dia → abre modal de criação com data pré-preenchida
+                div.onclick = () => abrirModalEvento(dStr);
 
                 let html = `<span class="day-num">${d.getDate()}</span>`;
                 (eventosPorDia[dStr] || []).slice(0, 3).forEach(ev => {
@@ -1491,6 +1528,69 @@
                 grid.appendChild(div);
             }
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        // Modal — criar evento na agenda
+        // ═══════════════════════════════════════════════════════════════
+        function abrirModalEvento(dataDia) {
+            // Pré-preenche data + hora padrão 10:00–11:00
+            const ini = dataDia + 'T10:00';
+            const fim = dataDia + 'T11:00';
+            document.getElementById('evTitulo').value    = '';
+            document.getElementById('evInicio').value    = ini;
+            document.getElementById('evFim').value       = fim;
+            document.getElementById('evDescricao').value = '';
+            document.getElementById('evLocal').value     = '';
+            document.getElementById('btnSalvarEvento').textContent = 'Salvar + Google Calendar';
+            document.getElementById('btnSalvarEvento').disabled = false;
+            document.getElementById('modalEventoTitulo').textContent =
+                'Novo evento — ' + new Date(dataDia + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
+            document.getElementById('modalEvento').classList.add('aberto');
+            setTimeout(() => document.getElementById('evTitulo').focus(), 80);
+        }
+
+        function fecharModalEvento() {
+            document.getElementById('modalEvento').classList.remove('aberto');
+        }
+
+        async function salvarEvento() {
+            const titulo     = document.getElementById('evTitulo').value.trim();
+            const inicio     = document.getElementById('evInicio').value;
+            const fim        = document.getElementById('evFim').value;
+            const descricao  = document.getElementById('evDescricao').value.trim();
+            const localizacao = document.getElementById('evLocal').value.trim();
+            if (!titulo || !inicio) { alert('Título e início são obrigatórios.'); return; }
+
+            const btn = document.getElementById('btnSalvarEvento');
+            btn.textContent = 'Salvando...';
+            btn.disabled = true;
+
+            try {
+                const r = await api('POST', '/agenda', {
+                    titulo,
+                    inicio: new Date(inicio).toISOString(),
+                    fim:    fim ? new Date(fim).toISOString() : undefined,
+                    descricao: descricao || undefined,
+                    localizacao: localizacao || undefined,
+                    tipo: 'reuniao',
+                });
+                fecharModalEvento();
+                carregarAgenda();
+                // Se criou no Google Calendar, abre o evento direto
+                if (r.google_sync?.link) {
+                    window.open(r.google_sync.link, '_blank');
+                }
+            } catch(e) {
+                btn.textContent = 'Salvar + Google Calendar';
+                btn.disabled = false;
+                alert('Erro ao salvar: ' + e.message);
+            }
+        }
+
+        // Tecla Esc fecha o modal
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') fecharModalEvento();
+        });
 
         // ═══════════════════════════════════════════════════════════════
         // Sala dos Agentes — cartoon office em SVG
