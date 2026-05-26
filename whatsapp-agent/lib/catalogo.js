@@ -1,7 +1,14 @@
-// Catalogo via API publica do igor-neural-system (https://imobiliariapraiadorosa.com.br/api/imoveis).
+// Catalogo via API do igor-neural-system.
 // Cache em memoria de 60s pra nao martelar a API.
 
+// URL interna — usada APENAS para chamadas de API (fetch /api/imoveis).
+// Pode ser babolin.tech ou qualquer URL interna do igor-neural-system.
 const API_BASE = process.env.IGOR_API_BASE || 'https://imobiliariapraiadorosa.com.br';
+
+// URL pública — usada para montar links que VÃO para os leads no WhatsApp.
+// Sempre o site público do Igor, nunca o sistema interno.
+const PUBLIC_BASE = 'https://imobiliariapraiadorosa.com.br';
+
 const CACHE_TTL_MS = 60_000;
 
 let _cache = { ts: 0, data: null };
@@ -100,9 +107,9 @@ function normalizarLink(url) {
 export function linkImovel(idOuImovel) {
   if (typeof idOuImovel === 'object' && idOuImovel) {
     if (idOuImovel.url_origem) return normalizarLink(idOuImovel.url_origem);
-    return `${API_BASE}/imovel.html?id=${idOuImovel.id}`;
+    return `${PUBLIC_BASE}/imovel.html?id=${idOuImovel.id}`;
   }
-  return `${API_BASE}/imovel.html?id=${idOuImovel}`;
+  return `${PUBLIC_BASE}/imovel.html?id=${idOuImovel}`;
 }
 
 export async function imovelPorId(id) {
