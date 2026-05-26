@@ -518,8 +518,8 @@ function iniciar() {
     cron.schedule('0 * * * *', pesquisaAutonoma);
     // 2) Designer pré-produção — uma vez por dia 06:30
     cron.schedule('30 6 * * *', designerPreproducao);
-    // 3) Social pré-agendamento — uma vez por dia 06:00
-    cron.schedule('0 6 * * *', socialPreAgendamento);
+    // 3) Social pré-agendamento — pausado (skill de conteúdo não configurada)
+    // cron.schedule('0 6 * * *', socialPreAgendamento);
     // 4) Modo treino — a cada 6h, 60% de chance
     cron.schedule('0 */6 * * *', () => { if (Math.random() < 0.6) leadSintetico(); });
     // 5) Relatório semanal — toda segunda 07:30
@@ -533,7 +533,7 @@ function iniciar() {
     setTimeout(async () => {
         try { pesquisaAutonoma(); } catch (e) { registrarLog({ agente: 'pesquisa', nivel: 'erro', mensagem: e.message }); }
         try { await designerPreproducao(); } catch (e) { registrarLog({ agente: 'designer', nivel: 'erro', mensagem: e.message }); }
-        try { socialPreAgendamento(); } catch (e) { registrarLog({ agente: 'social', nivel: 'erro', mensagem: e.message }); }
+        // try { socialPreAgendamento(); } catch (e) { registrarLog({ agente: 'social', nivel: 'erro', mensagem: e.message }); }
         try { leadSintetico(); } catch (e) { registrarLog({ agente: 'maestro', nivel: 'erro', mensagem: e.message }); }
         try { backupDiario(); } catch (e) { registrarLog({ agente: 'sistema', nivel: 'erro', mensagem: e.message }); }
         try { expirarAprovacoes(); } catch (e) { registrarLog({ agente: 'sistema', nivel: 'erro', mensagem: e.message }); }
