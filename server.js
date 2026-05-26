@@ -22,6 +22,7 @@ const sistemaRoutes    = require('./routes/sistema');
 const vozRoutes        = require('./routes/voz');
 const skillsRoutes     = require('./routes/skills');
 const metaAdsRoutes    = require('./routes/meta-ads');
+const whatsappRoutes   = require('./routes/whatsapp');
 const maestro          = require('./agentes/maestro');
 const proativo         = require('./agentes/proativo');
 const briefing         = require('./briefing');
@@ -229,6 +230,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api/leads',     leadsRoutes);
 app.use('/api/agenda',    agendaRoutes);
+app.use('/api/whatsapp',  whatsappRoutes);
 app.use('/api/logs',      logsRoutes);
 app.use('/api/config',    configRoutes);
 app.use('/api/status',    statusRoutes);

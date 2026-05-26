@@ -69,6 +69,32 @@
         .log-err, .log-erro { color: var(--danger); }
         .log-tag { display: inline-block; padding: 0 6px; margin-right: 8px; border: 1px solid currentColor; border-radius: 2px; font-size: 0.65rem; letter-spacing: 0.05em; }
 
+        /* WhatsApp */
+        .wa-layout { display: grid; grid-template-columns: 300px 1fr; gap: 0; height: calc(100vh - 200px); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+        .wa-sidebar { background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; }
+        .wa-sidebar-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--accent); display: flex; align-items: center; justify-content: space-between; }
+        .wa-lead { padding: 14px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: var(--transition); }
+        .wa-lead:hover, .wa-lead.active { background: var(--surface-light); border-left: 2px solid var(--accent); }
+        .wa-lead-name { font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .wa-lead-preview { font-size: 0.73rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .wa-lead-time { font-size: 0.65rem; color: var(--text-muted); margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+        .wa-lead-status { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
+        .wa-chat { display: flex; flex-direction: column; background: #0A0A0A; }
+        .wa-chat-header { padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; gap: 12px; }
+        .wa-chat-name { font-size: 0.9rem; font-weight: 600; }
+        .wa-chat-phone { font-size: 0.75rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+        .wa-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+        .wa-msg { max-width: 72%; padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; line-height: 1.5; word-wrap: break-word; }
+        .wa-msg.in { background: var(--surface); align-self: flex-start; }
+        .wa-msg.out { background: #1e3a2f; align-self: flex-end; color: #d4f1e0; }
+        .wa-msg-time { font-size: 0.6rem; color: var(--text-muted); margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+        .wa-send { padding: 16px 20px; border-top: 1px solid var(--border); background: var(--surface); display: flex; gap: 10px; }
+        .wa-send input { flex: 1; background: #000; border: 1px solid var(--border); padding: 10px 14px; color: #FFF; outline: none; border-radius: 4px; font-size: 0.85rem; }
+        .wa-send input:focus { border-color: var(--accent); }
+        .wa-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.85rem; }
+        .wa-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); display: inline-block; margin-right: 6px; }
+        .wa-status-dot.ok { background: var(--success); }
+
         /* Config */
         .config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
         .api-card { background: var(--surface); padding: 25px; border-radius: 6px; border: 1px solid var(--border); }
@@ -333,6 +359,7 @@
             <li data-panel="briefing">Briefing</li>
             <li data-panel="logs">Terminal de Automação</li>
             <li data-panel="skills">Skills</li>
+            <li data-panel="whatsapp">WhatsApp</li>
             <li data-panel="config">Configurações API</li>
         </nav>
 
@@ -1000,6 +1027,150 @@
                     setTimeout(() => { carregarSkills(); }, 500);
                 } catch (e) { out.textContent = 'Erro: ' + e.message; }
             }
+        </script>
+
+        <!-- WhatsApp -->
+        <div id="whatsapp" class="panel">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+                <span id="waStatusDot" class="wa-status-dot"></span>
+                <span id="waStatusTxt" style="font-size:0.75rem;color:var(--text-muted)">Verificando conexão...</span>
+                <button class="btn-ghost" style="margin-left:auto;padding:6px 14px;" onclick="waCarregar()">↺ Atualizar</button>
+            </div>
+            <div class="wa-layout">
+                <div class="wa-sidebar">
+                    <div class="wa-sidebar-header">
+                        <span>Conversas</span>
+                        <span id="waLeadCount" style="color:var(--text-muted)">0</span>
+                    </div>
+                    <div id="waLeadList"></div>
+                </div>
+                <div class="wa-chat" id="waChat">
+                    <div class="wa-empty" id="waEmpty">Selecione uma conversa</div>
+                    <div id="waChatHeader" class="wa-chat-header" style="display:none">
+                        <div>
+                            <div class="wa-chat-name" id="waChatName"></div>
+                            <div class="wa-chat-phone" id="waChatPhone"></div>
+                        </div>
+                    </div>
+                    <div id="waMessages" class="wa-messages" style="display:none"></div>
+                    <div id="waSendBox" class="wa-send" style="display:none">
+                        <input id="waSendInput" placeholder="Digite uma mensagem..." onkeydown="if(event.key==='Enter')waSendMsg()">
+                        <button class="btn-elite" onclick="waSendMsg()">Enviar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+        // ═══════════════════════════════════════════════════════════════
+        // WhatsApp
+        // ═══════════════════════════════════════════════════════════════
+        let waPhone = null;
+        let waAutoRefresh = null;
+
+        function waTimeAgo(iso) {
+            if (!iso) return '';
+            const diff = Date.now() - new Date(iso).getTime();
+            const m = Math.floor(diff / 60000);
+            if (m < 1)  return 'agora';
+            if (m < 60) return `${m}min`;
+            const h = Math.floor(m / 60);
+            if (h < 24) return `${h}h`;
+            return `${Math.floor(h/24)}d`;
+        }
+
+        async function waCarregar() {
+            // Status da conexão
+            try {
+                const s = await api('GET', '/whatsapp/status');
+                const ok = s?.instance?.state === 'open';
+                document.getElementById('waStatusDot').className = 'wa-status-dot' + (ok ? ' ok' : '');
+                document.getElementById('waStatusTxt').textContent = ok ? 'WhatsApp conectado' : 'WhatsApp desconectado';
+            } catch { document.getElementById('waStatusTxt').textContent = 'Sem resposta do agente'; }
+
+            // Lista de leads
+            try {
+                const d = await api('GET', '/whatsapp/leads');
+                const leads = d.leads || [];
+                document.getElementById('waLeadCount').textContent = leads.length;
+                const list = document.getElementById('waLeadList');
+                list.innerHTML = '';
+                leads.forEach(l => {
+                    const div = document.createElement('div');
+                    div.className = 'wa-lead' + (l.phone === waPhone ? ' active' : '');
+                    div.dataset.phone = l.phone;
+                    const preview = (l.last_body || '').slice(0, 50);
+                    const dir = l.last_direction === 'out' ? '→ ' : '';
+                    div.innerHTML = `
+                        <div class="wa-lead-name">${l.name || l.phone}</div>
+                        <div class="wa-lead-preview">${dir}${preview || '—'}</div>
+                        <div class="wa-lead-time">${l.phone} · ${waTimeAgo(l.last_at)}</div>`;
+                    div.onclick = () => waAbrirConversa(l.phone, l.name || l.phone);
+                    list.appendChild(div);
+                });
+                if (waPhone) waAbrirConversa(waPhone, null, true);
+            } catch(e) {
+                document.getElementById('waLeadList').innerHTML = `<div style="padding:20px;color:var(--danger);font-size:0.8rem">${e.message}</div>`;
+            }
+        }
+
+        async function waAbrirConversa(phone, name, silencioso = false) {
+            waPhone = phone;
+            if (!silencioso) {
+                document.querySelectorAll('.wa-lead').forEach(el => {
+                    el.classList.toggle('active', el.dataset.phone === phone);
+                });
+            }
+            document.getElementById('waEmpty').style.display = 'none';
+            document.getElementById('waChatHeader').style.display = 'flex';
+            document.getElementById('waMessages').style.display = 'flex';
+            document.getElementById('waSendBox').style.display = 'flex';
+            document.getElementById('waChatName').textContent = name || phone;
+            document.getElementById('waChatPhone').textContent = phone;
+
+            try {
+                const d = await api('GET', `/whatsapp/conversas/${phone}`);
+                const msgs = d.msgs || [];
+                const box = document.getElementById('waMessages');
+                const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+                box.innerHTML = msgs.map(m => `
+                    <div>
+                        <div class="wa-msg ${m.direction}">
+                            ${m.body?.replace(/\n/g,'<br>') || ''}
+                        </div>
+                        <div class="wa-msg-time" style="text-align:${m.direction==='out'?'right':'left'}">
+                            ${new Date(m.created_at).toLocaleString('pt-BR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})}
+                            ${m.agent_response ? ' · bot' : ''}
+                        </div>
+                    </div>`).join('');
+                if (!silencioso || atBottom) box.scrollTop = box.scrollHeight;
+            } catch(e) {
+                document.getElementById('waMessages').innerHTML = `<div style="color:var(--danger);font-size:0.8rem;padding:20px">${e.message}</div>`;
+            }
+        }
+
+        async function waSendMsg() {
+            const input = document.getElementById('waSendInput');
+            const text = input.value.trim();
+            if (!text || !waPhone) return;
+            input.value = '';
+            try {
+                await api('POST', '/whatsapp/send', { phone: waPhone, text });
+                await waAbrirConversa(waPhone, null, true);
+            } catch(e) { alert('Erro ao enviar: ' + e.message); }
+        }
+
+        // Auto-refresh a cada 5s quando painel ativo
+        document.querySelector('[data-panel="whatsapp"]').addEventListener('click', () => {
+            if (waAutoRefresh) clearInterval(waAutoRefresh);
+            waCarregar();
+            waAutoRefresh = setInterval(() => {
+                if (document.getElementById('whatsapp').classList.contains('active')) {
+                    waCarregar();
+                } else {
+                    clearInterval(waAutoRefresh);
+                }
+            }, 5000);
+        });
         </script>
 
         <!-- API Config -->

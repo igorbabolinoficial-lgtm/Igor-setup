@@ -102,6 +102,48 @@ app.get('/admin/conversas', requireToken, (req, res) => {
   }
 });
 
+// --- DASHBOARD: lista leads com última mensagem ---
+app.get('/admin/leads', requireToken, (req, res) => {
+  try {
+    const leads = db.prepare(`
+      SELECT l.phone, l.name, l.status, l.whatsapp_status, l.last_whatsapp_at,
+             m.body   AS last_body,
+             m.direction AS last_direction,
+             m.created_at AS last_at
+      FROM leads l
+      LEFT JOIN whatsapp_messages m ON m.id = (
+        SELECT id FROM whatsapp_messages WHERE phone = l.phone ORDER BY created_at DESC LIMIT 1
+      )
+      ORDER BY l.last_whatsapp_at DESC NULLS LAST
+      LIMIT 200
+    `).all();
+    res.json({ ok: true, leads });
+  } catch (err) {
+    log.error('Falha listando leads dashboard', { err: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- DASHBOARD: histórico de conversa por phone ---
+app.get('/admin/conversas/:phone', requireToken, (req, res) => {
+  try {
+    const phone = req.params.phone;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
+    const msgs = db.prepare(`
+      SELECT m.id, m.phone, m.direction, m.body, m.created_at, m.agent_response, m.lead_id, l.name
+      FROM whatsapp_messages m
+      LEFT JOIN leads l ON l.id = m.lead_id
+      WHERE m.phone = ?
+      ORDER BY m.created_at ASC
+      LIMIT ?
+    `).all(phone, limit);
+    res.json({ ok: true, msgs });
+  } catch (err) {
+    log.error('Falha buscando conversa', { err: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- ENVIO MANUAL ---
 app.post('/send', requireToken, async (req, res) => {
   const { phone, text, leadId } = req.body || {};
