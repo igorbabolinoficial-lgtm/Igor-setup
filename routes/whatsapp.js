@@ -76,6 +76,38 @@ router.post('/send', async (req, res) => {
     }
 });
 
+// POST /api/whatsapp/sync-leads — importa leads do whatsapp-agent pro pipeline
+router.post('/sync-leads', async (req, res) => {
+    try {
+        const { db, uid } = require('../db');
+        const data = await wa('/admin/leads');
+        const leads = data.leads || [];
+        let criados = 0, atualizados = 0;
+        for (const l of leads) {
+            if (!l.phone) continue;
+            const existente = db.prepare('SELECT id FROM leads WHERE telefone = ?').get(l.phone);
+            if (existente) {
+                // Atualiza nome se estava sem nome (era só o número)
+                if (l.name && l.name !== l.phone) {
+                    db.prepare('UPDATE leads SET nome = ? WHERE id = ? AND (nome IS NULL OR nome = telefone)')
+                      .run(l.name, existente.id);
+                    atualizados++;
+                }
+            } else {
+                const id = uid('lead');
+                const nome = (l.name && l.name !== l.phone) ? l.name : l.phone;
+                db.prepare(`INSERT INTO leads (id, nome, telefone, origem, status, score_ia)
+                            VALUES (?, ?, ?, 'whatsapp', 'novo_lead', 0)`)
+                  .run(id, nome, l.phone);
+                criados++;
+            }
+        }
+        res.json({ ok: true, total: leads.length, criados, atualizados });
+    } catch (e) {
+        res.status(500).json({ ok: false, error: e.message });
+    }
+});
+
 // GET /api/whatsapp/media/:filename — proxy binário para o whatsapp-agent
 router.get('/media/:filename', async (req, res) => {
     try {

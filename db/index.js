@@ -238,6 +238,18 @@ function registrarLog({ agente, nivel = 'info', template = null, mensagem, conte
         WHERE status IN ('pendente', 'executando')
           AND payload LIKE '%lead_seed_%'
     `).run();
+
+    // Remove entradas de agenda do tipo 'post' e 'social' (não existem skills ainda)
+    db.prepare(`DELETE FROM agenda WHERE tipo IN ('post', 'social')`).run();
+
+    // Cancela aprovações com descrição de leads fictícios / testes internos
+    db.prepare(`
+        UPDATE aprovacoes SET status = 'rejeitada'
+        WHERE status = 'pendente'
+          AND (descricao LIKE '%treino%' OR descricao LIKE '%Investidor%'
+               OR descricao LIKE '%Curitib%' OR descricao LIKE '%Catarin%'
+               OR payload LIKE '%lead_seed_%')
+    `).run();
 })();
 
 // Seed só roda se base de leads estiver vazia

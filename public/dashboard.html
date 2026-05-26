@@ -357,7 +357,6 @@
         <div class="logo">Igor Babolin</div>
         <nav>
             <li class="active" data-panel="operations">Pipeline de Leads</li>
-            <li data-panel="leads">Arquivo Neural</li>
             <li data-panel="imoveis">Catálogo de Imóveis</li>
             <li data-panel="cerebro">Cérebro Neural</li>
             <li data-panel="agenda">Agenda</li>
@@ -1042,6 +1041,7 @@
                 <span id="waStatusDot" class="wa-status-dot"></span>
                 <span id="waStatusTxt" style="font-size:0.75rem;color:var(--text-muted)">Verificando conexão...</span>
                 <button class="btn-ghost" style="margin-left:auto;padding:6px 14px;" onclick="waCarregar()">↺ Atualizar</button>
+                <button class="btn-ghost" style="padding:6px 14px;" onclick="waSyncLeads()" title="Importa todos os contatos do WhatsApp para o Pipeline">⬆ Sync → Pipeline</button>
             </div>
             <div class="wa-layout">
                 <div class="wa-sidebar">
@@ -1190,18 +1190,14 @@
             } catch(e) { alert('Erro ao enviar: ' + e.message); }
         }
 
-        // Auto-refresh a cada 5s quando painel ativo
-        document.querySelector('[data-panel="whatsapp"]').addEventListener('click', () => {
-            if (waAutoRefresh) clearInterval(waAutoRefresh);
-            waCarregar();
-            waAutoRefresh = setInterval(() => {
-                if (document.getElementById('whatsapp').classList.contains('active')) {
-                    waCarregar();
-                } else {
-                    clearInterval(waAutoRefresh);
-                }
-            }, 5000);
-        });
+        async function waSyncLeads() {
+            try {
+                const r = await api('POST', '/whatsapp/sync-leads');
+                alert(`Sync concluído: ${r.criados} leads criados, ${r.atualizados} nomes atualizados`);
+            } catch(e) { alert('Erro no sync: ' + e.message); }
+        }
+
+        // Auto-refresh tratado no handler geral de navegação acima
         </script>
 
         <!-- API Config -->
@@ -1296,12 +1292,14 @@
         };
         document.querySelectorAll('nav li').forEach(li => {
             li.addEventListener('click', () => {
+                // Para o auto-refresh do WhatsApp ao sair do painel
+                if (waAutoRefresh) { clearInterval(waAutoRefresh); waAutoRefresh = null; }
                 document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
                 document.querySelectorAll('nav li').forEach(x => x.classList.remove('active'));
                 li.classList.add('active');
                 const id = li.dataset.panel;
                 document.getElementById(id).classList.add('active');
-                document.getElementById('panelTitle').textContent = TITULOS[id];
+                document.getElementById('panelTitle').textContent = TITULOS[id] || id;
                 if (id === 'agenda')     carregarAgenda();
                 if (id === 'agentes')    carregarAgentes();
                 if (id === 'aprovacoes') carregarAprovacoes();
@@ -1312,6 +1310,7 @@
                 if (id === 'imoveis')    carregarImoveis();
                 if (id === 'cerebro')    carregarCerebro();
                 if (id === 'skills')     carregarSkills();
+                if (id === 'whatsapp')   { waCarregar(); waAutoRefresh = setInterval(() => { if (document.getElementById('whatsapp').classList.contains('active')) waCarregar(); else { clearInterval(waAutoRefresh); waAutoRefresh = null; } }, 5000); }
             });
         });
 
