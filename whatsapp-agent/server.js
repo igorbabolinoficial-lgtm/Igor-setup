@@ -139,12 +139,14 @@ app.get('/admin/conversas/:phone', requireToken, (req, res) => {
     const phone = req.params.phone;
     const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
     const msgs = db.prepare(`
-      SELECT m.id, m.phone, m.direction, m.body, m.created_at, m.agent_response, m.lead_id, m.meta, m.media_url, l.name
-      FROM whatsapp_messages m
-      LEFT JOIN leads l ON l.id = m.lead_id
-      WHERE m.phone = ?
-      ORDER BY m.created_at ASC
-      LIMIT ?
+      SELECT * FROM (
+        SELECT m.id, m.phone, m.direction, m.body, m.created_at, m.agent_response, m.lead_id, m.meta, m.media_url, l.name
+        FROM whatsapp_messages m
+        LEFT JOIN leads l ON l.id = m.lead_id
+        WHERE m.phone = ?
+        ORDER BY m.created_at DESC
+        LIMIT ?
+      ) ORDER BY created_at ASC
     `).all(phone, limit);
     res.json({ ok: true, msgs });
   } catch (err) {
