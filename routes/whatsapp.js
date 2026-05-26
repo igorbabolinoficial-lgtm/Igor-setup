@@ -87,12 +87,19 @@ router.post('/sync-leads', async (req, res) => {
             if (!l.phone) continue;
             const existente = db.prepare('SELECT id FROM leads WHERE telefone = ?').get(l.phone);
             if (existente) {
-                // Atualiza nome se estava sem nome (era só o número)
+                // Atualiza nome e notas (última mensagem como contexto)
+                const novaNotas = l.last_body ? l.last_body.slice(0, 120) : null;
+                let mudou = false;
                 if (l.name && l.name !== l.phone) {
                     db.prepare('UPDATE leads SET nome = ? WHERE id = ? AND (nome IS NULL OR nome = telefone)')
                       .run(l.name, existente.id);
-                    atualizados++;
+                    mudou = true;
                 }
+                if (novaNotas) {
+                    db.prepare('UPDATE leads SET notas = ? WHERE id = ?').run(novaNotas, existente.id);
+                    mudou = true;
+                }
+                if (mudou) atualizados++;
             } else {
                 const id = uid('lead');
                 const nome = (l.name && l.name !== l.phone) ? l.name : l.phone;
