@@ -26,15 +26,11 @@ export async function listarTodos() {
 }
 
 // Resume catalogo pro system prompt. Inclui id pro LLM referenciar link correto.
-// precoMax: quando informado, filtra imóveis acima desse valor (teto rígido do lead).
+// precoMax: quando informado, marca imóveis acima desse valor como [ACIMA DO ORÇAMENTO]
+// — NÃO filtra (para evitar que o LLM diga "não temos X" quando existe acima do budget).
 export async function resumoCatalogo(precoMax = null) {
-  let imoveis = await fetchTodos();
+  const imoveis = await fetchTodos();
   if (!imoveis.length) return 'Catalogo vazio.';
-  // Filtra pelo teto do lead — nunca mostrar acima do orçamento no catálogo
-  if (precoMax && precoMax > 0) {
-    imoveis = imoveis.filter((p) => !p.preco || p.preco <= precoMax);
-  }
-  if (!imoveis.length) return `Catalogo vazio para o orçamento informado (máximo R$${precoMax?.toLocaleString('pt-BR')}).`;
   const linhas = imoveis.map((p) => {
     const preco = fmtBRL(p.preco);
     const area = p.area_m2 ? `${p.area_m2}m²` : '';
@@ -42,7 +38,10 @@ export async function resumoCatalogo(precoMax = null) {
     const tipo = p.tipo ? `[${p.tipo}]` : '';
     const quartos = p.quartos ? ` · ${p.quartos}q` : '';
     const link = linkImovel(p);
-    return `- id=${p.id} · ${tipo} ${p.titulo} — ${preco}${area ? ` · ${area}` : ''}${quartos}${bairro ? ` · ${bairro}` : ''} → ${link}`;
+    const acima = (precoMax && precoMax > 0 && p.preco && p.preco > precoMax)
+      ? ' [ACIMA DO ORCAMENTO — mencionar so se lead pedir]'
+      : '';
+    return `- id=${p.id} · ${tipo} ${p.titulo} — ${preco}${area ? ` · ${area}` : ''}${quartos}${bairro ? ` · ${bairro}` : ''}${acima} → ${link}`;
   });
   return linhas.join('\n');
 }

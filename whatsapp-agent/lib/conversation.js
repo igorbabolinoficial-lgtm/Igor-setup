@@ -391,6 +391,9 @@ EXEMPLOS:
 - Ao final de uma conversa completa -> [[LEAD_INFO: {"resumo":"Ana, SP, casa 2q no Rosa, veranear, ate 700k, financiamento, sem pressa"}]]
 
 QUANDO EMITIR: em TODA resposta onde voce aprendeu algo novo. Se aprendeu nome + criterio na mesma mensagem, emite tudo junto num so marker.
+FORMATO OBRIGATORIO: escreva a resposta em texto visivel PRIMEIRO, marker no final. NUNCA emita APENAS o marker sem texto — o sistema descarta respostas vazias.
+Errado: "[[LEAD_INFO: {...}]]"
+Certo: "Entendido! [continua pipeline] [[LEAD_INFO: {...}]]"
 O marker e SILENCIOSO — o cliente nao ve. Pode coexistir com [[AGENDAR]] na mesma resposta.
 ${prefsBlock}
 CATALOGO ATUAL:
@@ -626,8 +629,36 @@ export async function processBatch(batch) {
   }
   resposta = (resposta || '').trim();
 
-  // Intercepta marker [[LEAD_INFO: {JSON}]] -> salva preferências do lead no DB
-  // Remove marker mesmo se JSON truncado (maxTokens cortou antes de fechar)
+  // ── Extração de markers — ORDEM IMPORTA ────────────────────────────────────
+  // AGENDAR deve ser extraído ANTES do LEAD_INFO porque o strip do LEAD_INFO é
+  // guloso ([\s\S]*) e apaga tudo que vem depois — incluindo [[AGENDAR]] se ele
+  // vier em segundo lugar na resposta do LLM.
+
+  // 1. Extrai [[AGENDAR: {JSON}]] (replace pontual — preserva o resto da string)
+  const AGENDAR_RE = /\[\[AGENDAR:\s*(\{[\s\S]+?\}|[0-9TZ:\-+.]+)\s*\]\]/i;
+  const matchAgendar = AGENDAR_RE.exec(resposta);
+  let payload = null;
+  if (matchAgendar) {
+    const raw = matchAgendar[1].trim();
+    resposta = resposta.replace(AGENDAR_RE, '').replace(/\s+$/g, '').trim();
+
+    if (raw.startsWith('{')) {
+      try { payload = JSON.parse(raw); }
+      catch (e) {
+        log.warn('Marker AGENDAR com JSON invalido', { phone, raw, err: e.message });
+        payload = null;
+      }
+    } else {
+      // formato legado: so a data
+      payload = { inicio: raw };
+    }
+  }
+  // Fallback: remove [[AGENDAR: truncado (JSON incompleto que o regex nao casou)
+  resposta = resposta.replace(/\[\[AGENDAR:[\s\S]*/i, '').replace(/\s+$/g, '').trim();
+
+  // 2. Extrai [[LEAD_INFO: {JSON}]] -> salva preferências do lead no DB
+  // NOTA: strip abaixo é guloso — remove LEAD_INFO e tudo depois. AGENDAR já foi
+  // extraído no bloco acima, então o strip aqui é seguro.
   const LEAD_INFO_RE = /\[\[LEAD_INFO:\s*(\{[\s\S]+?\})\s*\]\]/i;
   const matchLeadInfo = LEAD_INFO_RE.exec(resposta);
   // Sempre remove o marker (completo ou truncado) antes de enviar
@@ -668,30 +699,7 @@ export async function processBatch(batch) {
     }
   }
 
-  // Intercepta marker [[AGENDAR: {JSON}]] gerado pelo LLM -> cria evento no Calendar via parent.
-  // Aceita tambem formato legado [[AGENDAR: ISO]] (so data) com fallback minimo.
-  const AGENDAR_RE = /\[\[AGENDAR:\s*(\{[\s\S]+?\}|[0-9TZ:\-+.]+)\s*\]\]/i;
-  const matchAgendar = AGENDAR_RE.exec(resposta);
-  let payload = null;
-  if (matchAgendar) {
-    const raw = matchAgendar[1].trim();
-    resposta = resposta.replace(AGENDAR_RE, '').replace(/\s+$/g, '').trim();
-
-    if (raw.startsWith('{')) {
-      try { payload = JSON.parse(raw); }
-      catch (e) {
-        log.warn('Marker AGENDAR com JSON invalido', { phone, raw, err: e.message });
-        payload = null;
-      }
-    } else {
-      // formato legado: so a data
-      payload = { inicio: raw };
-    }
-  }
-  // Fallback: remove [[AGENDAR: truncado (JSON incompleto que o regex nao casou)
-  resposta = resposta.replace(/\[\[AGENDAR:[\s\S]*/i, '').replace(/\s+$/g, '').trim();
-
-  // Guarda universal: se ainda restar qualquer fragmento [[MARKER: na resposta, remove tudo a partir daí.
+  // 3. Guarda universal: se ainda restar qualquer fragmento [[MARKER: na resposta, remove tudo a partir daí.
   // Protege contra markers novos adicionados futuramente sem o fallback correspondente.
   if (/\[\[/.test(resposta)) {
     const idx = resposta.search(/\[\[/);
@@ -699,9 +707,11 @@ export async function processBatch(batch) {
     resposta = resposta.slice(0, idx).replace(/\s+$/g, '').trim();
   }
 
-  // Fallback inteligente quando resposta vazia / muito curta:
-  // - Se LLM gerou marker mas esqueceu de gerar texto -> resposta natural baseada no payload
-  // - Se nao tem marker E resposta vazia -> fallback generico
+  // Fallback inteligente quando resposta vazia / muito curta após stripping:
+  // - payload presente: LLM gerou marker mas sem texto → resposta natural
+  // - matchLeadInfo presente sem texto: LLM emitiu só LEAD_INFO (violou a regra) → neutro
+  // - groqFalhou: mantém o catch acima ("tive um problema aqui rapidinho")
+  // - nenhum dos anteriores: "Opa, pode me mandar de novo?"
   if (!resposta || resposta.length < 3) {
     if (payload && payload.nome) {
       const ehCall = payload.tipo === 'call';
@@ -714,6 +724,11 @@ export async function processBatch(batch) {
       }
     } else if (payload) {
       resposta = 'Show, marquei aqui pra ti. Te confirmo proximo do dia.';
+    } else if (matchLeadInfo && !groqFalhou) {
+      // LLM gerou apenas marker LEAD_INFO sem texto visível — fallback neutro
+      // (evita mandar "Opa, pode me mandar de novo?" por erro interno do LLM)
+      log.warn('LLM gerou apenas LEAD_INFO sem texto — usando fallback neutro', { phone });
+      resposta = 'Tá bom, pode continuar.';
     } else if (!groqFalhou) {
       resposta = 'Opa, pode me mandar de novo? Acho que cortou aqui.';
     }
