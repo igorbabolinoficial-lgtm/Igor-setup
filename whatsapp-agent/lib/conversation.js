@@ -583,7 +583,7 @@ export async function processBatch(batch) {
   let resposta;
   let groqFalhou = false;
   try {
-    resposta = await chat(messages, { temperature: 0.65, maxTokens: 300 });
+    resposta = await chat(messages, { temperature: 0.65, maxTokens: 500 });
   } catch (err) {
     log.error('Falha no Groq', { err: err.message });
     groqFalhou = true;
@@ -592,10 +592,12 @@ export async function processBatch(batch) {
   resposta = (resposta || '').trim();
 
   // Intercepta marker [[LEAD_INFO: {JSON}]] -> salva preferências do lead no DB
+  // Remove marker mesmo se JSON truncado (maxTokens cortou antes de fechar)
   const LEAD_INFO_RE = /\[\[LEAD_INFO:\s*(\{[\s\S]+?\})\s*\]\]/i;
   const matchLeadInfo = LEAD_INFO_RE.exec(resposta);
+  // Sempre remove o marker (completo ou truncado) antes de enviar
+  resposta = resposta.replace(/\[\[LEAD_INFO:[\s\S]*/i, '').replace(/\s+$/g, '').trim();
   if (matchLeadInfo) {
-    resposta = resposta.replace(LEAD_INFO_RE, '').replace(/\s+$/g, '').trim();
     try {
       const prefs = JSON.parse(matchLeadInfo[1]);
       // Salva nome no registro do lead se veio no marker
