@@ -91,9 +91,10 @@ export function formatarResultadoBusca(imoveis) {
   }).join('\n\n');
 }
 
-// Link do imovel — sempre usa /imovel.html?id= (url_origem era WordPress e está quebrada)
+// Link do imovel — prioriza url_origem (imobiliariapraiadorosa.com.br, site público do Igor)
 export function linkImovel(idOuImovel) {
   if (typeof idOuImovel === 'object' && idOuImovel) {
+    if (idOuImovel.url_origem) return idOuImovel.url_origem;
     return `${API_BASE}/imovel.html?id=${idOuImovel.id}`;
   }
   return `${API_BASE}/imovel.html?id=${idOuImovel}`;
