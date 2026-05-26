@@ -89,8 +89,11 @@
         .wa-msg.out { background: #1e3a2f; align-self: flex-end; color: #d4f1e0; }
         .wa-msg-time { font-size: 0.6rem; color: var(--text-muted); margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
         .wa-send { padding: 16px 20px; border-top: 1px solid var(--border); background: var(--surface); display: flex; gap: 10px; }
-        .wa-send input { flex: 1; background: #000; border: 1px solid var(--border); padding: 10px 14px; color: #FFF; outline: none; border-radius: 4px; font-size: 0.85rem; }
+        .wa-send input { flex: 1; background: #000; border: 1px solid var(--border); padding: 10px 14px; color: #FFF; outline: none; border-radius: 4px; font-size: 0.85rem; cursor: text; }
         .wa-send input:focus { border-color: var(--accent); }
+        .wa-msg-audio { display: flex; align-items: center; gap: 8px; font-style: italic; color: inherit; opacity: 0.9; }
+        .wa-msg-audio-icon { font-size: 1rem; flex-shrink: 0; }
+        .wa-msg-empty { color: var(--text-muted); font-style: italic; font-size: 0.75rem; }
         .wa-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.85rem; }
         .wa-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); display: inline-block; margin-right: 6px; }
         .wa-status-dot.ok { background: var(--success); }
@@ -1126,22 +1129,33 @@
             document.getElementById('waSendBox').style.display = 'flex';
             document.getElementById('waChatName').textContent = name || phone;
             document.getElementById('waChatPhone').textContent = phone;
+            if (!silencioso) setTimeout(() => document.getElementById('waSendInput').focus(), 100);
 
             try {
                 const d = await api('GET', `/whatsapp/conversas/${phone}`);
                 const msgs = d.msgs || [];
                 const box = document.getElementById('waMessages');
                 const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
-                box.innerHTML = msgs.map(m => `
-                    <div>
-                        <div class="wa-msg ${m.direction}">
-                            ${m.body?.replace(/\n/g,'<br>') || ''}
-                        </div>
+                box.innerHTML = msgs.map(m => {
+                    let meta = {};
+                    try { meta = JSON.parse(m.meta || '{}'); } catch {}
+                    const isAudio = meta.transcribed || (meta.mediaType && /^audio/i.test(meta.mediaType));
+                    let conteudo;
+                    if (isAudio) {
+                        conteudo = `<div class="wa-msg-audio"><span class="wa-msg-audio-icon">🎤</span><span>${m.body?.replace(/\n/g,'<br>') || '<em>áudio não transcrito</em>'}</span></div>`;
+                    } else if (m.body) {
+                        conteudo = m.body.replace(/\n/g,'<br>');
+                    } else {
+                        conteudo = '<span class="wa-msg-empty">[mensagem sem texto]</span>';
+                    }
+                    return `<div>
+                        <div class="wa-msg ${m.direction}">${conteudo}</div>
                         <div class="wa-msg-time" style="text-align:${m.direction==='out'?'right':'left'}">
                             ${new Date(m.created_at).toLocaleString('pt-BR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})}
                             ${m.agent_response ? ' · bot' : ''}
                         </div>
-                    </div>`).join('');
+                    </div>`;
+                }).join('');
                 if (!silencioso || atBottom) box.scrollTop = box.scrollHeight;
             } catch(e) {
                 document.getElementById('waMessages').innerHTML = `<div style="color:var(--danger);font-size:0.8rem;padding:20px">${e.message}</div>`;

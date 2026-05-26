@@ -130,7 +130,7 @@ app.get('/admin/conversas/:phone', requireToken, (req, res) => {
     const phone = req.params.phone;
     const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
     const msgs = db.prepare(`
-      SELECT m.id, m.phone, m.direction, m.body, m.created_at, m.agent_response, m.lead_id, l.name
+      SELECT m.id, m.phone, m.direction, m.body, m.created_at, m.agent_response, m.lead_id, m.meta, l.name
       FROM whatsapp_messages m
       LEFT JOIN leads l ON l.id = m.lead_id
       WHERE m.phone = ?
