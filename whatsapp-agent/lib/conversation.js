@@ -120,6 +120,23 @@ NAO diga so "vou passar". OFEREÇA logo agendar a call: "Perfeito! Posso ja marc
 QUANDO lead perguntar "voce e IA / bot / robo?" ou "quem e voce?":
 Responde 1x: "Sou o Babolin, assistente do Igor. Ele acompanha tudo e entra quando precisar." Depois retoma a proxima pergunta da pipeline.
 
+FORMATO DE MENSAGEM — WHATSAPP (OBRIGATORIO):
+Cada pensamento = uma bolha separada. Separe com LINHA EM BRANCO entre blocos.
+Exemplos de como dividir:
+  "Opa, que bom que entrou em contato!"
+  [linha em branco]
+  "Aqui temos bastante opcao no Rosa e em Garopaba."
+  [linha em branco]
+  "Me fala — voce ta buscando pra morar, veranear ou investir?"
+
+Regras:
+- Max 2-3 frases curtas por bolha. Nunca um textao so.
+- Cumprimento / contexto = bolha propria
+- Cada imovel indicado = bolha propria
+- Preco pode ser bolha curta separada ("Valor: R$ 580 mil.")
+- Pergunta de fechamento = sempre bolha propria no final
+- Links ficam na mesma bolha do imovel OU em bolha propria logo depois
+
 ESTILO DE ESCRITA — DNA IGOR (CRITICO — destilado de 34 audios reais do Igor humano):
 Mesmo sendo o Babolin, voce fala com o sotaque e a energia do Igor — amigo da regiao que entende muito de imovel. Entusiasmo controlado, transparencia radical. NUNCA robotico, NUNCA formulario, NUNCA corporativo.
 
@@ -947,14 +964,63 @@ export async function processBatch(batch) {
 }
 
 function splitInChunks(body) {
-  // SO quebra se a IA usou linha em branco real entre paragrafos.
-  // Tambem descarta chunks que sao so literal "\n", "\\n\\n" ou whitespace (a Groq
-  // ja gerou "\\n\\n" como texto literal — virava bolha vazia/lixo).
-  const chunks = body
-    .split(/\n\s*\n+/)
-    .map((c) => c.trim())
-    .filter((c) => c && !/^(?:\\?n)+$/i.test(c) && /\S/.test(c.replace(/\\n/g, '')));
-  return chunks.length ? chunks : [body];
+  const limpar = (arr) =>
+    arr.map(c => c.trim())
+       .filter(c => c && !/^(?:\\?n)+$/i.test(c) && /\S/.test(c.replace(/\\n/g, '')));
+
+  // 1. Divide em parágrafos (linha em branco)
+  const parags = limpar(body.split(/\n\s*\n+/));
+
+  // 2. Cada parágrafo: se tiver múltiplas linhas simples, divide por linha
+  //    (LLM às vezes usa \n simples entre pensamentos, não linha em branco)
+  const porLinha = [];
+  for (const p of parags) {
+    const linhas = limpar(p.split(/\n/));
+    if (linhas.length > 1) {
+      // Agrupa linhas de lista juntas (começam com - • * ou número.)
+      const grupos = [];
+      let bufLista = [];
+      for (const l of linhas) {
+        if (/^[-•*]|\d+\./.test(l)) {
+          bufLista.push(l);
+        } else {
+          if (bufLista.length) { grupos.push(bufLista.join('\n')); bufLista = []; }
+          grupos.push(l);
+        }
+      }
+      if (bufLista.length) grupos.push(bufLista.join('\n'));
+      porLinha.push(...grupos);
+    } else {
+      porLinha.push(p);
+    }
+  }
+
+  const chunks = porLinha.length ? porLinha : [body];
+
+  // 3. Chunks ainda longos (> 220 chars, sem ser URL): divide nas fronteiras de frase
+  const resultado = [];
+  for (const chunk of chunks) {
+    if (chunk.length <= 220 || /https?:\/\//.test(chunk)) {
+      resultado.push(chunk);
+      continue;
+    }
+    // Divide em frases: ". " / "! " / "? " seguido de letra maiúscula
+    const frases = chunk.split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ])/);
+    const agrupadas = [];
+    let buf = '';
+    for (const f of frases) {
+      if ((buf + ' ' + f).trim().length > 180 && buf) {
+        agrupadas.push(buf.trim());
+        buf = f;
+      } else {
+        buf = (buf + ' ' + f).trim();
+      }
+    }
+    if (buf) agrupadas.push(buf);
+    resultado.push(...(agrupadas.length ? agrupadas : [chunk]));
+  }
+
+  return resultado.length ? resultado : [body];
 }
 
 // Detecta se um "phone" no banco e na verdade um LID nao-resolvido.
