@@ -92,9 +92,16 @@ export function formatarResultadoBusca(imoveis) {
 }
 
 // Link do imovel — prioriza url_origem (imobiliariapraiadorosa.com.br, site público do Igor)
+// Remove prefixo "sistema." se presente no url_origem (BD interno usa sistema., site público não)
+function normalizarLink(url) {
+  if (!url) return url;
+  return url.replace('https://sistema.imobiliariapraiadorosa.com.br', 'https://imobiliariapraiadorosa.com.br')
+            .replace('http://sistema.imobiliariapraiadorosa.com.br', 'https://imobiliariapraiadorosa.com.br');
+}
+
 export function linkImovel(idOuImovel) {
   if (typeof idOuImovel === 'object' && idOuImovel) {
-    if (idOuImovel.url_origem) return idOuImovel.url_origem;
+    if (idOuImovel.url_origem) return normalizarLink(idOuImovel.url_origem);
     return `${API_BASE}/imovel.html?id=${idOuImovel.id}`;
   }
   return `${API_BASE}/imovel.html?id=${idOuImovel}`;
