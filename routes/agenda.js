@@ -108,11 +108,11 @@ router.post('/', async (req, res) => {
     res.status(201).json({ ...evento, google_sync: googleSync, cancelado_anterior: canceladoAnterior, cancelados_auto: canceladosAuto });
 });
 
-router.patch('/:id', (req, res) => {
+router.patch('/:id', async (req, res) => {
     const evento = db.prepare('SELECT * FROM agenda WHERE id = ?').get(req.params.id);
     if (!evento) return res.status(404).json({ erro: 'Evento não encontrado' });
 
-    const campos = ['titulo', 'descricao', 'lead_id', 'inicio', 'fim', 'tipo', 'status'];
+    const campos = ['titulo', 'descricao', 'lead_id', 'inicio', 'fim', 'tipo', 'status', 'localizacao'];
     const sets = [];
     const params = [];
     for (const c of campos) {
@@ -121,10 +121,29 @@ router.patch('/:id', (req, res) => {
             params.push(req.body[c]);
         }
     }
-    if (!sets.length) return res.json(evento);
-    params.push(req.params.id);
-    db.prepare(`UPDATE agenda SET ${sets.join(', ')} WHERE id = ?`).run(...params);
-    res.json(db.prepare('SELECT * FROM agenda WHERE id = ?').get(req.params.id));
+    if (sets.length) {
+        params.push(req.params.id);
+        db.prepare(`UPDATE agenda SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+    }
+
+    // Sincroniza com Google Calendar se o evento tem google_event_id
+    let googleSync = null;
+    if (evento.google_event_id && googleLib.isReady()) {
+        try {
+            const upd = await googleLib.calendar.atualizarEvento(evento.google_event_id, {
+                titulo:      req.body.titulo,
+                descricao:   req.body.descricao,
+                inicio:      req.body.inicio,
+                fim:         req.body.fim,
+                localizacao: req.body.localizacao,
+            });
+            googleSync = { ok: true, link: upd.htmlLink };
+        } catch (e) {
+            googleSync = { ok: false, erro: e.message };
+        }
+    }
+
+    res.json({ ...db.prepare('SELECT * FROM agenda WHERE id = ?').get(req.params.id), google_sync: googleSync });
 });
 
 router.delete('/:id', (req, res) => {

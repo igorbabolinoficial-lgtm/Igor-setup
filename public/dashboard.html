@@ -1511,11 +1511,11 @@
                 if (d.getMonth() !== mes) div.classList.add('outside');
                 if (d.getTime() === hoje.getTime()) div.classList.add('today');
 
-                // Event delegation: clique no evento abre Google Calendar; clique no dia abre modal
+                // Event delegation: clique no evento abre modal edição; clique no dia abre modal criação
                 div.onclick = (e) => {
                     const evSpan = e.target.closest('.calendar-event');
                     if (evSpan) {
-                        window.open(evSpan.dataset.gcalLink, '_blank');
+                        abrirModalEditar(evSpan.dataset);
                     } else {
                         abrirModalEvento(dStr);
                     }
@@ -1523,9 +1523,19 @@
 
                 let html = `<span class="day-num">${d.getDate()}</span>`;
                 (eventosPorDia[dStr] || []).slice(0, 3).forEach(ev => {
-                    const gcalLink = ev.google_event_link
-                        || `https://calendar.google.com/calendar/r/day/${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
-                    html += `<span class="calendar-event" data-gcal-link="${gcalLink}" title="${ev.titulo}" style="cursor:pointer">${ev.titulo}</span>`;
+                    const gcalLink = ev.google_event_link || '';
+                    const ini = ev.inicio ? ev.inicio.slice(0,16) : '';
+                    const fim2 = ev.fim    ? ev.fim.slice(0,16)    : '';
+                    html += `<span class="calendar-event" style="cursor:pointer"
+                        title="${ev.titulo}"
+                        data-id="${ev.id}"
+                        data-titulo="${(ev.titulo||'').replace(/"/g,'&quot;')}"
+                        data-inicio="${ini}"
+                        data-fim="${fim2}"
+                        data-descricao="${(ev.descricao||'').replace(/"/g,'&quot;')}"
+                        data-local="${(ev.localizacao||'').replace(/"/g,'&quot;')}"
+                        data-gcal-link="${gcalLink}"
+                    >${ev.titulo}</span>`;
                 });
                 div.innerHTML = html;
                 grid.appendChild(div);
@@ -1535,8 +1545,10 @@
         // ═══════════════════════════════════════════════════════════════
         // Modal — criar evento na agenda
         // ═══════════════════════════════════════════════════════════════
+        let modalEventoId = null;   // null = criar, string = editar
+
         function abrirModalEvento(dataDia) {
-            // Pré-preenche data + hora padrão 10:00–11:00
+            modalEventoId = null;
             const ini = dataDia + 'T10:00';
             const fim = dataDia + 'T11:00';
             document.getElementById('evTitulo').value    = '';
@@ -1552,15 +1564,31 @@
             setTimeout(() => document.getElementById('evTitulo').focus(), 80);
         }
 
+        function abrirModalEditar(ds) {
+            // ds = dataset do span (id, titulo, inicio, fim, descricao, local, gcalLink)
+            modalEventoId = ds.id;
+            document.getElementById('evTitulo').value    = ds.titulo    || '';
+            document.getElementById('evInicio').value    = ds.inicio    || '';
+            document.getElementById('evFim').value       = ds.fim       || '';
+            document.getElementById('evDescricao').value = ds.descricao || '';
+            document.getElementById('evLocal').value     = ds.local     || '';
+            document.getElementById('btnSalvarEvento').textContent = 'Salvar alterações';
+            document.getElementById('btnSalvarEvento').disabled = false;
+            document.getElementById('modalEventoTitulo').textContent = 'Editar evento';
+            document.getElementById('modalEvento').classList.add('aberto');
+            setTimeout(() => document.getElementById('evTitulo').focus(), 80);
+        }
+
         function fecharModalEvento() {
             document.getElementById('modalEvento').classList.remove('aberto');
+            modalEventoId = null;
         }
 
         async function salvarEvento() {
-            const titulo     = document.getElementById('evTitulo').value.trim();
-            const inicio     = document.getElementById('evInicio').value;
-            const fim        = document.getElementById('evFim').value;
-            const descricao  = document.getElementById('evDescricao').value.trim();
+            const titulo      = document.getElementById('evTitulo').value.trim();
+            const inicio      = document.getElementById('evInicio').value;
+            const fim         = document.getElementById('evFim').value;
+            const descricao   = document.getElementById('evDescricao').value.trim();
             const localizacao = document.getElementById('evLocal').value.trim();
             if (!titulo || !inicio) { alert('Título e início são obrigatórios.'); return; }
 
@@ -1569,22 +1597,21 @@
             btn.disabled = true;
 
             try {
-                const r = await api('POST', '/agenda', {
+                const body = {
                     titulo,
                     inicio: new Date(inicio).toISOString(),
                     fim:    fim ? new Date(fim).toISOString() : undefined,
-                    descricao: descricao || undefined,
+                    descricao:   descricao   || undefined,
                     localizacao: localizacao || undefined,
-                    tipo: 'reuniao',
-                });
+                };
+                const r = modalEventoId
+                    ? await api('PATCH', `/agenda/${modalEventoId}`, body)
+                    : await api('POST',  '/agenda', { ...body, tipo: 'reuniao' });
                 fecharModalEvento();
                 carregarAgenda();
-                // Se criou no Google Calendar, abre o evento direto
-                if (r.google_sync?.link) {
-                    window.open(r.google_sync.link, '_blank');
-                }
+                if (r.google_sync?.link) window.open(r.google_sync.link, '_blank');
             } catch(e) {
-                btn.textContent = 'Salvar + Google Calendar';
+                btn.textContent = modalEventoId ? 'Salvar alterações' : 'Salvar + Google Calendar';
                 btn.disabled = false;
                 alert('Erro ao salvar: ' + e.message);
             }
