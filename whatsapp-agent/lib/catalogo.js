@@ -55,18 +55,17 @@ export async function buscar(query) {
 }
 
 // Busca por faixa de preço.
-// precoMax é TETO RÍGIDO (nunca mostra acima). precoMin busca 30% abaixo pra dar opções.
-// margemAcimaPermitida só sobe acima do precoMax se o caller forçar (default 0 = sem margem acima).
-export async function buscarPorPreco(preco, margemAcimaPermitida = 0) {
-  const min = Math.floor(preco * 0.70);
+// preco = teto do lead (budget máximo). Busca TODOS dentro do budget + 10% de margem acima.
+// Retorna até 5 opções ordenadas do mais próximo ao teto (melhor custo-benefício primeiro).
+export async function buscarPorPreco(preco, margemAcimaPermitida = 0.10) {
   const max = Math.ceil(preco * (1 + margemAcimaPermitida));
-  const r = await fetch(`${API_BASE}/api/imoveis?preco_min=${min}&preco_max=${max}&ordenar=preco_asc`);
+  const r = await fetch(`${API_BASE}/api/imoveis?preco_max=${max}&ordenar=preco_desc`);
   if (!r.ok) return [];
   const j = await r.json();
   const imoveis = j.imoveis || [];
-  // Ordena pelo mais próximo do teto (não pelo mais barato)
-  imoveis.sort((a, b) => Math.abs((a.preco || 0) - preco) - Math.abs((b.preco || 0) - preco));
-  return imoveis.slice(0, 3);
+  // Ordena pelo mais próximo ao teto (mais caro dentro do budget primeiro = melhor match)
+  imoveis.sort((a, b) => (b.preco || 0) - (a.preco || 0));
+  return imoveis.slice(0, 5);
 }
 
 // Busca por nome/título exato ou parcial

@@ -580,16 +580,18 @@ export async function processBatch(batch) {
   }
 
   // Captura TODOS os números na mensagem e usa o maior (provavelmente o preço)
-  const numerosBrutos = [...combinedBody.matchAll(/r?\$?\s*(\d[\d.,]*)\s*(mil|k|reais)?/gi)];
+  // Sufixos reconhecidos: milhao/milhoes/M, mil/k, reais — mesma lógica do auto-detect do histórico
+  const numerosBrutos = [...combinedBody.matchAll(/r?\$?\s*(\d[\d.,]*)\s*(milhao|milhoes|M\b|mil|k|reais)?/gi)];
   let valorPreco = 0;
   for (const m of numerosBrutos) {
     let v = parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
-    if (m[2] && /mil|k/i.test(m[2])) v *= 1000;
+    if (m[2] && /milhao|milhoes|^M$/i.test(m[2])) v *= 1_000_000;
+    else if (m[2] && /mil|k/i.test(m[2])) v *= 1000;
     else if (v < 10000) v *= 1000; // assume "580" sem unidade = "580 mil"
-    if (v > valorPreco) valorPreco = v;
+    if (v > valorPreco && v < 50_000_000) valorPreco = v;
   }
-  // Fallback: usa preco_max das prefs salvas se mensagem não tiver número
-  if (!valorPreco && prefsMerged?.preco_max) valorPreco = prefsMerged.preco_max;
+  // Fallback: usa preco_max das prefs salvas se mensagem não extraiu preço válido
+  if (valorPreco < 10000 && prefsMerged?.preco_max > 10000) valorPreco = prefsMerged.preco_max;
 
   if (valorPreco >= 10000) {
     log.info('Disparando busca por preço', { phone, valorPreco });
@@ -613,7 +615,7 @@ export async function processBatch(batch) {
   }
 
   const systemFinal = contextoBusca
-    ? `${system}\n\n===\n*** RESULTADOS DA BUSCA DIRETA NO BANCO — USE ESTES IMÓVEIS NA SUA RESPOSTA. NÃO BUSQUE NO CATÁLOGO ACIMA. NÃO DIGA "NÃO ENCONTREI" SE OS RESULTADOS ABAIXO EXISTEM. ***\n${contextoBusca}\n===`
+    ? `${system}\n\n===\n*** DESTAQUES DA BUSCA — imóveis que melhor batem com o orçamento/critério do lead. Use estes como ponto de partida. Se o lead pediu um TIPO específico (apartamento, casa, terreno) que não aparece aqui, verifique também o CATÁLOGO ACIMA e indique os que batem. ***\n${contextoBusca}\n===`
     : system;
 
   const messages = [{ role: 'system', content: systemFinal }, ...historyForLLM];
