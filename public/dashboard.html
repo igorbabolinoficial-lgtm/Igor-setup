@@ -1470,9 +1470,22 @@
                 div.className = 'calendar-day';
                 if (d.getMonth() !== mes) div.classList.add('outside');
                 if (d.getTime() === hoje.getTime()) div.classList.add('today');
+
+                // Clicar no dia vazio → criar evento no Google Calendar nessa data
+                const gcalDate = dStr.replace(/-/g, '');
+                div.onclick = () => {
+                    window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&dates=${gcalDate}/${gcalDate}`, '_blank');
+                };
+
                 let html = `<span class="day-num">${d.getDate()}</span>`;
                 (eventosPorDia[dStr] || []).slice(0, 3).forEach(ev => {
-                    html += `<span class="calendar-event" title="${ev.titulo}">${ev.titulo}</span>`;
+                    // Clicar num evento → abre no Google Calendar (link direto ou dia)
+                    const gcalLink = ev.google_event_link
+                        || `https://calendar.google.com/calendar/r/day/${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+                    html += `<span class="calendar-event" title="${ev.titulo}"
+                        style="cursor:pointer"
+                        onclick="event.stopPropagation();window.open('${gcalLink}','_blank')"
+                    >${ev.titulo}</span>`;
                 });
                 div.innerHTML = html;
                 grid.appendChild(div);
