@@ -210,6 +210,36 @@ function registrarLog({ agente, nivel = 'info', template = null, mensagem, conte
     ).run(agente, nivel, template, mensagem, ctx);
 }
 
+// === Limpeza de dados de desenvolvimento ===
+// Idempotente: arquiva leads seed e remove entradas de agenda/aprovações associadas.
+// Roda toda vez que o servidor sobe — operações são no-op se já limpas.
+(function limparSeed() {
+    // Arquiva os 6 leads de seed (não deleta — preserva histórico)
+    db.prepare(`
+        UPDATE leads SET status = 'arquivado', arquivado = 1
+        WHERE id LIKE 'lead_seed_%' AND status != 'arquivado'
+    `).run();
+
+    // Remove eventos de agenda do tipo 'post' que vieram do seed
+    db.prepare(`
+        DELETE FROM agenda WHERE id LIKE 'evt_seed_%' AND tipo = 'post'
+    `).run();
+
+    // Cancela aprovações pendentes geradas para leads seed (follow_up falso)
+    db.prepare(`
+        UPDATE aprovacoes SET status = 'rejeitada'
+        WHERE status = 'pendente'
+          AND payload LIKE '%lead_seed_%'
+    `).run();
+
+    // Cancela tarefas na fila para leads seed
+    db.prepare(`
+        UPDATE fila_tarefas SET status = 'cancelado'
+        WHERE status IN ('pendente', 'executando')
+          AND payload LIKE '%lead_seed_%'
+    `).run();
+})();
+
 // Seed só roda se base de leads estiver vazia
 function seedDevelopment() {
     const total = db.prepare('SELECT COUNT(*) AS n FROM leads').get();

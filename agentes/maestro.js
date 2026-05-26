@@ -104,15 +104,14 @@ function pensar() {
         if (r) decisoes.push(r.aprovacao_id ? `Pediu aprovação p/ follow_up em ${lead.nome}` : `SDR vai dar follow_up em ${lead.nome}`);
     }
 
-    // 3) Hoje sem post agendado → Social gera
-    const hoje = new Date().toISOString().slice(0, 10);
-    const postsHoje = db.prepare(`
-        SELECT COUNT(*) AS n FROM agenda WHERE tipo = 'post' AND DATE(inicio) = ?
-    `).get(hoje);
-    if (postsHoje.n === 0 && !jaTemPendente('social', 'gerar_post')) {
-        enfileirar({ agente_destino: 'social', tipo: 'gerar_post', payload: { tema: 'Imóveis Praia do Rosa' }, prioridade: 6 });
-        decisoes.push('Social vai gerar post do dia');
-    }
+    // 3) Geração automática de posts pausada — skills de conteúdo ainda não configuradas.
+    // Reativar quando copywriter/social estiver operacional.
+    // const hoje = new Date().toISOString().slice(0, 10);
+    // const postsHoje = db.prepare(`SELECT COUNT(*) AS n FROM agenda WHERE tipo='post' AND DATE(inicio)=?`).get(hoje);
+    // if (postsHoje.n === 0 && !jaTemPendente('social','gerar_post')) {
+    //     enfileirar({ agente_destino:'social', tipo:'gerar_post', payload:{tema:'Imóveis Praia do Rosa'}, prioridade:6 });
+    //     decisoes.push('Social vai gerar post do dia');
+    // }
 
     // 4) A cada ciclo, 30% de chance de pesquisa de mercado
     if (Math.random() < 0.3 && !jaTemPendente('pesquisa', 'pesquisar_mercado')) {
