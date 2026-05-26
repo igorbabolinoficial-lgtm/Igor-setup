@@ -818,6 +818,44 @@ export async function processBatch(batch) {
             } else {
               log.info('Evento criado local (Calendar nao sincou)', { phone, nome, tipoEvento });
             }
+
+            // Notifica Igor via WhatsApp sobre o agendamento
+            const IGOR_NOTIF = process.env.IGOR_NOTIF_PHONE; // ex: 5548917751525
+            if (IGOR_NOTIF) {
+              try {
+                const dtFormatada = new Date(payload.inicio).toLocaleString('pt-BR', {
+                  timeZone: 'America/Sao_Paulo',
+                  day: '2-digit', month: '2-digit', year: 'numeric',
+                  hour: '2-digit', minute: '2-digit',
+                });
+                const remarcacaoTag = eventIdAnterior ? ' (remarcado)' : '';
+                let msgIgor;
+                if (ehCall) {
+                  msgIgor = [
+                    `Babolin aqui — nova call agendada${remarcacaoTag}`,
+                    ``,
+                    `Lead: ${nome || '(sem nome)'} | ${phone}`,
+                    `Horario: ${dtFormatada}`,
+                    emailValido ? `Email: ${emailValido}` : null,
+                    meetLink ? `Meet: ${meetLink}` : null,
+                  ].filter(Boolean).join('\n');
+                } else {
+                  msgIgor = [
+                    `Babolin aqui — visita agendada${remarcacaoTag}`,
+                    ``,
+                    `Lead: ${nome || '(sem nome)'} | ${phone}`,
+                    `Imovel: ${imovel || '(a definir)'}`,
+                    `Horario: ${dtFormatada}`,
+                    emailValido ? `Email: ${emailValido}` : null,
+                    linkImovelEvt ? `Link: ${linkImovelEvt}` : null,
+                  ].filter(Boolean).join('\n');
+                }
+                await sendText(IGOR_NOTIF, msgIgor);
+                log.info('Igor notificado via WA', { tipo: tipoEvento, nome, phone });
+              } catch (err) {
+                log.warn('Falha notificando Igor via WA', { err: err.message });
+              }
+            }
           } else {
             log.warn('Falha criar evento via parent', { phone, tipoEvento, err: r.error || r.data });
           }
