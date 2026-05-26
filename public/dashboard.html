@@ -1073,6 +1073,7 @@
         // WhatsApp
         // ═══════════════════════════════════════════════════════════════
         let waPhone = null;
+        let waName  = null;
         let waAutoRefresh = null;
 
         function waTimeAgo(iso) {
@@ -1112,10 +1113,10 @@
                         <div class="wa-lead-name">${l.name || l.phone}</div>
                         <div class="wa-lead-preview">${dir}${preview || '—'}</div>
                         <div class="wa-lead-time">${l.phone} · ${waTimeAgo(l.last_at)}</div>`;
-                    div.onclick = () => waAbrirConversa(l.phone, l.name || l.phone);
+                    div.onclick = () => { waName = l.name || l.phone; waAbrirConversa(l.phone, waName); };
                     list.appendChild(div);
                 });
-                if (waPhone) waAbrirConversa(waPhone, null, true);
+                if (waPhone) waAbrirConversa(waPhone, waName, true);
             } catch(e) {
                 document.getElementById('waLeadList').innerHTML = `<div style="padding:20px;color:var(--danger);font-size:0.8rem">${e.message}</div>`;
             }
@@ -1152,7 +1153,7 @@
                     let conteudo;
                     if (isAudio && mediaUrl) {
                         conteudo = `<div class="wa-msg-audio">
-                            <audio controls preload="none"><source src="${mediaUrl}"></audio>
+                            <audio controls preload="metadata"><source src="${mediaUrl}"></audio>
                             ${m.body ? `<span class="wa-msg-audio-caption">🎤 ${m.body.replace(/\n/g,' ')}</span>` : ''}
                         </div>`;
                     } else if (isAudio) {
@@ -1193,11 +1194,16 @@
 
         function waFecharConversa() {
             waPhone = null;
+            waName  = null;
             document.querySelectorAll('.wa-lead').forEach(el => el.classList.remove('active'));
-            document.getElementById('waChatHeader').style.display = 'none';
-            document.getElementById('waMessages').style.display = 'none';
-            document.getElementById('waSendBox').style.display = 'none';
-            document.getElementById('waEmpty').style.display = 'flex';
+            const h = document.getElementById('waChatHeader');
+            const m = document.getElementById('waMessages');
+            const s = document.getElementById('waSendBox');
+            const e = document.getElementById('waEmpty');
+            if (h) h.style.display = 'none';
+            if (m) { m.style.display = 'none'; m.innerHTML = ''; }
+            if (s) s.style.display = 'none';
+            if (e) e.style.display = 'flex';
         }
 
         async function waSyncLeads() {
@@ -1298,7 +1304,8 @@
             briefing: 'Briefing do Igor',
             logs: 'Terminal de Automação',
             skills: 'Skills sob Demanda',
-            config: 'Configurações API'
+            config: 'Configurações API',
+            whatsapp: 'WhatsApp',
         };
         document.querySelectorAll('nav li').forEach(li => {
             li.addEventListener('click', () => {
@@ -1320,7 +1327,7 @@
                 if (id === 'imoveis')    carregarImoveis();
                 if (id === 'cerebro')    carregarCerebro();
                 if (id === 'skills')     carregarSkills();
-                if (id === 'whatsapp')   { waCarregar(); waAutoRefresh = setInterval(() => { if (document.getElementById('whatsapp').classList.contains('active')) waCarregar(); else { clearInterval(waAutoRefresh); waAutoRefresh = null; } }, 5000); }
+                if (id === 'whatsapp')   { waCarregar(); waAutoRefresh = setInterval(() => { if (document.getElementById('whatsapp').classList.contains('active')) waCarregar(); else { clearInterval(waAutoRefresh); waAutoRefresh = null; } }, 3000); }
             });
         });
 
