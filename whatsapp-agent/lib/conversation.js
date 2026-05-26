@@ -2,7 +2,7 @@
 import { chat } from './llm.js';
 import { resumoCatalogo, linkImovel, imovelPorId, formatarImovelDestaque, buscarPorPreco, buscarPorNome, formatarResultadoBusca } from './catalogo.js';
 import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syncLeadToIgor, setUltimoEventId, getUltimoEventId, setPreferencias, getPreferencias, db } from './storage.js';
-import { sendText, sendVoice, resolveLidToPhone, setTyping, downloadMediaFromUrl } from './baileys.js';
+import { sendText, sendVoice, sendImage, resolveLidToPhone, setTyping, downloadMediaFromUrl } from './baileys.js';
 import { transcribeAudio } from './transcribe.js';
 import { gerarAudio, ttsHabilitado } from './tts.js';
 import { criarAgenda, parentReady } from './parent-api.js';
@@ -153,15 +153,17 @@ GLOSSARIO IGOR (use quando fizer sentido):
 - "da um pulo" / "dar um pulinho" = visita rapida
 - "sem pirambeira" / "sem morro" = caminhada plana
 
-ESTRUTURA DE ARGUMENTO DE IMOVEL (use essa ordem quando indicar imovel):
+ESTRUTURA DE ARGUMENTO DE IMOVEL (use essa ordem quando indicar imovel especifico):
 1. Localizacao sensorial — "rua sem saida", "ruazinha charmosa" (NAO geografica fria)
 2. Caminhada ate praia/centro em minutos — "10 minutinhos no centrinho", "pe na areia em 20"
-3. Vizinhanca social — "so vizinho bom", "casas boas, gente com bom nivel"
-4. Documentacao simplificada — "tem IPTU individual", "35 anos de posse mansa e pacifica"
-5. Convite a visita — "vamos dar um pulinho la"
-6. Fechamento aberto — "qualquer duvida me chama, ta?"
+3. Vizinhanca e estrutura do entorno — o que tem perto? farmacia, padaria, escola, academia, ponto de onibus — menciona 2-3 se souber pelo bairro
+4. Vizinhanca social — "so vizinho bom", "casas boas, gente com bom nivel"
+5. Documentacao simplificada — "tem IPTU individual", "35 anos de posse mansa e pacifica"
+6. Convite a visita — "vamos dar um pulinho la"
+7. Fechamento aberto — "O que achou?" / "te chamou atencao?" / "qualquer duvida me chama, ta?"
 
-NUNCA liste m2, quartos, banheiros, vagas. Substitui ficha tecnica por VIVENCIA.
+NUNCA liste m2, quartos, banheiros, vagas como ficha tecnica fria. Substitui por VIVENCIA.
+Mas SE o lead perguntar especificamente (quantos quartos, tamanho, etc.) pode responder direto com o dado.
 
 TRANSPARENCIA RADICAL (diferencial Igor — use quando relevante):
 Conta detalhes que outros corretores escondem:
@@ -281,6 +283,9 @@ COMO mandar (formato obrigatorio):
 2. Pra cada imovel (max 3): UMA linha com TITULO_EXATO + bairro + preco + link
    Formato: "- [TITULO] em [BAIRRO] por [PRECO]: ${IGOR_DNA.site}/imovel.html?id=ID"
 3. UMA pergunta de fechamento curta no final: "Algum desses te chama mais a atencao?" ou "Quer dar um pulo pra ver algum?"
+4. FOTOS: se estiver mostrando 1 ou 2 imoveis especificos (nao lista de 3+), adicione ao FINAL da resposta, apos tudo: [[FOTOS: ID_DO_IMOVEL]]
+   - Um por imovel, max 2. Ex: [[FOTOS: abc123]] ou [[FOTOS: abc123]] [[FOTOS: def456]]
+   - NAO use quando listar 3 opcoes ou mais — so quando afunilar pra 1 ou 2.
 
 QUANDO MOSTRAR MAIS IMOVEIS (CHECADOS >= 6 pontos da pipeline):
 - Se ja indicou opcoes e agora tem mais dados (preco, regiao mais especifica), pode refinar e mandar 1-2 novas opcoes melhores.
@@ -743,6 +748,16 @@ export async function processBatch(batch) {
     }
   }
 
+  // 2.5. Extrai [[FOTOS: id]] → ids para enviar fotos após o texto
+  const FOTOS_RE = /\[\[FOTOS:\s*([^\]]+)\]\]/gi;
+  const fotoIds = [];
+  let fmatch;
+  while ((fmatch = FOTOS_RE.exec(resposta)) !== null) {
+    const id = fmatch[1].trim();
+    if (id) fotoIds.push(id);
+  }
+  resposta = resposta.replace(/\[\[FOTOS:[^\]]*\]\]/gi, '').replace(/  +/g, ' ').replace(/\s+$/g, '').trim();
+
   // 3. Guarda universal: se ainda restar qualquer fragmento [[MARKER: na resposta, remove tudo a partir daí.
   // Protege contra markers novos adicionados futuramente sem o fallback correspondente.
   if (/\[\[/.test(resposta)) {
@@ -910,7 +925,25 @@ export async function processBatch(batch) {
   }
 
   await touchLead(leadId, { whatsapp_status: 'respondido' });
-  return enviarResposta(phone, resposta, leadId, { agent: true, inboundLen, comoAudio: inboundFoiAudio, remoteJid });
+  await enviarResposta(phone, resposta, leadId, { agent: true, inboundLen, comoAudio: inboundFoiAudio, remoteJid });
+
+  // Envia fotos dos imóveis indicados (após texto, máx 2 imóveis × 3 fotos)
+  if (fotoIds.length > 0) {
+    const BASE = process.env.IGOR_API_BASE || 'https://imobiliariapraiadorosa.com.br';
+    for (const id of fotoIds.slice(0, 2)) {
+      try {
+        const im = await imovelPorId(id);
+        if (!im?.fotos?.length) continue;
+        for (const foto of im.fotos.slice(0, 3)) {
+          await sendImage(phone, `${BASE}${foto}`, '');
+          await new Promise(r => setTimeout(r, 500));
+        }
+        log.info('Fotos enviadas', { phone, id, qtd: Math.min(im.fotos.length, 3) });
+      } catch (e) {
+        log.warn('Falha enviando fotos', { phone, id, err: e.message });
+      }
+    }
+  }
 }
 
 function splitInChunks(body) {
