@@ -583,7 +583,7 @@ export async function processBatch(batch) {
   let resposta;
   let groqFalhou = false;
   try {
-    resposta = await chat(messages, { temperature: 0.65, maxTokens: 500 });
+    resposta = await chat(messages, { temperature: 0.65, maxTokens: 700 });
   } catch (err) {
     log.error('Falha no Groq', { err: err.message });
     groqFalhou = true;
@@ -652,6 +652,16 @@ export async function processBatch(batch) {
       // formato legado: so a data
       payload = { inicio: raw };
     }
+  }
+  // Fallback: remove [[AGENDAR: truncado (JSON incompleto que o regex nao casou)
+  resposta = resposta.replace(/\[\[AGENDAR:[\s\S]*/i, '').replace(/\s+$/g, '').trim();
+
+  // Guarda universal: se ainda restar qualquer fragmento [[MARKER: na resposta, remove tudo a partir daí.
+  // Protege contra markers novos adicionados futuramente sem o fallback correspondente.
+  if (/\[\[/.test(resposta)) {
+    const idx = resposta.search(/\[\[/);
+    log.warn('Marker residual detectado antes de enviar — removendo', { phone, snippet: resposta.slice(idx, idx + 60) });
+    resposta = resposta.slice(0, idx).replace(/\s+$/g, '').trim();
   }
 
   // Fallback inteligente quando resposta vazia / muito curta:
