@@ -3,6 +3,8 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
+import { existsSync, createReadStream } from 'fs';
+import { join, basename } from 'path';
 import { persistIncoming, processBatch, enviarManual } from './lib/conversation.js';
 import {
   connect as connectBaileys,
@@ -17,6 +19,13 @@ import { coalesceIncoming } from './lib/coalescer.js';
 import { log } from './lib/logger.js';
 
 dotenv.config();
+
+const MEDIA_DIR = process.env.MEDIA_DIR || (process.env.DB_PATH ? join(process.env.DB_PATH.replace(/\/[^/]+$/, ''), 'media') : '/data/media');
+const MIME_EXT = { '.ogg':  'audio/ogg', '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4',
+                   '.aac':  'audio/aac',  '.wav': 'audio/wav',
+                   '.jpg':  'image/jpeg', '.jpeg': 'image/jpeg',
+                   '.png':  'image/png',  '.webp': 'image/webp', '.gif': 'image/gif',
+                   '.mp4':  'video/mp4',  '.3gp':  'video/3gpp', '.bin': 'application/octet-stream' };
 
 const PORT = parseInt(process.env.PORT, 10) || 3030;
 const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN;
@@ -130,7 +139,7 @@ app.get('/admin/conversas/:phone', requireToken, (req, res) => {
     const phone = req.params.phone;
     const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
     const msgs = db.prepare(`
-      SELECT m.id, m.phone, m.direction, m.body, m.created_at, m.agent_response, m.lead_id, m.meta, l.name
+      SELECT m.id, m.phone, m.direction, m.body, m.created_at, m.agent_response, m.lead_id, m.meta, m.media_url, l.name
       FROM whatsapp_messages m
       LEFT JOIN leads l ON l.id = m.lead_id
       WHERE m.phone = ?
@@ -142,6 +151,18 @@ app.get('/admin/conversas/:phone', requireToken, (req, res) => {
     log.error('Falha buscando conversa', { err: err.message });
     res.status(500).json({ error: err.message });
   }
+});
+
+// --- MÍDIA: serve arquivos salvos em disco ---
+app.get('/media/:filename', requireToken, (req, res) => {
+  const filename = basename(req.params.filename); // bloqueia path traversal
+  const filepath = join(MEDIA_DIR, filename);
+  if (!existsSync(filepath)) return res.status(404).json({ error: 'midia nao encontrada' });
+  const ext = '.' + filename.split('.').pop().toLowerCase();
+  const contentType = MIME_EXT[ext] || 'application/octet-stream';
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Cache-Control', 'private, max-age=86400');
+  createReadStream(filepath).pipe(res);
 });
 
 // --- ENVIO MANUAL ---

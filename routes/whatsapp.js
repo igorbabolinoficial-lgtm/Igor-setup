@@ -76,4 +76,24 @@ router.post('/send', async (req, res) => {
     }
 });
 
+// GET /api/whatsapp/media/:filename — proxy binário para o whatsapp-agent
+router.get('/media/:filename', async (req, res) => {
+    try {
+        const url   = waUrl();
+        const token = waToken();
+        if (!url || !token) return res.status(503).json({ error: 'WA_AGENT_URL ou WA_AGENT_TOKEN não configurados' });
+        const r = await fetch(`${url}/media/${encodeURIComponent(req.params.filename)}`, {
+            headers: { 'x-webhook-token': token },
+        });
+        if (!r.ok) return res.status(r.status).end();
+        const ct = r.headers.get('content-type') || 'application/octet-stream';
+        res.setHeader('Content-Type', ct);
+        res.setHeader('Cache-Control', 'private, max-age=86400');
+        const buf = await r.arrayBuffer();
+        res.send(Buffer.from(buf));
+    } catch (e) {
+        res.status(500).json({ ok: false, error: e.message });
+    }
+});
+
 module.exports = router;

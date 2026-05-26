@@ -7,6 +7,31 @@ import { transcribeAudio } from './transcribe.js';
 import { gerarAudio, ttsHabilitado } from './tts.js';
 import { criarAgenda, parentReady } from './parent-api.js';
 import { log } from './logger.js';
+import { writeFileSync, mkdirSync } from 'fs';
+import { join, basename } from 'path';
+
+// Diretório persistente de mídia (mesmo volume do banco em produção)
+const MEDIA_DIR = process.env.MEDIA_DIR || (process.env.DB_PATH ? join(process.env.DB_PATH.replace(/\/[^/]+$/, ''), 'media') : '/data/media');
+const EXT_MAP = {
+  'audio/ogg': '.ogg', 'audio/ogg; codecs=opus': '.ogg', 'audio/mpeg': '.mp3',
+  'audio/mp4': '.m4a', 'audio/aac': '.aac', 'audio/wav': '.wav',
+  'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif',
+  'video/mp4': '.mp4', 'video/3gpp': '.3gp',
+};
+function salvarMidiaEmDisco(buffer, mimetype, msgId) {
+  try {
+    mkdirSync(MEDIA_DIR, { recursive: true });
+    const baseType = (mimetype || '').split(';')[0].trim();
+    const ext = EXT_MAP[mimetype] || EXT_MAP[baseType] || '.bin';
+    const safe = (msgId || '').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40) || `m_${Date.now()}`;
+    const filename = `${safe}${ext}`;
+    writeFileSync(join(MEDIA_DIR, filename), buffer);
+    return filename;
+  } catch (err) {
+    log.warn('Falha salvando mídia em disco', { err: err.message });
+    return null;
+  }
+}
 
 const IGOR_DNA = {
   nome: process.env.IGOR_NOME || 'Igor Babolin',
@@ -422,31 +447,43 @@ export async function persistIncoming(incoming) {
     }
   }
 
-  // Se for audio (PTT do WhatsApp = ogg/opus), tenta transcrever pra Groq Whisper
-  // antes de salvar. Se rolar, body persistido vira o texto — historico, coalescer
-  // e LLM passam a ver a fala como texto normal.
-  const looksAudio = mediaType && /^audio\//i.test(mediaType);
-  let transcribed = false;
-  if (looksAudio && (incoming.rawMsg || mediaUrl)) {
+  // Baixa e persiste mídia (áudio, imagem, vídeo) em disco.
+  // Áudio: também transcreve pra texto — body vira a transcrição.
+  // Imagem/vídeo: só salva o arquivo, body fica null.
+  const looksAudio  = mediaType && /^audio\//i.test(mediaType);
+  const looksImage  = mediaType && /^image\//i.test(mediaType);
+  const looksVideo  = mediaType && /^video\//i.test(mediaType);
+  const temMidia    = looksAudio || looksImage || looksVideo;
+  let transcribed   = false;
+  let savedFilename = null;
+
+  if (temMidia && (incoming.rawMsg || mediaUrl)) {
     try {
       const media = await downloadMediaFromUrl(mediaUrl, mediaMimetype, { rawMsg: incoming.rawMsg });
       if (media?.buffer) {
-        const texto = await transcribeAudio(media.buffer, media.mimetype);
-        if (texto) {
-          body = texto;
-          transcribed = true;
-          log.info('Audio transcrito', { phone, chars: texto.length, preview: texto.slice(0, 80) });
+        // Salva em disco — mesmo para áudio (além de transcrever)
+        savedFilename = salvarMidiaEmDisco(media.buffer, media.mimetype || mediaMimetype, wahaMessageId);
+
+        if (looksAudio) {
+          const texto = await transcribeAudio(media.buffer, media.mimetype);
+          if (texto) {
+            body = texto;
+            transcribed = true;
+            log.info('Audio transcrito', { phone, chars: texto.length, preview: texto.slice(0, 80) });
+          } else {
+            body = body || null; // sem transcrição — body null, arquivo fica disponível
+          }
         }
       }
     } catch (err) {
-      log.warn('Falha transcrevendo audio', { phone, err: err.message });
-      body = body || '[audio - falha na transcricao]';
+      log.warn('Falha processando midia', { phone, mediaType, err: err.message });
+      if (looksAudio) body = body || null;
     }
-  } else if (looksAudio && !incoming.rawMsg && !mediaUrl) {
-    log.warn('Audio recebido sem rawMsg nem mediaUrl — verificar handler do Baileys', { phone });
+  } else if (temMidia && !incoming.rawMsg && !mediaUrl) {
+    log.warn('Midia recebida sem rawMsg nem mediaUrl — verificar handler do Baileys', { phone, mediaType });
   }
 
-  log.info('Inbound recebido', { phone, pushName, mediaType, transcribed, body: body?.slice(0, 80) });
+  log.info('Inbound recebido', { phone, pushName, mediaType, transcribed, savedFilename, body: body?.slice(0, 80) });
 
   const { lead, created } = await findOrCreateLeadByPhone(phone, { name: pushName || phone });
   if (created) {
@@ -459,13 +496,15 @@ export async function persistIncoming(incoming) {
     body,
     leadId: lead.id,
     wahaMessageId,
+    mediaUrl: savedFilename,   // filename relativo — servido por /media/:filename
     meta: { pushName, mediaType, transcribed },
   });
   // Toca last_whatsapp_at sem mexer no status — status valido so vira 'respondido'
   // apos processBatch enviar resposta. (CHECK constraint: pendente|enviado|respondido|opt_out)
   await touchLead(lead.id);
 
-  return { ...incoming, phone, leadId: lead.id, remoteJid: incoming.remoteJid };
+  // Retorna body atualizado (transcrição) para o coalescer usar no batch
+  return { ...incoming, phone, leadId: lead.id, remoteJid: incoming.remoteJid, body, transcribed };
 }
 
 // Etapa 2: chamada pelo coalescer apos o debounce expirar.

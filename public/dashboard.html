@@ -91,8 +91,12 @@
         .wa-send { padding: 16px 20px; border-top: 1px solid var(--border); background: var(--surface); display: flex; gap: 10px; }
         .wa-send input { flex: 1; background: #000; border: 1px solid var(--border); padding: 10px 14px; color: #FFF; outline: none; border-radius: 4px; font-size: 0.85rem; cursor: text; }
         .wa-send input:focus { border-color: var(--accent); }
-        .wa-msg-audio { display: flex; align-items: center; gap: 8px; font-style: italic; color: inherit; opacity: 0.9; }
-        .wa-msg-audio-icon { font-size: 1rem; flex-shrink: 0; }
+        .wa-msg-audio { display: flex; flex-direction: column; gap: 6px; }
+        .wa-msg-audio audio { width: 100%; min-width: 220px; height: 36px; accent-color: var(--accent); }
+        .wa-msg-audio-caption { font-size: 0.78rem; opacity: 0.85; font-style: italic; }
+        .wa-msg-image img { max-width: 240px; max-height: 320px; border-radius: 4px; display: block; cursor: pointer; }
+        .wa-msg-image img:hover { opacity: 0.9; }
+        .wa-msg-video video { max-width: 260px; border-radius: 4px; display: block; }
         .wa-msg-empty { color: var(--text-muted); font-style: italic; font-size: 0.75rem; }
         .wa-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.85rem; }
         .wa-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); display: inline-block; margin-right: 6px; }
@@ -1139,10 +1143,23 @@
                 box.innerHTML = msgs.map(m => {
                     let meta = {};
                     try { meta = JSON.parse(m.meta || '{}'); } catch {}
-                    const isAudio = meta.transcribed || (meta.mediaType && /^audio/i.test(meta.mediaType));
+                    const mediaType = meta.mediaType || '';
+                    const isAudio = /^audio\//i.test(mediaType) || meta.transcribed;
+                    const isImage = /^image\//i.test(mediaType);
+                    const isVideo = /^video\//i.test(mediaType);
+                    const mediaUrl = m.media_url ? `/api/whatsapp/media/${encodeURIComponent(m.media_url)}` : null;
                     let conteudo;
-                    if (isAudio) {
-                        conteudo = `<div class="wa-msg-audio"><span class="wa-msg-audio-icon">🎤</span><span>${m.body?.replace(/\n/g,'<br>') || '<em>áudio não transcrito</em>'}</span></div>`;
+                    if (isAudio && mediaUrl) {
+                        conteudo = `<div class="wa-msg-audio">
+                            <audio controls preload="none"><source src="${mediaUrl}"></audio>
+                            ${m.body ? `<span class="wa-msg-audio-caption">🎤 ${m.body.replace(/\n/g,' ')}</span>` : ''}
+                        </div>`;
+                    } else if (isAudio) {
+                        conteudo = `<span>🎤 ${m.body || '<em>áudio</em>'}</span>`;
+                    } else if (isImage && mediaUrl) {
+                        conteudo = `<div class="wa-msg-image"><img src="${mediaUrl}" alt="imagem" onclick="window.open(this.src)"></div>${m.body ? `<br>${m.body.replace(/\n/g,'<br>')}` : ''}`;
+                    } else if (isVideo && mediaUrl) {
+                        conteudo = `<div class="wa-msg-video"><video controls preload="none"><source src="${mediaUrl}"></video></div>`;
                     } else if (m.body) {
                         conteudo = m.body.replace(/\n/g,'<br>');
                     } else {
