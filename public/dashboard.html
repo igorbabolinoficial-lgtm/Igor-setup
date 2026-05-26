@@ -1054,10 +1054,11 @@
                 <div class="wa-chat" id="waChat">
                     <div class="wa-empty" id="waEmpty">Selecione uma conversa</div>
                     <div id="waChatHeader" class="wa-chat-header" style="display:none">
-                        <div>
+                        <div style="flex:1">
                             <div class="wa-chat-name" id="waChatName"></div>
                             <div class="wa-chat-phone" id="waChatPhone"></div>
                         </div>
+                        <button class="btn-ghost" style="padding:4px 10px;font-size:1rem;" onclick="waFecharConversa()" title="Fechar conversa">×</button>
                     </div>
                     <div id="waMessages" class="wa-messages" style="display:none"></div>
                     <div id="waSendBox" class="wa-send" style="display:none">
@@ -1188,6 +1189,15 @@
                 await api('POST', '/whatsapp/send', { phone: waPhone, text });
                 await waAbrirConversa(waPhone, null, true);
             } catch(e) { alert('Erro ao enviar: ' + e.message); }
+        }
+
+        function waFecharConversa() {
+            waPhone = null;
+            document.querySelectorAll('.wa-lead').forEach(el => el.classList.remove('active'));
+            document.getElementById('waChatHeader').style.display = 'none';
+            document.getElementById('waMessages').style.display = 'none';
+            document.getElementById('waSendBox').style.display = 'none';
+            document.getElementById('waEmpty').style.display = 'flex';
         }
 
         async function waSyncLeads() {
@@ -1342,9 +1352,14 @@
                     c.className = 'card';
                     c.draggable = true;
                     c.ondragstart = (e) => e.dataTransfer.setData('text/plain', l.id);
+                    const isPhone = /^\d{8,}$/.test(l.nome);
+                    const titulo = isPhone ? (l.telefone || l.nome) : l.nome;
+                    const subtitulo = l.interesse || l.notas?.slice(0, 60) || (l.origem ? `via ${l.origem}` : '—');
+                    const fone = !isPhone && l.telefone ? `<span style="font-size:0.65rem;color:var(--text-muted);font-family:monospace">${l.telefone}</span>` : '';
                     c.innerHTML = `
-                        <h4>${l.nome}</h4>
-                        <p>${l.interesse || '—'}</p>
+                        <h4>${titulo}</h4>
+                        ${fone}
+                        <p style="margin-top:4px">${subtitulo}</p>
                         <span class="score-badge">IA Score: ${l.score_ia}</span>
                     `;
                     area.appendChild(c);

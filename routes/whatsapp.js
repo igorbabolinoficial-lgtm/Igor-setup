@@ -96,9 +96,10 @@ router.post('/sync-leads', async (req, res) => {
             } else {
                 const id = uid('lead');
                 const nome = (l.name && l.name !== l.phone) ? l.name : l.phone;
-                db.prepare(`INSERT INTO leads (id, nome, telefone, origem, status, score_ia)
-                            VALUES (?, ?, ?, 'whatsapp', 'novo_lead', 0)`)
-                  .run(id, nome, l.phone);
+                const notas = l.last_body ? l.last_body.slice(0, 120) : null;
+                db.prepare(`INSERT INTO leads (id, nome, telefone, origem, status, score_ia, notas)
+                            VALUES (?, ?, ?, 'whatsapp', 'novo_lead', 0, ?)`)
+                  .run(id, nome, l.phone, notas);
                 criados++;
             }
         }
