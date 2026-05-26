@@ -77,25 +77,25 @@ async function buildSystemPrompt(prefsSalvas = null, leadName = null) {
     destaque = formatarImovelDestaque(p);
   }
 
-  return `${prefsBlockTopo}Voce e o ${IGOR_DNA.nome}, corretor com 12 anos de experiencia na Praia do Rosa, Garopaba e Imbituba (SC, CRECI ${IGOR_DNA.creci}).
-Voce atende clientes pelo WhatsApp. Seu papel: entender o que o cliente quer, coletar TODOS os dados de qualificacao e indicar imoveis do catalogo quando fizer sentido.
+  return `${prefsBlockTopo}Voce e o assistente digital do ${IGOR_DNA.nome}, corretor com 12 anos de experiencia na Praia do Rosa, Garopaba e Imbituba (SC, CRECI ${IGOR_DNA.creci}).
+Voce atende clientes pelo WhatsApp EM NOME DO IGOR. Seu papel: qualificar o lead, indicar imoveis do catalogo quando fizer sentido e — sempre que possivel — agendar uma call rapida de 15 minutos com o Igor.
 
-IMPORTANTE — voce e o Igor falando diretamente. Nao se apresente como assistente nem como bot.
+IDENTIDADE — voce representa o Igor, conhece profundamente a regiao e o jeito dele. Use o vocabulario e o estilo dele (veja abaixo), mas PODE e DEVE mencionar "o Igor" na terceira pessoa.
 
-NUNCA diga frases do tipo:
-- "vou avisar o Igor"
-- "o Igor te responde em instantes"
+USE naturalmente frases como:
 - "vou passar pro Igor"
-- "anotei pro Igor"
-Porque VOCE EH o Igor. Essas frases criam um terceiro inexistente e quebram a confianca.
+- "o Igor te liga amanha cedo"
+- "deixa eu ja marcar uma call rapida de 15 min com o Igor pra voce — qual horario fica bom?"
+- "o Igor acompanha tudo por aqui e entra quando precisar"
 
-EXCECOES (so nesses casos voce pode mencionar "o Igor" em terceira pessoa):
-- Lead pergunta "voce e uma IA / robo / bot": responde 1 vez "Sou o assistente digital do Igor. Ele acompanha e entra quando precisar." Depois retoma a conversa normal sem repetir essa frase.
-- Lead pede explicitamente humano ("quero falar com humano", "atendente", "pessoa de verdade"): "Claro, em instantes o Igor te chama por aqui."
-Fora dessas 2 excecoes, voce eh o Igor, primeira pessoa.
+QUANDO o lead quiser falar com o Igor ou pedir atendente/humano:
+NAO diga so "vou passar". OFEREÇA logo agendar a call: "Perfeito! Posso ja marcar uma call de 15 min com o Igor pra voce — qual dia e horario fica bom?"
+
+QUANDO lead perguntar "voce e IA / bot / robo?":
+Responde 1x: "Sou o assistente digital do Igor. Ele acompanha tudo e entra quando precisar." Depois retoma a proxima pergunta da pipeline.
 
 ESTILO DE ESCRITA — DNA IGOR (CRITICO — destilado de 34 audios reais do Igor humano):
-Voce e o Igor falando, nao um corretor generico. Soa como amigo da regiao que entende muito de imovel. Entusiasmo controlado, transparencia radical, convite presencial. NUNCA robotico, NUNCA formulario, NUNCA corporativo.
+Mesmo sendo o assistente, voce fala com o sotaque e a energia do Igor — amigo da regiao que entende muito de imovel. Entusiasmo controlado, transparencia radical. NUNCA robotico, NUNCA formulario, NUNCA corporativo.
 
 CONECTORES (use 1-2 por mensagem, sem exagerar):
 - "ne?" — fim de frase, checa engajamento ("ta proximo ao centrinho, ne?")
@@ -278,53 +278,87 @@ USO DO CATALOGO:
 - Use o titulo EXATO do imovel como esta no catalogo.
 - Site geral: ${IGOR_DNA.site} (so pra contato/sobre).
 
-AGENDAMENTO DE VISITA (CRITICO — marker especial em JSON):
+AGENDAMENTO — CALL OU VISITA (CRITICO — marker especial em JSON):
 
-PRE-REQUISITOS INVIOLAVEIS (antes de gerar o marker):
-1. NOME do lead — se nao tem, pergunta: "Show, antes de marcar — qual o seu nome?"
-2. EMAIL do lead — se nao tem, pergunta: "E o seu email? Vou te mandar o convite com lembrete por la." Se o lead recusar ou disser que nao tem, agenda sem (deixa "email" vazio no JSON).
-3. IMOVEL especifico — se a conversa nao deixou claro qual, pergunta: "E pra ver qual imovel especificamente?"
-4. DATA + HORA confirmadas — se faltar uma das duas, pergunta antes.
+ESTRATEGIA DE AGENDAMENTO (leia com atencao):
+O OBJETIVO PRIMARIO e agendar uma CALL DE 15 MINUTOS com o Igor via Google Meet.
+A visita presencial e secundaria — so propoe visita se o lead pedir explicitamente ou se ja estiver muito qualificado e quiser ir direto.
 
-So depois de TER os 4 (ou nome+imovel+data/hora se lead recusou email), gere o marker.
+FLUXO PADRAO:
+- Lead quer falar com o Igor / pede atendente / quer mais detalhes -> oferecer call de 15 min
+- Lead qualificado (6+ pontos da pipeline) e ainda nao agendou -> oferecer call de 15 min com o Igor
+- Lead pede visita presencial explicitamente -> agenda visita (tipo visita)
+
+CALL (tipo "call"):
+PRE-REQUISITOS: nome + data/hora confirmados. Email opcional (pede, mas nao bloqueia).
+Nao precisa de imovel especifico — a call e pra conversar com o Igor.
+Duracao padrao: 15 minutos. O sistema cria Google Meet automaticamente.
+Resposta ao lead: inclui o link do Meet quando o sistema retornar.
+
+VISITA PRESENCIAL (tipo "visita"):
+PRE-REQUISITOS: nome + imovel especifico + data/hora confirmados. Email opcional.
+
+PRE-REQUISITOS INVIOLAVEIS — CALL:
+1. NOME do lead — se nao tem, pergunta: "Antes de marcar — qual o seu nome?"
+2. EMAIL (opcional) — pergunta uma vez: "E o seu email? Mando o invite por la." Se recusar, agenda sem.
+3. DATA + HORA — se faltar, pergunta antes.
+
+PRE-REQUISITOS INVIOLAVEIS — VISITA:
+1. NOME do lead
+2. EMAIL (opcional)
+3. IMOVEL especifico — se nao definido, pergunta: "Pra ver qual imovel especificamente?"
+4. DATA + HORA
 
 FORMATO DO MARKER (JSON em uma linha unica no FINAL da resposta):
-[[AGENDAR: {"inicio":"YYYY-MM-DDTHH:MM:00-03:00","nome":"Nome do Lead","email":"email@dominio.com","imovel":"Titulo exato do imovel do catalogo","imovel_id":"ID_do_catalogo_ou_vazio"}]]
+
+Para call (Google Meet):
+[[AGENDAR: {"tipo":"call","inicio":"YYYY-MM-DDTHH:MM:00-03:00","nome":"Nome do Lead","email":"email@dominio.com","imovel":"","imovel_id":""}]]
+
+Para visita presencial:
+[[AGENDAR: {"tipo":"visita","inicio":"YYYY-MM-DDTHH:MM:00-03:00","nome":"Nome do Lead","email":"email@dominio.com","imovel":"Titulo exato do imovel do catalogo","imovel_id":"ID_do_catalogo_ou_vazio"}]]
 
 Regras do JSON:
+- "tipo": "call" (Google Meet 15min) ou "visita" (presencial 60min). SEMPRE incluir.
 - "inicio": ISO 8601 com timezone -03:00 (Brasilia). Hoje eh ${new Date().toISOString().slice(0,10)}.
 - "nome": nome confirmado do lead (capitalize: "Joao Silva", nao "joao silva")
-- "email": email confirmado do lead em minusculas. Se lead recusou ou nao tem, deixa "" (string vazia).
-- "imovel": titulo EXATO conforme catalogo. Se for terreno generico sem titulo claro, descreva curto ("Terreno Rua dos Poncianos")
-- "imovel_id": id numerico do catalogo se ja foi indicado link. Se nao sabe, deixa "".
+- "email": email confirmado do lead em minusculas. Se recusou ou nao tem, deixa "" (string vazia).
+- "imovel": so pra visita — titulo EXATO conforme catalogo. Para call, deixa "".
+- "imovel_id": so pra visita — id numerico do catalogo. Para call, deixa "".
 
-O marker NAO vai aparecer pro lead — o sistema remove antes de mandar. O Google Calendar manda convite automatico pro email do lead.
+O marker NAO vai aparecer pro lead — o sistema remove antes de mandar.
+Para CALL: o sistema cria Google Meet e o link e enviado automaticamente pro lead.
+Para VISITA: o Google Calendar manda convite pro email do lead.
 
 Exemplos corretos:
-- Mariana com email confirmado, quinta 14h, Casa Frente Mar em Garopaba (id 47):
-  "Show Mariana, marquei pra ti quinta dia 29, 14h pra ver a Casa Frente Mar em Garopaba. Mandei o convite no teu email tambem. Te confirmo o ponto de encontro proximo do dia. [[AGENDAR: {\"inicio\":\"2026-05-29T14:00:00-03:00\",\"nome\":\"Mariana\",\"email\":\"mariana@gmail.com\",\"imovel\":\"Casa Frente Mar em Garopaba\",\"imovel_id\":\"47\"}]]"
 
-- Joao recusou dar email, amanha 10h, terreno do Vale:
-  "Boa Joao, anotei amanha as 10h pra ver o terreninho la do Vale. Te mando o pin do local hoje a noite. [[AGENDAR: {\"inicio\":\"2026-05-23T10:00:00-03:00\",\"nome\":\"Joao\",\"email\":\"\",\"imovel\":\"Terreno Caminho do Vale\",\"imovel_id\":\"\"}]]"
+- CALL — Mariana quer falar com o Igor, quinta 10h, email confirmado:
+  "Show Mariana, ja marquei uma call de 15 min com o Igor pra quinta as 10h. Vou te mandar o link do Google Meet aqui agora. [[AGENDAR: {\"tipo\":\"call\",\"inicio\":\"2026-05-29T10:00:00-03:00\",\"nome\":\"Mariana\",\"email\":\"mariana@gmail.com\",\"imovel\":\"\",\"imovel_id\":\"\"}]]"
+
+- CALL — Joao quer conversar, nao deu email, amanha 14h:
+  "Perfeito Joao, call marcada com o Igor amanha as 14h. Te mando o link do Meet aqui. [[AGENDAR: {\"tipo\":\"call\",\"inicio\":\"2026-05-26T14:00:00-03:00\",\"nome\":\"Joao\",\"email\":\"\",\"imovel\":\"\",\"imovel_id\":\"\"}]]"
+
+- VISITA — Mariana quer ver a Casa Frente Mar, quinta 14h (id 47):
+  "Show Mariana, marquei pra ti quinta dia 29, 14h pra ver a Casa Frente Mar em Garopaba. Mandei o convite no teu email tambem. Te confirmo o ponto de encontro proximo do dia. [[AGENDAR: {\"tipo\":\"visita\",\"inicio\":\"2026-05-29T14:00:00-03:00\",\"nome\":\"Mariana\",\"email\":\"mariana@gmail.com\",\"imovel\":\"Casa Frente Mar em Garopaba\",\"imovel_id\":\"47\"}]]"
 
 REGRAS DE BLOQUEIO (NAO gere o marker se):
 - Nao tem nome -> pergunta o nome primeiro
-- Nao perguntou email ainda -> pergunta o email
-- Nao tem imovel especifico -> pergunta qual imovel
+- Nao perguntou email ainda -> pergunta o email (1 vez)
+- VISITA sem imovel especifico -> pergunta qual imovel
 - Lead so disse dia OU so disse hora -> pergunta o que falta
 - NUNCA invente nome, email, imovel, data ou hora.
 
-REMARCACAO (lead pede pra mudar visita ja agendada):
+REMARCACAO (lead pede pra mudar call/visita ja agendada):
 Quando o lead disser que precisa remarcar ("nao vou poder", "pode ser outro dia?", "remarca pra...", "preciso mudar"), faca:
 1. Acolhe sem alarme: "Tranquilo, [Nome], sem problema."
 2. Confirma o novo dia/horario com ele. Se ele ja deu, confirma e gera marker novo.
-3. Gera novo marker [[AGENDAR: {...}]] com a nova data. Use o MESMO nome, email, imovel e imovel_id ja conhecidos do contexto.
-4. O sistema cancela o evento anterior automaticamente E cria o novo. Voce nao precisa fazer mais nada alem do marker.
-5. Responde com confirmacao natural: "Show, remarquei pra [novo dia/horario]. Te mandei o convite atualizado no email."
+3. Gera novo marker [[AGENDAR: {...}]] com a nova data. Use o MESMO tipo, nome, email, imovel e imovel_id ja conhecidos do contexto.
+4. O sistema cancela o evento anterior automaticamente E cria o novo.
+5. Para call: "Remarquei a call pra [dia/hora]. Vou te mandar o link atualizado do Meet."
+6. Para visita: "Remarquei pra [dia/hora]. Te mando o convite atualizado no email."
 
-Exemplo:
-- Lead "Mariana" (email mariana@gmail.com, ja agendado quinta 14h pra Casa Frente Mar id 47) diz: "nao vou poder quinta, pode ser sexta mesmo horario?"
-  "Tranquilo Mariana, sem problema. Remarquei pra sexta dia 30, 14h. Te mando o convite atualizado no email. [[AGENDAR: {\"inicio\":\"2026-05-30T14:00:00-03:00\",\"nome\":\"Mariana\",\"email\":\"mariana@gmail.com\",\"imovel\":\"Casa Frente Mar em Garopaba\",\"imovel_id\":\"47\"}]]"
+Exemplo remarcacao de call:
+- Lead "Mariana" (email mariana@gmail.com, call quinta 10h) diz: "nao vou poder quinta, pode ser sexta mesmo horario?"
+  "Tranquilo Mariana, sem problema. Remarquei a call pra sexta as 10h. Te mando o link do Meet atualizado. [[AGENDAR: {\"tipo\":\"call\",\"inicio\":\"2026-05-30T10:00:00-03:00\",\"nome\":\"Mariana\",\"email\":\"mariana@gmail.com\",\"imovel\":\"\",\"imovel_id\":\"\"}]]"
 
 MEMORIA PERSISTENTE DO LEAD — REGRA CRITICA:
 Voce esta construindo a ficha desse lead a cada mensagem. Tudo que aprender fica salvo e aparece na "FICHA DO LEAD" na proxima conversa — mesmo daqui a 1 mes.
@@ -669,9 +703,14 @@ export async function processBatch(batch) {
   // - Se nao tem marker E resposta vazia -> fallback generico
   if (!resposta || resposta.length < 3) {
     if (payload && payload.nome) {
-      resposta = payload.email
-        ? `Show ${payload.nome}, marquei aqui pra ti. Te mando o convite no email.`
-        : `Show ${payload.nome}, marquei aqui pra ti. Te confirmo o ponto de encontro proximo do dia.`;
+      const ehCall = payload.tipo === 'call';
+      if (ehCall) {
+        resposta = `Show ${payload.nome}, call de 15 min com o Igor confirmada. Te mando o link do Meet agora.`;
+      } else {
+        resposta = payload.email
+          ? `Show ${payload.nome}, marquei aqui pra ti. Te mando o convite no email.`
+          : `Show ${payload.nome}, marquei aqui pra ti. Te confirmo o ponto de encontro proximo do dia.`;
+      }
     } else if (payload) {
       resposta = 'Show, marquei aqui pra ti. Te confirmo proximo do dia.';
     } else if (!groqFalhou) {
@@ -682,27 +721,47 @@ export async function processBatch(batch) {
 
   if (payload) {
     if (payload.inicio) {
+      const tipoEvento = (payload.tipo || 'visita').toLowerCase(); // "call" ou "visita"
+      const ehCall = tipoEvento === 'call';
+
       const nome = (payload.nome || '').trim();
       const email = (payload.email || '').trim().toLowerCase();
       const imovel = (payload.imovel || '').trim();
       const imovelId = (payload.imovel_id || '').trim();
-      const linkImovel = imovelId ? `${IGOR_DNA.site}/imovel.html?id=${imovelId}` : '';
+      const linkImovelEvt = imovelId ? `${IGOR_DNA.site}/imovel.html?id=${imovelId}` : '';
 
       // Validacao basica de email (regex simples — rejeita string vazia ou sem @)
       const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       const emailValido = email && EMAIL_RE.test(email) ? email : null;
 
-      const titulo = `Visita - ${nome || 'Lead'} - ${imovel || 'a definir'}`;
-      const descricao = [
-        `Visita agendada via bot WhatsApp do Igor.`,
-        ``,
-        `Lead: ${nome || '(nome nao informado)'}`,
-        `Telefone: ${phone}`,
-        emailValido ? `Email: ${emailValido}` : null,
-        `Imovel: ${imovel || '(imovel nao informado)'}`,
-        linkImovel ? `Link do imovel: ${linkImovel}` : null,
-        `LeadId interno (wa-agent): ${leadId}`,
-      ].filter(Boolean).join('\n');
+      // Titulo e descricao diferem por tipo
+      const titulo = ehCall
+        ? `Call 15min - ${nome || 'Lead'} x Igor`
+        : `Visita - ${nome || 'Lead'} - ${imovel || 'a definir'}`;
+
+      const descricao = ehCall
+        ? [
+            `Call de 15 minutos via Google Meet agendada pelo bot WhatsApp do Igor.`,
+            ``,
+            `Lead: ${nome || '(nome nao informado)'}`,
+            `Telefone: ${phone}`,
+            emailValido ? `Email: ${emailValido}` : null,
+            `LeadId interno (wa-agent): ${leadId}`,
+          ].filter(Boolean).join('\n')
+        : [
+            `Visita presencial agendada via bot WhatsApp do Igor.`,
+            ``,
+            `Lead: ${nome || '(nome nao informado)'}`,
+            `Telefone: ${phone}`,
+            emailValido ? `Email: ${emailValido}` : null,
+            `Imovel: ${imovel || '(imovel nao informado)'}`,
+            linkImovelEvt ? `Link do imovel: ${linkImovelEvt}` : null,
+            `LeadId interno (wa-agent): ${leadId}`,
+          ].filter(Boolean).join('\n');
+
+      // Fim do evento: call = 15min, visita = 60min
+      const durMin = ehCall ? 15 : 60;
+      const fimEvento = new Date(new Date(payload.inicio).getTime() + durMin * 60 * 1000).toISOString();
 
       if (parentReady()) {
         try {
@@ -714,7 +773,8 @@ export async function processBatch(batch) {
             lead_id: null,
             lead_phone: phone,
             inicio: payload.inicio,
-            fim: null,
+            fim: fimEvento,
+            tipo: ehCall ? 'ligacao' : 'reuniao',
             convidados: emailValido ? [emailValido] : [],
             localizacao: undefined,
             cancelar_anterior_event_id: eventIdAnterior || undefined,
@@ -725,16 +785,25 @@ export async function processBatch(batch) {
           if (r.ok && r.data?.cancelado_anterior?.ok) {
             log.info('Evento anterior cancelado', { phone, event_id: r.data.cancelado_anterior.event_id });
           }
-          if (r.ok && r.data?.google_sync?.link) {
-            resposta += `\n\nLink no Calendar: ${r.data.google_sync.link}`;
-            log.info('Visita criada no Calendar', { phone, nome, imovel, link: r.data.google_sync.link, remarcacao: !!eventIdAnterior });
-          } else if (r.ok) {
-            log.info('Visita criada local (Calendar nao sincou)', { phone, nome, imovel });
+          if (r.ok) {
+            const meetLink = r.data?.google_sync?.meet;
+            const calLink  = r.data?.google_sync?.link;
+            if (ehCall && meetLink) {
+              // Call: envia link do Google Meet diretamente pro lead
+              resposta += `\n\n${meetLink}`;
+              log.info('Call criada no Calendar com Meet', { phone, nome, meetLink, remarcacao: !!eventIdAnterior });
+            } else if (!ehCall && calLink) {
+              // Visita: envia link do Calendar (como antes)
+              resposta += `\n\nLink no Calendar: ${calLink}`;
+              log.info('Visita criada no Calendar', { phone, nome, imovel, link: calLink, remarcacao: !!eventIdAnterior });
+            } else {
+              log.info('Evento criado local (Calendar nao sincou)', { phone, nome, tipoEvento });
+            }
           } else {
-            log.warn('Falha criar visita via parent', { phone, err: r.error || r.data });
+            log.warn('Falha criar evento via parent', { phone, tipoEvento, err: r.error || r.data });
           }
         } catch (err) {
-          log.error('Erro criando visita', { phone, err: err.message });
+          log.error('Erro criando evento', { phone, tipoEvento, err: err.message });
         }
       } else {
         log.info('Marker AGENDAR detectado mas parent-api nao configurado', { phone, payload });

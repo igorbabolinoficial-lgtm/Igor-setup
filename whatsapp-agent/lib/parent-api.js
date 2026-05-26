@@ -38,7 +38,8 @@ async function chamarParent(path, body) {
  * Cria evento na agenda do parent (que tambem cria evento no Google Calendar via OAuth).
  * Retorna { ok, data } onde data tem google_sync.link / google_sync.meet se Google OK.
  */
-export async function criarAgenda({ titulo, descricao, lead_id, lead_phone, inicio, fim, convidados, localizacao, cancelar_anterior_event_id }) {
+// tipo: 'reuniao' (visita presencial) | 'ligacao' (call/Google Meet)
+export async function criarAgenda({ titulo, descricao, lead_id, lead_phone, inicio, fim, tipo = 'reuniao', convidados, localizacao, cancelar_anterior_event_id }) {
   return chamarParent('/api/agenda', {
     titulo,
     descricao,
@@ -46,7 +47,7 @@ export async function criarAgenda({ titulo, descricao, lead_id, lead_phone, inic
     lead_phone,
     inicio,
     fim,
-    tipo: 'reuniao',
+    tipo,
     convidados,
     localizacao,
     cancelar_anterior_event_id,
