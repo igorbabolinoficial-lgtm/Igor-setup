@@ -1780,7 +1780,7 @@
                         ${fone}
                         <p style="margin-top:4px">${subtitulo}</p>
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
-                            <span class="score-badge" title="Pontos de qualificação WA (tipo, finalidade, região, preço, pagamento, nome). ≥4 = qualificado.">Pipeline: ${l.pontos_pipeline || 0}/6</span>
+                            <span class="score-badge" title="Qualificação WA (tipo, finalidade, região, preço, pagamento, nome). ≥7 = qualificado.">Pipeline: ${Math.round((l.pontos_pipeline || 0) / 6 * 10)}/10</span>
                             ${btnWa}
                         </div>
                     `;
