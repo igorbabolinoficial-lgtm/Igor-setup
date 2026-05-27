@@ -62,6 +62,43 @@ router.get('/kanban', (req, res) => {
     res.json(colunas);
 });
 
+// POST /by-phone/status — atualiza status do lead pelo telefone (chamado pelo wa-agent).
+// Nunca regride: se o lead já está em status >= ao solicitado, ignora silenciosamente.
+router.post('/by-phone/status', (req, res) => {
+    const { telefone, status } = req.body || {};
+    if (!telefone || !STATUS_VALIDOS.includes(status)) {
+        return res.status(400).json({ erro: 'telefone e status são obrigatórios', validos: STATUS_VALIDOS });
+    }
+
+    // Resolve variantes do telefone (com/sem 55, com/sem 9 inicial)
+    const digits = String(telefone).replace(/\D/g, '');
+    const variantes = [digits];
+    if (digits.startsWith('55')) variantes.push(digits.slice(2));
+    else variantes.push('55' + digits);
+
+    let lead = null;
+    for (const v of variantes) {
+        lead = db.prepare('SELECT * FROM leads WHERE telefone = ? OR telefone LIKE ?').get(v, `%${v}%`);
+        if (lead) break;
+    }
+    if (!lead) return res.status(404).json({ erro: 'Lead não encontrado pelo telefone', telefone });
+
+    // Não regride status (novo_lead < em_atendimento < qualificado < convertido)
+    const ORDEM = { novo_lead: 0, em_atendimento: 1, qualificado: 2, convertido: 3, perdido: -1 };
+    if ((ORDEM[status] ?? 0) <= (ORDEM[lead.status] ?? 0)) {
+        return res.json({ ok: true, noChange: true, lead: normalizar(lead) });
+    }
+
+    const anterior = lead.status;
+    db.prepare('UPDATE leads SET status = ?, atualizado_em = ? WHERE id = ?').run(status, nowIso(), lead.id);
+    registrarLog({
+        agente: 'whatsapp', nivel: 'sucesso', template: 'qualificacao',
+        mensagem: `Lead "${lead.nome}" movido automaticamente: ${anterior} → ${status}`,
+        contexto: { lead_id: lead.id, de: anterior, para: status, telefone },
+    });
+    res.json({ ok: true, noChange: false, lead: normalizar(db.prepare('SELECT * FROM leads WHERE id = ?').get(lead.id)) });
+});
+
 router.get('/:id', (req, res) => {
     const lead = db.prepare('SELECT * FROM leads WHERE id = ?').get(req.params.id);
     if (!lead) return res.status(404).json({ erro: 'Lead não encontrado' });

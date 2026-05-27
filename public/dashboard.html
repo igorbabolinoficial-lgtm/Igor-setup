@@ -1425,15 +1425,44 @@
                     const titulo = isPhone ? (l.telefone || l.nome) : l.nome;
                     const subtitulo = l.interesse || l.notas?.slice(0, 60) || (l.origem ? `via ${l.origem}` : '—');
                     const fone = !isPhone && l.telefone ? `<span style="font-size:0.65rem;color:var(--text-muted);font-family:monospace">${l.telefone}</span>` : '';
+                    const nomeSafe  = (l.nome   || '').replace(/'/g, "\\'").replace(/\\/g, '\\\\');
+                    const foneSafe  = (l.telefone || '').replace(/\D/g, '');
+                    const btnWa = foneSafe
+                        ? `<button onclick="abrirWaDoCard(event,'${foneSafe}','${nomeSafe}')" title="Abrir no WhatsApp" style="background:transparent;border:1px solid var(--border);color:var(--accent);padding:2px 7px;border-radius:3px;cursor:pointer;font-size:0.7rem;line-height:1.4;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">💬</button>`
+                        : '';
                     c.innerHTML = `
                         <h4>${titulo}</h4>
                         ${fone}
                         <p style="margin-top:4px">${subtitulo}</p>
-                        <span class="score-badge">IA Score: ${l.score_ia}</span>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+                            <span class="score-badge">IA Score: ${l.score_ia}</span>
+                            ${btnWa}
+                        </div>
                     `;
                     area.appendChild(c);
                 });
             });
+        }
+
+        // Abre painel WhatsApp e vai direto pra conversa do lead (chamado pelo botão 💬 do card)
+        async function abrirWaDoCard(e, phone, name) {
+            e.stopPropagation();
+            if (waAutoRefresh) { clearInterval(waAutoRefresh); waAutoRefresh = null; }
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('nav li').forEach(x => x.classList.remove('active'));
+            const navWa = document.querySelector('nav li[data-panel="whatsapp"]');
+            if (navWa) navWa.classList.add('active');
+            document.getElementById('whatsapp').classList.add('active');
+            document.getElementById('panelTitle').textContent = 'WhatsApp';
+            waAutoRefresh = setInterval(() => {
+                if (document.getElementById('whatsapp').classList.contains('active')) waPollMsgs();
+                else { clearInterval(waAutoRefresh); waAutoRefresh = null; }
+            }, 3000);
+            await waCarregar();
+            // Tenta abrir a conversa exata; se não estiver na lista, abre pelo número mesmo
+            const found = document.querySelector(`.wa-lead[data-phone="${phone}"]`);
+            if (found) { found.click(); }
+            else { waName = name || phone; await waAbrirConversa(phone, name); }
         }
 
         // ═══════════════════════════════════════════════════════════════

@@ -69,6 +69,14 @@ export async function criarLead({ nome, telefone, origem = 'whatsapp', interesse
 }
 
 /**
+ * Atualiza status do lead no pipeline pelo telefone (best-effort, nunca regride).
+ * @param {{ telefone: string, status: 'em_atendimento'|'qualificado'|'convertido' }} args
+ */
+export async function atualizarStatusLead({ telefone, status }) {
+  return chamarParent('/api/leads/by-phone/status', { telefone, status });
+}
+
+/**
  * Upload de midia pro Google Drive via parent.
  */
 export async function uploadMidia({ leadId, nome, mimeType, base64 }) {

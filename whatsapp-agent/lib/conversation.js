@@ -5,7 +5,7 @@ import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syn
 import { sendText, sendVoice, sendImage, resolveLidToPhone, setTyping, downloadMediaFromUrl } from './baileys.js';
 import { transcribeAudio } from './transcribe.js';
 import { gerarAudio, ttsHabilitado } from './tts.js';
-import { criarAgenda, parentReady } from './parent-api.js';
+import { criarAgenda, parentReady, atualizarStatusLead } from './parent-api.js';
 import { log } from './logger.js';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join, basename } from 'path';
@@ -947,6 +947,24 @@ export async function processBatch(batch) {
   }
 
   await touchLead(leadId, { whatsapp_status: 'respondido' });
+
+  // Auto-progressão de status no pipeline (best-effort, não bloqueia a resposta)
+  if (parentReady()) {
+    const pontosPreenchidos = [
+      prefsMerged.tipo,
+      prefsMerged.finalidade,
+      prefsMerged.regiao,
+      prefsMerged.preco_max,
+      prefsMerged.pagamento,
+      leadNameSalvo,
+    ].filter(Boolean).length;
+    // 4+ pontos da pipeline → qualificado; caso contrário → em_atendimento (sai da triagem)
+    const statusAlvo = pontosPreenchidos >= 4 ? 'qualificado' : 'em_atendimento';
+    atualizarStatusLead({ telefone: phone, status: statusAlvo }).catch((err) => {
+      log.warn('Falha ao atualizar status pipeline', { phone, statusAlvo, err: err.message });
+    });
+  }
+
   await enviarResposta(phone, resposta, leadId, { agent: true, inboundLen, comoAudio: inboundFoiAudio, remoteJid });
 
   // Envia fotos dos imóveis indicados (após texto, máx 2 imóveis × 3 fotos)
