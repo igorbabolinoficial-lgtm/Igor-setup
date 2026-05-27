@@ -418,6 +418,10 @@
 
         <!-- Pipeline / Kanban -->
         <div id="operations" class="panel active">
+            <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;">
+                <button class="btn-ghost" style="padding:6px 14px;font-size:0.72rem;" onclick="backfillPipelineStatus(this)" title="Analisa histórico do WhatsApp e move leads para Atendimento ou Qualificado automaticamente">⚡ Sincronizar status WA → Pipeline</button>
+                <span id="backfillStatus" style="font-size:0.75rem;color:var(--text-muted);"></span>
+            </div>
             <div class="kanban-board" id="kanbanBoard">
                 <div class="column" data-status="novo_lead">
                     <div class="column-header">Triagem <span data-count>0</span></div>
@@ -1442,6 +1446,27 @@
                     area.appendChild(c);
                 });
             });
+        }
+
+        async function backfillPipelineStatus(btn) {
+            const status = document.getElementById('backfillStatus');
+            btn.disabled = true;
+            btn.textContent = '⏳ Analisando...';
+            status.textContent = '';
+            try {
+                const r = await api('POST', '/whatsapp/backfill-pipeline-status');
+                if (r.ok) {
+                    status.textContent = `✓ ${r.movidos_atendimento} → Atendimento · ${r.movidos_qualificado} → Qualificado · ${r.ignorados} sem mudança`;
+                    carregarKanban();
+                } else {
+                    status.textContent = '✗ Erro: ' + (r.error || JSON.stringify(r));
+                }
+            } catch (e) {
+                status.textContent = '✗ ' + e.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '⚡ Sincronizar status WA → Pipeline';
+            }
         }
 
         // Abre painel WhatsApp e vai direto pra conversa do lead (chamado pelo botão 💬 do card)

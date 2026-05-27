@@ -155,6 +155,30 @@ app.get('/admin/conversas/:phone', requireToken, (req, res) => {
   }
 });
 
+// --- BACKFILL: retorna todos os leads com suas preferências salvas (meta.preferencias)
+//    Usado pelo igor-neural-system pra sincronizar status do pipeline retroativamente. ---
+app.get('/admin/leads-prefs', requireToken, (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT phone, name, meta
+      FROM leads
+      WHERE last_whatsapp_at IS NOT NULL
+      ORDER BY last_whatsapp_at DESC
+    `).all();
+
+    const leads = rows.map(l => {
+      let prefs = {};
+      try { prefs = JSON.parse(l.meta || '{}').preferencias || {}; } catch {}
+      return { phone: l.phone, name: l.name || null, prefs };
+    });
+
+    res.json({ ok: true, leads });
+  } catch (err) {
+    log.error('Falha listando leads-prefs', { err: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- MÍDIA: serve arquivos salvos em disco ---
 app.get('/media/:filename', requireToken, (req, res) => {
   const filename = basename(req.params.filename); // bloqueia path traversal

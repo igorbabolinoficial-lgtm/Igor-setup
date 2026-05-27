@@ -116,6 +116,66 @@ router.post('/sync-leads', async (req, res) => {
     }
 });
 
+// POST /api/whatsapp/backfill-pipeline-status
+// Lê as preferências salvas no wa-agent e atualiza o status dos leads no pipeline.
+// Não regride status — só avança (novo_lead → em_atendimento → qualificado).
+router.post('/backfill-pipeline-status', async (req, res) => {
+    try {
+        const { db: igorDb, nowIso, registrarLog } = require('../db');
+
+        // 1. Busca leads + prefs do wa-agent
+        const data = await wa('/admin/leads-prefs');
+        const leads = data.leads || [];
+
+        const ORDEM = { novo_lead: 0, em_atendimento: 1, qualificado: 2, convertido: 3, perdido: -1 };
+        let movidos_atendimento = 0, movidos_qualificado = 0, ignorados = 0;
+
+        for (const l of leads) {
+            if (!l.phone) { ignorados++; continue; }
+
+            // Calcula pontos da pipeline (mesma lógica do processBatch)
+            const p = l.prefs || {};
+            const nomeValido = l.name && !/^\d{8,}$/.test(l.name) ? l.name : null;
+            const pontos = [p.tipo, p.finalidade, p.regiao, p.preco_max, p.pagamento, nomeValido]
+                .filter(Boolean).length;
+            const statusAlvo = pontos >= 4 ? 'qualificado' : 'em_atendimento';
+
+            // Resolve phone com variantes
+            const digits = String(l.phone).replace(/\D/g, '');
+            const variantes = [digits];
+            if (digits.startsWith('55')) variantes.push(digits.slice(2));
+            else variantes.push('55' + digits);
+
+            let lead = null;
+            for (const v of variantes) {
+                lead = igorDb.prepare('SELECT id, status, nome FROM leads WHERE telefone = ? OR telefone LIKE ?')
+                    .get(v, `%${v}%`);
+                if (lead) break;
+            }
+            if (!lead) { ignorados++; continue; }
+
+            // Não regride
+            if ((ORDEM[statusAlvo] ?? 0) <= (ORDEM[lead.status] ?? 0)) { ignorados++; continue; }
+
+            const anterior = lead.status;
+            igorDb.prepare('UPDATE leads SET status = ?, atualizado_em = ? WHERE id = ?')
+                .run(statusAlvo, nowIso(), lead.id);
+            registrarLog({
+                agente: 'whatsapp', nivel: 'sucesso', template: 'qualificacao',
+                mensagem: `Backfill: "${lead.nome}" ${anterior} → ${statusAlvo} (${pontos} pontos)`,
+                contexto: { lead_id: lead.id, de: anterior, para: statusAlvo, pontos, telefone: l.phone },
+            });
+
+            if (statusAlvo === 'qualificado') movidos_qualificado++;
+            else movidos_atendimento++;
+        }
+
+        res.json({ ok: true, total: leads.length, movidos_atendimento, movidos_qualificado, ignorados });
+    } catch (e) {
+        res.status(500).json({ ok: false, error: e.message });
+    }
+});
+
 // GET /api/whatsapp/media/:filename — proxy binário para o whatsapp-agent
 router.get('/media/:filename', async (req, res) => {
     try {
