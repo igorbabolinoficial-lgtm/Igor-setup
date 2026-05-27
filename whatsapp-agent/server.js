@@ -9,12 +9,13 @@ import { persistIncoming, processBatch, enviarManual } from './lib/conversation.
 import {
   connect as connectBaileys,
   registerIncomingHandler,
+  registerOutgoingHandler,
   getState,
   getQrCode,
   resetSession,
   sendText,
 } from './lib/baileys.js';
-import { normalizePhone, db } from './lib/storage.js';
+import { normalizePhone, db, setHumanTakeover, clearHumanTakeover, isHumanTakeover } from './lib/storage.js';
 import { coalesceIncoming } from './lib/coalescer.js';
 import { log } from './lib/logger.js';
 
@@ -218,6 +219,23 @@ app.post('/send/test', requireToken, async (req, res) => {
   }
 });
 
+// --- HUMAN TAKEOVER ---
+// Libera manualmente uma conversa do takeover (bot volta a responder antes das 24h)
+app.post('/takeover/release/:phone', requireToken, async (req, res) => {
+  const normalized = normalizePhone(req.params.phone);
+  if (!normalized) return res.status(400).json({ error: 'phone invalido' });
+  await clearHumanTakeover(normalized);
+  res.json({ ok: true, phone: normalized, message: 'Bot reativado nessa conversa' });
+});
+
+// Consulta se uma conversa esta em takeover
+app.get('/takeover/status/:phone', requireToken, async (req, res) => {
+  const normalized = normalizePhone(req.params.phone);
+  if (!normalized) return res.status(400).json({ error: 'phone invalido' });
+  const ativo = await isHumanTakeover(normalized);
+  res.json({ phone: normalized, human_takeover: ativo });
+});
+
 // --- ERROR HANDLER ---
 app.use((err, _req, res, _next) => {
   log.error('Unhandled error', { err: err.message, stack: err.stack });
@@ -232,6 +250,17 @@ registerIncomingHandler((parsed) => {
     .catch((err) => {
       log.error('Falha processando inbound', { phone: parsed.phone, err: err.message, stack: err.stack });
     });
+});
+
+// Detecta mensagens enviadas pelo proprio numero (Igor enviando direto do celular)
+// -> ativa human takeover por 24h nessa conversa
+registerOutgoingHandler((parsed) => {
+  const { phone } = parsed;
+  if (!phone) return;
+  setHumanTakeover(phone).catch((err) => {
+    log.error('Falha ao setar human takeover (outgoing)', { phone, err: err.message });
+  });
+  log.info('Human takeover ativado (outgoing detectado)', { phone });
 });
 
 app.listen(PORT, async () => {

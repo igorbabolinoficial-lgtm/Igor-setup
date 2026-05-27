@@ -178,6 +178,40 @@ export async function getRecentMessages(phone, limit = 12) {
     return rows.reverse();
 }
 
+// ── Human Takeover ────────────────────────────────────────────────────────────
+// Quando humano envia manualmente numa conversa, bot para de responder ate expirar.
+
+export async function setHumanTakeover(phone, durationMs = 24 * 60 * 60 * 1000) {
+    if (!phone) return;
+    const row = db.prepare('SELECT meta FROM leads WHERE phone = ?').get(phone);
+    if (!row) return;
+    let meta = {};
+    try { meta = row.meta ? JSON.parse(row.meta) : {}; } catch { meta = {}; }
+    meta.human_takeover_until = new Date(Date.now() + durationMs).toISOString();
+    db.prepare('UPDATE leads SET meta = ? WHERE phone = ?').run(JSON.stringify(meta), phone);
+}
+
+export async function isHumanTakeover(phone) {
+    if (!phone) return false;
+    const row = db.prepare('SELECT meta FROM leads WHERE phone = ?').get(phone);
+    if (!row || !row.meta) return false;
+    try {
+        const meta = JSON.parse(row.meta);
+        if (!meta.human_takeover_until) return false;
+        return new Date(meta.human_takeover_until) > new Date();
+    } catch { return false; }
+}
+
+export async function clearHumanTakeover(phone) {
+    if (!phone) return;
+    const row = db.prepare('SELECT meta FROM leads WHERE phone = ?').get(phone);
+    if (!row) return;
+    let meta = {};
+    try { meta = row.meta ? JSON.parse(row.meta) : {}; } catch { meta = {}; }
+    delete meta.human_takeover_until;
+    db.prepare('UPDATE leads SET meta = ? WHERE phone = ?').run(JSON.stringify(meta), phone);
+}
+
 // Compat: alguns lugares do clone esperam exportar 'supabase' como objeto.
 // Stub que da erro claro se algo ainda usar.
 export const supabase = new Proxy({}, {

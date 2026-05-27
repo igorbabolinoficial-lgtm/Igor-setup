@@ -24,11 +24,17 @@ let _sock = null;
 let _qrRaw = null;
 let _state = 'STOPPED'; // STOPPED | STARTING | WORKING | SCAN_QR
 let _onIncoming = null;
+let _onOutgoing = null;
 let _reconnectTimer = null;
 let _connectInProgress = false;
 
 export function registerIncomingHandler(handler) {
   _onIncoming = handler;
+}
+
+// Chamado quando o proprio numero envia uma mensagem (Igor enviando do celular diretamente).
+export function registerOutgoingHandler(handler) {
+  _onOutgoing = handler;
 }
 
 export async function connect() {
@@ -87,7 +93,18 @@ export async function connect() {
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
       if (type !== 'notify') return;
       for (const msg of messages) {
-        if (!msg.message || msg.key.fromMe) continue;
+        if (!msg.message) continue;
+        if (msg.key.fromMe) {
+          // Mensagem enviada pelo proprio numero (Igor no celular) — notifica handler de outgoing
+          if (_onOutgoing) {
+            const parsed = parseMessage(msg);
+            if (parsed) {
+              try { await _onOutgoing(parsed); }
+              catch (err) { log.error('Falha handler outgoing', { phone: parsed.phone, err: err.message }); }
+            }
+          }
+          continue;
+        }
         const parsed = parseMessage(msg);
         if (parsed && _onIncoming) {
           try { await _onIncoming(parsed); }

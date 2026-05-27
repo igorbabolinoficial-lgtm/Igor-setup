@@ -1,7 +1,7 @@
 // Orquestrador da conversa: recebe mensagem do lead -> monta contexto -> chama Groq -> envia resposta.
 import { chat } from './llm.js';
 import { resumoCatalogo, linkImovel, imovelPorId, formatarImovelDestaque, buscarPorPreco, buscarPorNome, formatarResultadoBusca } from './catalogo.js';
-import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syncLeadToIgor, setUltimoEventId, getUltimoEventId, setPreferencias, getPreferencias, db } from './storage.js';
+import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syncLeadToIgor, setUltimoEventId, getUltimoEventId, setPreferencias, getPreferencias, setHumanTakeover, isHumanTakeover, db } from './storage.js';
 import { sendText, sendVoice, sendImage, resolveLidToPhone, setTyping, downloadMediaFromUrl } from './baileys.js';
 import { transcribeAudio } from './transcribe.js';
 import { gerarAudio, ttsHabilitado } from './tts.js';
@@ -565,6 +565,12 @@ export async function processBatch(batch) {
 
   const last = batch[batch.length - 1];
   const { phone, leadId, remoteJid } = last;
+
+  // Human takeover: humano enviou nessa conversa recentemente — bot silencia
+  if (await isHumanTakeover(phone)) {
+    log.info('Human takeover ativo — ignorando batch', { phone });
+    return null;
+  }
   // Se algum inbound do batch foi audio (transcrito), respondemos tambem em audio
   const inboundFoiAudio = batch.some((m) => m?.transcribed || /^audio\//i.test(m?.mediaType || ''));
 
@@ -1196,7 +1202,9 @@ async function enviarResposta(phone, body, leadId, opts = {}) {
 
 // Versao usada pelo broadcast / disparo manual.
 // Pula o delay de "leitura" porque nao ha inbound — vai direto pro typing.
+// Seta human_takeover por 24h: bot silencia nessa conversa ate expirar.
 export async function enviarManual(phone, body, leadId) {
+  await setHumanTakeover(phone);
   return enviarResposta(phone, body, leadId, { agent: false, skipReadDelay: true });
 }
 
