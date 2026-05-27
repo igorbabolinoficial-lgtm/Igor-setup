@@ -379,6 +379,7 @@
             <li data-panel="logs">Terminal de Automação</li>
             <li data-panel="skills">Skills</li>
             <li data-panel="whatsapp">WhatsApp</li>
+            <li data-panel="treinamento">Treinamento</li>
             <li data-panel="config">Configurações API</li>
         </nav>
 
@@ -1255,6 +1256,345 @@
         // Auto-refresh tratado no handler geral de navegação acima
         </script>
 
+        <!-- Treinamento -->
+        <div id="treinamento" class="panel">
+            <!-- Categorias -->
+            <div id="treiCats" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;"></div>
+
+            <!-- Cabeçalho da categoria ativa -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                <div>
+                    <span id="treiCatNome" style="font-weight:600;font-size:1rem;"></span>
+                    <span id="treiCatDesc" style="font-size:0.72rem;color:var(--text-muted);margin-left:10px;"></span>
+                </div>
+                <button class="btn-elite" style="padding:6px 16px;font-size:0.78rem;" onclick="treiAbrirModal()">+ Adicionar</button>
+            </div>
+
+            <!-- Lista de itens -->
+            <div id="treiLista" style="display:flex;flex-direction:column;gap:10px;"></div>
+
+            <!-- Modal -->
+            <div id="treiModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999;align-items:center;justify-content:center;">
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:28px;width:560px;max-width:95vw;max-height:85vh;overflow-y:auto;">
+                    <h3 style="margin-bottom:18px;" id="treiModalTitulo">Adicionar conteúdo</h3>
+
+                    <!-- Abas -->
+                    <div style="display:flex;gap:0;margin-bottom:18px;border-bottom:1px solid var(--border);">
+                        <button id="treiTabTexto"  onclick="treiMudarAba('texto')"  style="padding:7px 18px;background:var(--accent);color:#000;border:none;cursor:pointer;border-radius:4px 0 0 0;font-size:0.8rem;font-weight:600;">Texto</button>
+                        <button id="treiTabAudio"  onclick="treiMudarAba('audio')"  style="padding:7px 18px;background:transparent;color:var(--text-muted);border:none;cursor:pointer;font-size:0.8rem;">Áudio</button>
+                        <button id="treiTabArquivo" onclick="treiMudarAba('arquivo')" style="padding:7px 18px;background:transparent;color:var(--text-muted);border:none;cursor:pointer;font-size:0.8rem;">Arquivo .txt</button>
+                    </div>
+
+                    <div style="margin-bottom:14px;">
+                        <label style="font-size:0.75rem;color:var(--text-muted);">Categoria</label>
+                        <select id="treiModalCat" style="width:100%;margin-top:4px;padding:8px;background:var(--surface-light);border:1px solid var(--border);color:var(--text);border-radius:4px;"></select>
+                    </div>
+                    <div style="margin-bottom:14px;">
+                        <label style="font-size:0.75rem;color:var(--text-muted);">Nome / título</label>
+                        <input id="treiModalNome" type="text" placeholder="Ex: Argumento sobre documentação" style="width:100%;margin-top:4px;padding:8px;background:var(--surface-light);border:1px solid var(--border);color:var(--text);border-radius:4px;box-sizing:border-box;">
+                    </div>
+
+                    <!-- Aba Texto -->
+                    <div id="treiAbaTexto">
+                        <label style="font-size:0.75rem;color:var(--text-muted);">Conteúdo</label>
+                        <textarea id="treiModalConteudo" rows="7" placeholder="Cole ou escreva o texto de treinamento aqui..." style="width:100%;margin-top:4px;padding:8px;background:var(--surface-light);border:1px solid var(--border);color:var(--text);border-radius:4px;box-sizing:border-box;resize:vertical;font-family:inherit;font-size:0.85rem;"></textarea>
+                    </div>
+
+                    <!-- Aba Áudio -->
+                    <div id="treiAbaAudio" style="display:none;">
+                        <label style="font-size:0.75rem;color:var(--text-muted);">Arquivo de áudio (MP3, OGG, WAV, M4A)</label>
+                        <input id="treiFileAudio" type="file" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.webm" style="margin-top:6px;width:100%;color:var(--text);">
+                        <div id="treiTranscStatus" style="margin-top:10px;font-size:0.78rem;color:var(--text-muted);"></div>
+                        <div id="treiTranscPreview" style="display:none;margin-top:10px;">
+                            <label style="font-size:0.75rem;color:var(--text-muted);">Transcrição (edite se necessário)</label>
+                            <textarea id="treiTranscTexto" rows="6" style="width:100%;margin-top:4px;padding:8px;background:var(--surface-light);border:1px solid var(--border);color:var(--text);border-radius:4px;box-sizing:border-box;resize:vertical;font-family:inherit;font-size:0.82rem;"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Aba Arquivo .txt -->
+                    <div id="treiAbaArquivo" style="display:none;">
+                        <label style="font-size:0.75rem;color:var(--text-muted);">Arquivo de texto (.txt)</label>
+                        <input id="treiFileTxt" type="file" accept=".txt,text/plain" style="margin-top:6px;width:100%;color:var(--text);">
+                        <div id="treiTxtPreview" style="display:none;margin-top:10px;">
+                            <label style="font-size:0.75rem;color:var(--text-muted);">Conteúdo (edite se necessário)</label>
+                            <textarea id="treiTxtTexto" rows="6" style="width:100%;margin-top:4px;padding:8px;background:var(--surface-light);border:1px solid var(--border);color:var(--text);border-radius:4px;box-sizing:border-box;resize:vertical;font-family:inherit;font-size:0.82rem;"></textarea>
+                        </div>
+                    </div>
+
+                    <div id="treiModalErro" style="color:#f87171;font-size:0.78rem;margin-top:10px;"></div>
+                    <div style="display:flex;gap:10px;margin-top:18px;">
+                        <button id="treiModalSalvar" class="btn-elite" style="flex:1;" onclick="treiSalvar()">Salvar</button>
+                        <button class="btn-ghost" style="padding:8px 20px;" onclick="treiFecharModal()">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal de edição de conteúdo -->
+            <div id="treiEditModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999;align-items:center;justify-content:center;">
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:28px;width:600px;max-width:95vw;max-height:85vh;overflow-y:auto;">
+                    <h3 style="margin-bottom:18px;">Editar conteúdo</h3>
+                    <input id="treiEditId" type="hidden">
+                    <div style="margin-bottom:14px;">
+                        <label style="font-size:0.75rem;color:var(--text-muted);">Nome</label>
+                        <input id="treiEditNome" type="text" style="width:100%;margin-top:4px;padding:8px;background:var(--surface-light);border:1px solid var(--border);color:var(--text);border-radius:4px;box-sizing:border-box;">
+                    </div>
+                    <div style="margin-bottom:14px;">
+                        <label style="font-size:0.75rem;color:var(--text-muted);">Conteúdo</label>
+                        <textarea id="treiEditConteudo" rows="12" style="width:100%;margin-top:4px;padding:8px;background:var(--surface-light);border:1px solid var(--border);color:var(--text);border-radius:4px;box-sizing:border-box;resize:vertical;font-family:inherit;font-size:0.82rem;"></textarea>
+                    </div>
+                    <div style="display:flex;gap:10px;margin-top:18px;">
+                        <button class="btn-elite" style="flex:1;" onclick="treiSalvarEdicao()">Salvar alterações</button>
+                        <button class="btn-ghost" style="padding:8px 20px;" onclick="document.getElementById('treiEditModal').style.display='none'">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+        // ═══════════════════════════════════════════════════════════════
+        // Treinamento
+        // ═══════════════════════════════════════════════════════════════
+        let treiDados     = {};  // { categorias, itens }
+        let treiCatAtiva  = 'dna_igor';
+        let treiAbaAtiva  = 'texto';
+
+        async function carregarTreinamento() {
+            const data = await api('GET', '/treinamento');
+            treiDados = data;
+            renderTreiCats();
+            renderTreiItens();
+        }
+
+        function renderTreiCats() {
+            const el = document.getElementById('treiCats');
+            if (!el || !treiDados.categorias) return;
+            // Popula select do modal com as categorias carregadas
+            const sel = document.getElementById('treiModalCat');
+            if (sel && treiDados.categorias.length) {
+                const valAtual = sel.value;
+                sel.innerHTML = treiDados.categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+                if (valAtual) sel.value = valAtual;
+            }
+            el.innerHTML = treiDados.categorias.map(cat => {
+                const n = (treiDados.itens?.[cat.id] || []).length;
+                const ativo = cat.id === treiCatAtiva;
+                return `<button onclick="treiSelecionarCat('${cat.id}')" style="padding:7px 14px;border-radius:4px;border:1px solid ${ativo ? 'var(--accent)' : 'var(--border)'};background:${ativo ? 'var(--accent-glow)' : 'transparent'};color:${ativo ? 'var(--accent)' : 'var(--text-muted)'};cursor:pointer;font-size:0.78rem;font-weight:${ativo ? '600' : '400'};">
+                    ${cat.nome} <span style="opacity:0.7;font-size:0.7rem;">(${n})</span>
+                </button>`;
+            }).join('');
+        }
+
+        function renderTreiItens() {
+            const lista = document.getElementById('treiLista');
+            const nomeEl = document.getElementById('treiCatNome');
+            const descEl = document.getElementById('treiCatDesc');
+            if (!lista) return;
+
+            const cat = (treiDados.categorias || []).find(c => c.id === treiCatAtiva);
+            if (nomeEl) nomeEl.textContent = cat?.nome || treiCatAtiva;
+            if (descEl) descEl.textContent = cat?.descricao || '';
+
+            const itens = (treiDados.itens || {})[treiCatAtiva] || [];
+            if (!itens.length) {
+                lista.innerHTML = `<div style="color:var(--text-muted);font-size:0.82rem;padding:20px 0;">Nenhum conteúdo nesta categoria. Clique em "+ Adicionar" para começar.</div>`;
+                return;
+            }
+
+            lista.innerHTML = itens.map(it => {
+                const tipoBadge = { audio: '🎙️ Áudio', texto: '✏️ Texto', contrato: '📄 Contrato' }[it.tipo] || it.tipo;
+                const ativoStyle = it.ativo ? 'color:var(--accent)' : 'color:var(--text-muted)';
+                const chars = it.chars ? `${it.chars} chars` : '';
+                const excerpt = (it.excerpt || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                return `
+                <div style="background:var(--surface-light);border:1px solid var(--border);border-radius:6px;padding:14px 16px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+                        <div style="flex:1;min-width:0;">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                                <span style="font-size:0.7rem;padding:2px 8px;border-radius:3px;background:rgba(255,255,255,0.06);color:var(--text-muted);">${tipoBadge}</span>
+                                <span style="font-weight:600;font-size:0.88rem;">${it.nome}</span>
+                                <span style="font-size:0.65rem;color:var(--text-muted);">${chars}</span>
+                            </div>
+                            <div style="font-size:0.76rem;color:var(--text-muted);white-space:pre-wrap;line-height:1.5;max-height:60px;overflow:hidden;">${excerpt}${it.chars > 200 ? '…' : ''}</div>
+                        </div>
+                        <div style="display:flex;gap:6px;flex-shrink:0;">
+                            <button onclick="treiToggleAtivo('${it.id}', ${it.ativo})" title="${it.ativo ? 'Desativar (não injeta no bot)' : 'Ativar (injeta no bot)'}" style="padding:4px 10px;font-size:0.7rem;border-radius:3px;border:1px solid var(--border);background:transparent;cursor:pointer;${ativoStyle}">${it.ativo ? '● Ativo' : '○ Inativo'}</button>
+                            <button onclick="treiAbrirEdicao('${it.id}')" style="padding:4px 10px;font-size:0.7rem;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;">Editar</button>
+                            <button onclick="treiDeletar('${it.id}')" style="padding:4px 10px;font-size:0.7rem;border-radius:3px;border:1px solid var(--border);background:transparent;color:#f87171;cursor:pointer;">✕</button>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function treiSelecionarCat(id) {
+            treiCatAtiva = id;
+            renderTreiCats();
+            renderTreiItens();
+        }
+
+        function treiAbrirModal(catId) {
+            treiMudarAba('texto');
+            document.getElementById('treiModalCat').value = catId || treiCatAtiva;
+            document.getElementById('treiModalNome').value = '';
+            document.getElementById('treiModalConteudo').value = '';
+            document.getElementById('treiTranscTexto').value = '';
+            document.getElementById('treiTxtTexto').value = '';
+            document.getElementById('treiTranscPreview').style.display = 'none';
+            document.getElementById('treiTxtPreview').style.display = 'none';
+            document.getElementById('treiTranscStatus').textContent = '';
+            document.getElementById('treiModalErro').textContent = '';
+            document.getElementById('treiModalTitulo').textContent = 'Adicionar conteúdo';
+            const m = document.getElementById('treiModal');
+            m.style.display = 'flex';
+        }
+
+        function treiFecharModal() {
+            document.getElementById('treiModal').style.display = 'none';
+        }
+
+        function treiMudarAba(aba) {
+            treiAbaAtiva = aba;
+            const abas = { texto: 'treiAbaTexto', audio: 'treiAbaAudio', arquivo: 'treiAbaArquivo' };
+            const tabs = { texto: 'treiTabTexto', audio: 'treiTabAudio', arquivo: 'treiTabArquivo' };
+            for (const [k, el] of Object.entries(abas)) {
+                document.getElementById(el).style.display = k === aba ? '' : 'none';
+            }
+            for (const [k, el] of Object.entries(tabs)) {
+                const btn = document.getElementById(el);
+                const sel = k === aba;
+                btn.style.background = sel ? 'var(--accent)' : 'transparent';
+                btn.style.color      = sel ? '#000' : 'var(--text-muted)';
+                btn.style.fontWeight = sel ? '600' : '400';
+            }
+        }
+
+        // Quando seleciona arquivo de áudio — faz upload + transcrição antes de salvar
+        document.addEventListener('DOMContentLoaded', () => {
+            const fAudio = document.getElementById('treiFileAudio');
+            if (fAudio) fAudio.addEventListener('change', async () => {
+                const file = fAudio.files[0];
+                if (!file) return;
+                const status = document.getElementById('treiTranscStatus');
+                const preview = document.getElementById('treiTranscPreview');
+                const textoEl = document.getElementById('treiTranscTexto');
+                status.textContent = '⏳ Transcrevendo áudio via Groq Whisper...';
+                preview.style.display = 'none';
+                try {
+                    const form = new FormData();
+                    form.append('arquivo', file);
+                    form.append('categoria', document.getElementById('treiModalCat').value || 'outros');
+                    form.append('nome', document.getElementById('treiModalNome').value || file.name.replace(/\.[^.]+$/, ''));
+                    const r = await fetch(`${API}/treinamento/upload`, { method: 'POST', body: form });
+                    const data = await r.json();
+                    if (!r.ok || data.erro) { status.textContent = '✗ ' + (data.erro || 'Erro'); return; }
+                    // Upload já salvou — fechar modal e recarregar
+                    status.textContent = '✓ Áudio transcrito e salvo.';
+                    textoEl.value = data.conteudo || '';
+                    preview.style.display = '';
+                    // Auto-fecha modal após 1.2s e recarrega lista
+                    setTimeout(() => { treiFecharModal(); carregarTreinamento(); }, 1200);
+                } catch (e) { status.textContent = '✗ ' + e.message; }
+            });
+
+            const fTxt = document.getElementById('treiFileTxt');
+            if (fTxt) fTxt.addEventListener('change', () => {
+                const file = fTxt.files[0];
+                if (!file) return;
+                const preview = document.getElementById('treiTxtPreview');
+                const textoEl = document.getElementById('treiTxtTexto');
+                const reader  = new FileReader();
+                reader.onload = e => { textoEl.value = e.target.result; preview.style.display = ''; };
+                reader.readAsText(file);
+            });
+
+            // Popula select de categorias ao abrir o modal
+            const sel = document.getElementById('treiModalCat');
+            if (sel && treiDados.categorias) {
+                sel.innerHTML = (treiDados.categorias || []).map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+            }
+        });
+
+        async function treiSalvar() {
+            const btn = document.getElementById('treiModalSalvar');
+            const erroEl = document.getElementById('treiModalErro');
+            erroEl.textContent = '';
+            const categoria = document.getElementById('treiModalCat').value;
+            const nome      = document.getElementById('treiModalNome').value.trim();
+
+            if (!nome) { erroEl.textContent = 'Nome obrigatório.'; return; }
+
+            btn.disabled = true; btn.textContent = 'Salvando...';
+            try {
+                if (treiAbaAtiva === 'texto') {
+                    const conteudo = document.getElementById('treiModalConteudo').value.trim();
+                    if (!conteudo) { erroEl.textContent = 'Conteúdo obrigatório.'; return; }
+                    await api('POST', '/treinamento', { categoria, nome, conteudo });
+                    treiFecharModal();
+                    carregarTreinamento();
+                } else if (treiAbaAtiva === 'arquivo') {
+                    const file = document.getElementById('treiFileTxt').files[0];
+                    const conteudo = document.getElementById('treiTxtTexto').value.trim();
+                    if (!file && !conteudo) { erroEl.textContent = 'Selecione um arquivo ou cole o conteúdo.'; return; }
+                    const form = new FormData();
+                    if (file) form.append('arquivo', file);
+                    else form.append('arquivo', new Blob([conteudo], { type: 'text/plain' }), `${nome}.txt`);
+                    form.append('categoria', categoria);
+                    form.append('nome', nome);
+                    const r = await fetch(`${API}/treinamento/upload`, { method: 'POST', body: form });
+                    const data = await r.json();
+                    if (data.erro) { erroEl.textContent = data.erro; return; }
+                    treiFecharModal();
+                    carregarTreinamento();
+                } else {
+                    // Áudio — já foi salvo automaticamente no change handler
+                    treiFecharModal();
+                    carregarTreinamento();
+                }
+            } catch (e) { erroEl.textContent = e.message; }
+            finally { btn.disabled = false; btn.textContent = 'Salvar'; }
+        }
+
+        async function treiToggleAtivo(id, ativoAtual) {
+            await api('PATCH', `/treinamento/${id}`, { ativo: ativoAtual ? 0 : 1 });
+            carregarTreinamento();
+        }
+
+        async function treiDeletar(id) {
+            if (!confirm('Remover este item de treinamento?')) return;
+            await api('DELETE', `/treinamento/${id}`);
+            carregarTreinamento();
+        }
+
+        async function treiAbrirEdicao(id) {
+            const data = await api('GET', `/treinamento/${id}`);
+            document.getElementById('treiEditId').value      = data.id;
+            document.getElementById('treiEditNome').value    = data.nome;
+            document.getElementById('treiEditConteudo').value = data.conteudo || '';
+            document.getElementById('treiEditModal').style.display = 'flex';
+        }
+
+        async function treiSalvarEdicao() {
+            const id      = document.getElementById('treiEditId').value;
+            const nome    = document.getElementById('treiEditNome').value.trim();
+            const conteudo = document.getElementById('treiEditConteudo').value.trim();
+            if (!nome || !conteudo) return;
+            await api('PATCH', `/treinamento/${id}`, { nome, conteudo });
+            document.getElementById('treiEditModal').style.display = 'none';
+            carregarTreinamento();
+        }
+
+        // Garante que o select de categorias seja populado quando o painel abrir
+        document.querySelector('nav li[data-panel="treinamento"]')?.addEventListener('click', () => {
+            carregarTreinamento();
+            // Popula o select do modal com as categorias
+            setTimeout(() => {
+                const sel = document.getElementById('treiModalCat');
+                if (sel && treiDados.categorias?.length && !sel.options.length) {
+                    sel.innerHTML = treiDados.categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+                }
+            }, 300);
+        });
+        </script>
+
         <!-- API Config -->
         <div id="config" class="panel">
             <div class="config-grid">
@@ -1372,6 +1712,7 @@
             skills: 'Skills sob Demanda',
             config: 'Configurações API',
             whatsapp: 'WhatsApp',
+            treinamento: 'Treinamento do Igor',
         };
         document.querySelectorAll('nav li').forEach(li => {
             li.addEventListener('click', () => {

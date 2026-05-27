@@ -71,6 +71,23 @@ db.prepare(`INSERT OR IGNORE INTO agentes (chave, nome, descricao, tipos_aceitos
     'midia_paga', 'Mídia Paga', 'Gerencia Meta Ads e Google Ads. Otimiza segmentação, orçamento, criativos.', 'criar_campanha,otimizar_ads,relatorio_ads'
 );
 
+// === Treinamento — base de conhecimento do Igor (áudios, textos, contratos) ===
+db.exec(`
+    CREATE TABLE IF NOT EXISTS treinamento (
+        id            TEXT PRIMARY KEY,
+        categoria     TEXT NOT NULL DEFAULT 'outros',
+        nome          TEXT NOT NULL,
+        tipo          TEXT NOT NULL DEFAULT 'texto',  -- texto | audio | contrato
+        conteudo      TEXT,                           -- texto transcrito ou digitado
+        arquivo       TEXT,                           -- nome do arquivo original (se upload)
+        ativo         INTEGER NOT NULL DEFAULT 1,     -- 0 = desativado (não injeta no bot)
+        criado_em     TEXT NOT NULL DEFAULT (datetime('now')),
+        atualizado_em TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_treino_cat   ON treinamento(categoria);
+    CREATE INDEX IF NOT EXISTS idx_treino_ativo ON treinamento(ativo);
+`);
+
 // === Skills sob demanda (padrão Hermes — dormem, acordam por palavra-chave) ===
 // Criadas separado do schema.sql pra ser migration idempotente.
 db.exec(`

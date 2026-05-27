@@ -5,10 +5,33 @@ import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syn
 import { sendText, sendVoice, sendImage, resolveLidToPhone, setTyping, downloadMediaFromUrl } from './baileys.js';
 import { transcribeAudio } from './transcribe.js';
 import { gerarAudio, ttsHabilitado } from './tts.js';
-import { criarAgenda, parentReady, atualizarStatusLead } from './parent-api.js';
+import { criarAgenda, parentReady, atualizarStatusLead, fetchContextoTreino } from './parent-api.js';
 import { log } from './logger.js';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join, basename } from 'path';
+
+// ── Cache do contexto de treinamento (TTL 5 min) ─────────────────────────────
+// Evita fetch no parent a cada mensagem. Se parent estiver fora do ar, usa o
+// último valor cacheado (ou string vazia se nunca carregou).
+let _treinoCache = { texto: '', ts: 0 };
+const TREINO_TTL_MS = 5 * 60 * 1000;
+
+async function getTreinoContexto() {
+  const agora = Date.now();
+  if (_treinoCache.texto !== undefined && agora - _treinoCache.ts < TREINO_TTL_MS) {
+    return _treinoCache.texto;
+  }
+  if (!parentReady()) return _treinoCache.texto;
+  try {
+    const r = await fetchContextoTreino();
+    if (r.ok && typeof r.data?.contexto === 'string') {
+      _treinoCache = { texto: r.data.contexto, ts: agora };
+    }
+  } catch (e) {
+    log.warn('Falha buscando contexto de treinamento', { err: e.message });
+  }
+  return _treinoCache.texto;
+}
 
 // Diretório persistente de mídia (mesmo volume do banco em produção)
 const MEDIA_DIR = process.env.MEDIA_DIR || (process.env.DB_PATH ? join(process.env.DB_PATH.replace(/\/[^/]+$/, ''), 'media') : '/data/media');
@@ -43,7 +66,8 @@ const IGOR_DNA = {
 
 async function buildSystemPrompt(prefsSalvas = null, leadName = null) {
   const precoMaxLead = prefsSalvas?.preco_max || null;
-  const catalogo = await resumoCatalogo(precoMaxLead);
+  const catalogo     = await resumoCatalogo(precoMaxLead);
+  const treinoBloco  = await getTreinoContexto();
 
   // Datetime atual em Brasília — injetado no prompt pra LLM não agendar no passado
   const _agora = new Date();
@@ -107,7 +131,7 @@ async function buildSystemPrompt(prefsSalvas = null, leadName = null) {
     destaque = formatarImovelDestaque(p);
   }
 
-  return `${prefsBlockTopo}Voce e o Babolin, assistente do ${IGOR_DNA.nome}, corretor com 12 anos de experiencia na Praia do Rosa, Garopaba e Imbituba (SC, CRECI ${IGOR_DNA.creci}).
+  return `${prefsBlockTopo}${treinoBloco ? treinoBloco + '\n\n' : ''}Voce e o Babolin, assistente do ${IGOR_DNA.nome}, corretor com 12 anos de experiencia na Praia do Rosa, Garopaba e Imbituba (SC, CRECI ${IGOR_DNA.creci}).
 Voce atende clientes pelo WhatsApp em nome do Igor. Seu papel: qualificar o lead, indicar imoveis do catalogo quando fizer sentido e — sempre que possivel — agendar uma call rapida de 15 minutos com o Igor.
 
 IDENTIDADE — voce e o Babolin. Conhece profundamente a regiao e o jeito do Igor. Fale sempre usando o vocabulario e o estilo dele (veja abaixo). Mencione "o Igor" na terceira pessoa quando contextual.

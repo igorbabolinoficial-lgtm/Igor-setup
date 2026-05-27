@@ -34,6 +34,24 @@ async function chamarParent(path, body) {
   }
 }
 
+async function chamarParentGet(path) {
+  if (!AGENT_TOKEN) return { ok: false, error: 'IGOR_AGENT_TOKEN nao configurado' };
+  try {
+    const r = await fetch(`${PARENT_URL}${path}`, {
+      method: 'GET',
+      headers: { 'X-Agent-Token': AGENT_TOKEN },
+    });
+    const text = await r.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch { data = { raw: text }; }
+    if (!r.ok) return { ok: false, status: r.status, data };
+    return { ok: true, status: r.status, data };
+  } catch (e) {
+    log.error('Falha chamando parent API (GET)', { path, err: e.message });
+    return { ok: false, error: e.message };
+  }
+}
+
 /**
  * Cria evento na agenda do parent (que tambem cria evento no Google Calendar via OAuth).
  * Retorna { ok, data } onde data tem google_sync.link / google_sync.meet se Google OK.
@@ -88,6 +106,14 @@ export async function uploadMidia({ leadId, nome, mimeType, base64 }) {
  */
 export async function enviarEmail({ to, subject, html, text, replyTo }) {
   return chamarParent('/api/email', { to, subject, html, text, replyTo });
+}
+
+/**
+ * Busca bloco formatado de treinamento pra injetar no system prompt.
+ * Retorna string vazia se nao houver conteúdo ativo ou parent indisponível.
+ */
+export async function fetchContextoTreino() {
+  return chamarParentGet('/api/treinamento-contexto');
 }
 
 export function parentReady() {
