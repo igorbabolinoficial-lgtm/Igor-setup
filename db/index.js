@@ -36,6 +36,7 @@ adicionarColuna('leads', 'arquivado', 'INTEGER DEFAULT 0');    // soft-delete pr
 adicionarColuna('agenda', 'google_event_id', 'TEXT');          // id do evento no Google Calendar (best-effort sync)
 adicionarColuna('agenda', 'google_event_link', 'TEXT');        // htmlLink do Calendar
 adicionarColuna('agenda', 'google_meet_link', 'TEXT');         // hangoutLink (Meet) gerado automaticamente
+adicionarColuna('leads', 'pontos_pipeline', 'INTEGER DEFAULT 0'); // 0-6: campos qualificação WA preenchidos
 
 // === Campos enriquecidos de imóveis (v2) ===
 adicionarColuna('imoveis', 'suites',           'INTEGER');                       // suítes (subset de quartos)

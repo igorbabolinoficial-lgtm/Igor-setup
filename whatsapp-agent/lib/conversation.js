@@ -960,7 +960,7 @@ export async function processBatch(batch) {
     ].filter(Boolean).length;
     // 4+ pontos da pipeline → qualificado; caso contrário → em_atendimento (sai da triagem)
     const statusAlvo = pontosPreenchidos >= 4 ? 'qualificado' : 'em_atendimento';
-    atualizarStatusLead({ telefone: phone, status: statusAlvo }).catch((err) => {
+    atualizarStatusLead({ telefone: phone, status: statusAlvo, pontos: pontosPreenchidos }).catch((err) => {
       log.warn('Falha ao atualizar status pipeline', { phone, statusAlvo, err: err.message });
     });
   }

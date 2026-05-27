@@ -15,6 +15,7 @@ function normalizar(lead) {
     return {
         ...lead,
         score_ia: Number(lead.score_ia) || 0,
+        pontos_pipeline: Number(lead.pontos_pipeline) || 0,
         tags_ia: tags,
         segmento: lead.segmento || null,
         eh_treino: lead.origem === 'treino',
@@ -65,7 +66,7 @@ router.get('/kanban', (req, res) => {
 // POST /by-phone/status — atualiza status do lead pelo telefone (chamado pelo wa-agent).
 // Nunca regride: se o lead já está em status >= ao solicitado, ignora silenciosamente.
 router.post('/by-phone/status', (req, res) => {
-    const { telefone, status } = req.body || {};
+    const { telefone, status, pontos } = req.body || {};
     if (!telefone || !STATUS_VALIDOS.includes(status)) {
         return res.status(400).json({ erro: 'telefone e status são obrigatórios', validos: STATUS_VALIDOS });
     }
@@ -90,11 +91,16 @@ router.post('/by-phone/status', (req, res) => {
     }
 
     const anterior = lead.status;
-    db.prepare('UPDATE leads SET status = ?, atualizado_em = ? WHERE id = ?').run(status, nowIso(), lead.id);
+    const pontosNum = typeof pontos === 'number' ? pontos : null;
+    if (pontosNum !== null) {
+        db.prepare('UPDATE leads SET status = ?, pontos_pipeline = ?, atualizado_em = ? WHERE id = ?').run(status, pontosNum, nowIso(), lead.id);
+    } else {
+        db.prepare('UPDATE leads SET status = ?, atualizado_em = ? WHERE id = ?').run(status, nowIso(), lead.id);
+    }
     registrarLog({
         agente: 'whatsapp', nivel: 'sucesso', template: 'qualificacao',
-        mensagem: `Lead "${lead.nome}" movido automaticamente: ${anterior} → ${status}`,
-        contexto: { lead_id: lead.id, de: anterior, para: status, telefone },
+        mensagem: `Lead "${lead.nome}" movido automaticamente: ${anterior} → ${status}${pontosNum !== null ? ` (${pontosNum}/6 pts)` : ''}`,
+        contexto: { lead_id: lead.id, de: anterior, para: status, telefone, pontos: pontosNum },
     });
     res.json({ ok: true, noChange: false, lead: normalizar(db.prepare('SELECT * FROM leads WHERE id = ?').get(lead.id)) });
 });

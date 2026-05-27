@@ -154,7 +154,10 @@ router.post('/backfill-pipeline-status', async (req, res) => {
             }
             if (!lead) { ignorados++; continue; }
 
-            // Não regride
+            // Sempre atualiza pontos_pipeline (mesmo sem mudança de status)
+            igorDb.prepare('UPDATE leads SET pontos_pipeline = ? WHERE id = ?').run(pontos, lead.id);
+
+            // Não regride status
             if ((ORDEM[statusAlvo] ?? 0) <= (ORDEM[lead.status] ?? 0)) { ignorados++; continue; }
 
             const anterior = lead.status;
@@ -162,7 +165,7 @@ router.post('/backfill-pipeline-status', async (req, res) => {
                 .run(statusAlvo, nowIso(), lead.id);
             registrarLog({
                 agente: 'whatsapp', nivel: 'sucesso', template: 'qualificacao',
-                mensagem: `Backfill: "${lead.nome}" ${anterior} → ${statusAlvo} (${pontos} pontos)`,
+                mensagem: `Backfill: "${lead.nome}" ${anterior} → ${statusAlvo} (${pontos}/6 pontos)`,
                 contexto: { lead_id: lead.id, de: anterior, para: statusAlvo, pontos, telefone: l.phone },
             });
 
