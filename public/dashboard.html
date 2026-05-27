@@ -91,6 +91,11 @@
         .wa-send { padding: 16px 20px; border-top: 1px solid var(--border); background: var(--surface); display: flex; gap: 10px; }
         .wa-send input { flex: 1; background: #000; border: 1px solid var(--border); padding: 10px 14px; color: #FFF; outline: none; border-radius: 4px; font-size: 0.85rem; cursor: text; }
         .wa-send input:focus { border-color: var(--accent); }
+        /* Human takeover */
+        .btn-takeover { border: none; padding: 5px 12px; cursor: pointer; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 3px; transition: var(--transition); }
+        .btn-takeover.bot-ativo   { background: rgba(244,67,54,0.15); color: var(--danger); border: 1px solid var(--danger); }
+        .btn-takeover.bot-pausado { background: rgba(76,175,80,0.15); color: var(--success); border: 1px solid var(--success); }
+        .takeover-badge { display: inline-block; font-size: 0.6rem; padding: 1px 5px; border-radius: 2px; margin-left: 5px; background: rgba(244,67,54,0.18); color: var(--danger); vertical-align: middle; letter-spacing: 0.05em; }
         .wa-msg-audio { display: flex; flex-direction: column; gap: 6px; }
         .wa-msg-audio audio { width: 100%; min-width: 220px; height: 36px; accent-color: var(--accent); }
         .wa-msg-audio-caption { font-size: 0.78rem; opacity: 0.85; font-style: italic; }
@@ -1076,7 +1081,8 @@
                             <div class="wa-chat-name" id="waChatName"></div>
                             <div class="wa-chat-phone" id="waChatPhone"></div>
                         </div>
-                        <button class="btn-ghost" style="padding:4px 10px;font-size:1rem;" onclick="waFecharConversa()" title="Fechar conversa">×</button>
+                        <button id="btnTakeover" class="btn-takeover bot-ativo" onclick="waTakeoverToggle()" title="Parar/reativar bot nessa conversa">Parar bot</button>
+                        <button class="btn-ghost" style="padding:4px 10px;font-size:1rem;margin-left:8px;" onclick="waFecharConversa()" title="Fechar conversa">×</button>
                     </div>
                     <div id="waMessages" class="wa-messages" style="display:none"></div>
                     <div id="waSendBox" class="wa-send" style="display:none">
@@ -1094,6 +1100,58 @@
         let waName        = null;
         let waAutoRefresh = null;
         let waLastMsgId   = null;   // evita re-render desnecessário
+        let waTakeoverAtivo = false;
+
+        function waTakeoverIsActive(meta) {
+            try {
+                const m = typeof meta === 'string' ? JSON.parse(meta) : (meta || {});
+                return m.human_takeover_until && new Date(m.human_takeover_until) > new Date();
+            } catch { return false; }
+        }
+
+        function waTakeoverAtualizarBtn(ativo) {
+            waTakeoverAtivo = ativo;
+            const btn = document.getElementById('btnTakeover');
+            if (!btn) return;
+            if (ativo) {
+                btn.textContent = 'Reativar bot';
+                btn.className = 'btn-takeover bot-pausado';
+                btn.title = 'Bot pausado — clique para reativar';
+            } else {
+                btn.textContent = 'Parar bot';
+                btn.className = 'btn-takeover bot-ativo';
+                btn.title = 'Bot ativo — clique para pausar';
+            }
+        }
+
+        async function waTakeoverToggle() {
+            if (!waPhone) return;
+            const btn = document.getElementById('btnTakeover');
+            btn.disabled = true;
+            try {
+                if (waTakeoverAtivo) {
+                    await api('POST', `/whatsapp/takeover/release/${waPhone}`);
+                    waTakeoverAtualizarBtn(false);
+                } else {
+                    await api('POST', `/whatsapp/takeover/set/${waPhone}`);
+                    waTakeoverAtualizarBtn(true);
+                }
+                // Atualiza badge na lista
+                const leadEl = document.querySelector(`.wa-lead[data-phone="${waPhone}"]`);
+                if (leadEl) {
+                    const badge = leadEl.querySelector('.takeover-badge');
+                    if (waTakeoverAtivo && !badge) {
+                        leadEl.querySelector('.wa-lead-name').insertAdjacentHTML('beforeend', '<span class="takeover-badge">pausado</span>');
+                    } else if (!waTakeoverAtivo && badge) {
+                        badge.remove();
+                    }
+                }
+            } catch(e) {
+                console.error('Takeover toggle falhou', e);
+            } finally {
+                btn.disabled = false;
+            }
+        }
 
         function waTimeAgo(iso) {
             if (!iso) return '';
@@ -1166,8 +1224,9 @@
                     div.dataset.phone = l.phone;
                     const preview = (l.last_body || '').slice(0, 50);
                     const dir = l.last_direction === 'out' ? '→ ' : '';
+                    const takeover = waTakeoverIsActive(l.meta);
                     div.innerHTML = `
-                        <div class="wa-lead-name">${l.name || l.phone}</div>
+                        <div class="wa-lead-name">${l.name || l.phone}${takeover ? '<span class="takeover-badge">pausado</span>' : ''}</div>
                         <div class="wa-lead-preview">${dir}${preview || '—'}</div>
                         <div class="wa-lead-time">${l.phone} · ${waTimeAgo(l.last_at)}</div>`;
                     div.onclick = () => { waName = l.name || l.phone; waAbrirConversa(l.phone, waName); };
@@ -1215,6 +1274,11 @@
             document.getElementById('waSendBox').style.display    = 'flex';
             document.getElementById('waChatName').textContent  = waName;
             document.getElementById('waChatPhone').textContent = phone;
+            // Inicializa estado do botão de takeover
+            try {
+                const t = await api('GET', `/whatsapp/takeover/status/${phone}`);
+                waTakeoverAtualizarBtn(t.human_takeover === true);
+            } catch { waTakeoverAtualizarBtn(false); }
             setTimeout(() => document.getElementById('waSendInput').focus(), 100);
             await waPollMsgs();
         }

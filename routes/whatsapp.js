@@ -179,6 +179,36 @@ router.post('/backfill-pipeline-status', async (req, res) => {
     }
 });
 
+// POST /api/whatsapp/takeover/set/:phone — para o bot nessa conversa
+router.post('/takeover/set/:phone', async (req, res) => {
+    try {
+        const data = await wa(`/takeover/set/${req.params.phone}`, { method: 'POST', body: JSON.stringify({}) });
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ ok: false, error: e.message });
+    }
+});
+
+// POST /api/whatsapp/takeover/release/:phone — reativa bot
+router.post('/takeover/release/:phone', async (req, res) => {
+    try {
+        const data = await wa(`/takeover/release/${req.params.phone}`, { method: 'POST', body: JSON.stringify({}) });
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ ok: false, error: e.message });
+    }
+});
+
+// GET /api/whatsapp/takeover/status/:phone
+router.get('/takeover/status/:phone', async (req, res) => {
+    try {
+        const data = await wa(`/takeover/status/${req.params.phone}`);
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ ok: false, error: e.message });
+    }
+});
+
 // GET /api/whatsapp/media/:filename — proxy binário para o whatsapp-agent
 router.get('/media/:filename', async (req, res) => {
     try {

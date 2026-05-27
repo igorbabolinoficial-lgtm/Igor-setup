@@ -116,7 +116,7 @@ app.get('/admin/conversas', requireToken, (req, res) => {
 app.get('/admin/leads', requireToken, (req, res) => {
   try {
     const leads = db.prepare(`
-      SELECT l.phone, l.name, l.status, l.whatsapp_status, l.last_whatsapp_at,
+      SELECT l.phone, l.name, l.status, l.whatsapp_status, l.last_whatsapp_at, l.meta,
              m.body   AS last_body,
              m.direction AS last_direction,
              m.created_at AS last_at
@@ -220,6 +220,14 @@ app.post('/send/test', requireToken, async (req, res) => {
 });
 
 // --- HUMAN TAKEOVER ---
+// Para o bot manualmente nessa conversa (ativa takeover por 24h)
+app.post('/takeover/set/:phone', requireToken, async (req, res) => {
+  const normalized = normalizePhone(req.params.phone);
+  if (!normalized) return res.status(400).json({ error: 'phone invalido' });
+  await setHumanTakeover(normalized);
+  res.json({ ok: true, phone: normalized, message: 'Bot pausado nessa conversa por 24h' });
+});
+
 // Libera manualmente uma conversa do takeover (bot volta a responder antes das 24h)
 app.post('/takeover/release/:phone', requireToken, async (req, res) => {
   const normalized = normalizePhone(req.params.phone);
