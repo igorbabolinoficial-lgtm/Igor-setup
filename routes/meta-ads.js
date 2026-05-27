@@ -96,11 +96,11 @@ router.post('/campanha/:id/ativar', async (req, res, next) => {
 router.post('/campanha', async (req, res, next) => {
     try {
         const { criarCampanhaCompleta } = await mod();
-        const { nomeCampanha, adSets, status = 'PAUSED' } = req.body || {};
+        const { nomeCampanha, adSets, status = 'PAUSED', modo = 'wa' } = req.body || {};
         if (!nomeCampanha || !adSets?.length) {
             return res.status(400).json({ erro: 'nomeCampanha e adSets[] obrigatórios' });
         }
-        res.status(201).json(await criarCampanhaCompleta({ nomeCampanha, adSets, status }));
+        res.status(201).json(await criarCampanhaCompleta({ nomeCampanha, adSets, status, modo }));
     } catch (err) { next(err); }
 });
 
