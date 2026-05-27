@@ -45,6 +45,11 @@ async function buildSystemPrompt(prefsSalvas = null, leadName = null) {
   const precoMaxLead = prefsSalvas?.preco_max || null;
   const catalogo = await resumoCatalogo(precoMaxLead);
 
+  // Datetime atual em Brasília — injetado no prompt pra LLM não agendar no passado
+  const _agora = new Date();
+  const _dataBRT  = _agora.toLocaleDateString('sv-SE',  { timeZone: 'America/Sao_Paulo' });           // "2026-05-27"
+  const _horaBRT  = _agora.toLocaleTimeString('pt-BR',  { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false }); // "18:45"
+
   // ── Ficha do lead — injetada no TOPO do prompt ────────────────────────────
   // Tudo que já sabemos sobre essa pessoa. O LLM usa isso pra NÃO perguntar de novo
   // e pra retomar a conversa de forma natural mesmo após semanas/meses.
@@ -368,7 +373,7 @@ Para visita presencial:
 
 Regras do JSON:
 - "tipo": "call" (Google Meet 15min) ou "visita" (presencial 60min). SEMPRE incluir.
-- "inicio": ISO 8601 com timezone -03:00 (Brasilia). Hoje eh ${new Date().toISOString().slice(0,10)}.
+- "inicio": ISO 8601 com timezone -03:00 (Brasilia). Agora sao ${_horaBRT} do dia ${_dataBRT} (horario de Brasilia). NUNCA agende horario ja passado — minimo 30 minutos a partir de agora.
 - "nome": nome confirmado do lead (capitalize: "Joao Silva", nao "joao silva")
 - "email": email confirmado do lead em minusculas. Se recusou ou nao tem, deixa "" (string vazia).
 - "imovel": so pra visita — titulo EXATO conforme catalogo. Para call, deixa "".
