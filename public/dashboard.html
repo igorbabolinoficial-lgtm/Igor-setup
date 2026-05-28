@@ -135,7 +135,12 @@
         /* Config */
         .config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
         .api-card { background: var(--surface); padding: 25px; border-radius: 6px; border: 1px solid var(--border); }
-        .api-card h3 { font-size: 0.9rem; color: var(--accent); margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.1em; }
+        .api-card h3 { font-size: 0.9rem; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em; }
+        .cfg-status { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 0.72rem; }
+        .cfg-ok { color: var(--success); }
+        .cfg-partial { color: var(--warning); }
+        .cfg-empty { color: var(--text-muted); }
+        .cfg-date { color: var(--text-muted); }
         .input-group { margin-bottom: 15px; }
         .input-group label { display: block; font-size: 0.6rem; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase; }
         .input-group input { width: 100%; background: #000; border: 1px solid var(--border); padding: 10px; color: #FFF; outline: none; }
@@ -1744,9 +1749,10 @@
             <div class="config-grid">
                 <div class="api-card">
                     <h3>WhatsApp (Z-API)</h3>
-                    <div class="input-group"><label>Instance ID</label><input type="text" data-cfg="zapi_instancia"></div>
-                    <div class="input-group"><label>Token</label><input type="password" data-cfg="zapi_token"></div>
-                    <button class="btn-elite" style="width: 100%;" onclick="salvarConfig(['zapi_instancia','zapi_token'])">Salvar</button>
+                    <div class="input-group"><label>Instance ID</label><input type="text" data-cfg="zapi_instancia" placeholder="Ex: 3DF29F..."></div>
+                    <div class="input-group"><label>Token</label><input type="password" data-cfg="zapi_token" placeholder="Token da instância"></div>
+                    <div class="input-group"><label>Client Token</label><input type="password" data-cfg="zapi_client_token" placeholder="Token do cliente"></div>
+                    <button class="btn-elite" style="width: 100%;" onclick="salvarConfig(['zapi_instancia','zapi_token','zapi_client_token'])">Salvar</button>
                 </div>
                 <div class="api-card">
                     <h3>Cérebro IA (Gemini)</h3>
@@ -3051,9 +3057,37 @@
         // ═══════════════════════════════════════════════════════════════
         async function carregarConfig() {
             const data = await api('GET', '/config');
-            document.querySelectorAll('[data-cfg]').forEach(input => {
-                const v = data[input.dataset.cfg];
-                if (v) input.placeholder = v.valor || '';
+            document.querySelectorAll('.api-card').forEach(card => {
+                const inputs = card.querySelectorAll('[data-cfg]');
+                let configurados = 0;
+                let atualizado = null;
+                inputs.forEach(input => {
+                    const v = data[input.dataset.cfg];
+                    if (v && v.valor) {
+                        configurados++;
+                        // senha: placeholder mascarado; texto: valor real
+                        if (input.type === 'password') {
+                            input.placeholder = v.valor;
+                        } else {
+                            input.value = v.valor;
+                        }
+                        if (!atualizado || v.atualizado_em > atualizado) atualizado = v.atualizado_em;
+                    }
+                });
+                let badge = card.querySelector('.cfg-status');
+                if (!badge) {
+                    badge = document.createElement('div');
+                    badge.className = 'cfg-status';
+                    card.querySelector('h3').after(badge);
+                }
+                const dateStr = atualizado ? ` · ${atualizado.slice(0,10)}` : '';
+                if (configurados === inputs.length && inputs.length > 0) {
+                    badge.innerHTML = `<span class="cfg-ok">&#10003; Configurado${dateStr}</span>`;
+                } else if (configurados > 0) {
+                    badge.innerHTML = `<span class="cfg-partial">&#9888; Parcial (${configurados}/${inputs.length})${dateStr}</span>`;
+                } else {
+                    badge.innerHTML = `<span class="cfg-empty">— Não configurado</span>`;
+                }
             });
         }
         async function salvarConfig(chaves) {
