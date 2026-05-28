@@ -36,8 +36,9 @@ function montarContextoLeads() {
     const leads = db.prepare(`
         SELECT id, nome, interesse, status, score_ia, ultimo_contato
         FROM leads
+        WHERE origem != 'treino' AND (arquivado IS NULL OR arquivado = 0)
         ORDER BY score_ia DESC
-        LIMIT 50
+        LIMIT 30
     `).all();
     if (!leads.length) return 'Base de leads vazia.';
     return leads.map(l =>
@@ -77,10 +78,20 @@ router.post('/consulta', async (req, res, next) => {
             return res.json({ resposta, modo: 'fallback' });
         }
 
-        const persona = process.env.PERSONA_SDR || 'Corretor de Elite — Igor Babolin';
+        const persona = process.env.PERSONA_SDR || 'Igor Babolin Imóveis';
         const contextoLeads = montarContextoLeads();
         const contextoCerebro = montarContextoCerebro();
-        const prompt = `Você é o agente SDR do ${persona}. Responda em pt-BR, direto e acionável.${contextoCerebro ? `\n\n# CÉREBRO (Obsidian)\n${contextoCerebro}` : ''}\n\n# BASE DE LEADS\n${contextoLeads}\n\n# PERGUNTA\n${pergunta}`;
+        const prompt = `Você é o assistente interno de ${persona}, uma imobiliária no litoral de SC.
+Responda em pt-BR, de forma concisa e direta — máximo 4-5 linhas. Sem markdown excessivo, sem headers, sem agendas inventadas.
+Seja objetivo: responda exatamente o que foi perguntado com base nos dados abaixo.
+${contextoCerebro ? `\n# CONTEXTO DO NEGÓCIO\n${contextoCerebro}\n` : ''}
+# LEADS REAIS (top por score)
+${contextoLeads}
+
+# PERGUNTA DO OPERADOR
+${pergunta}
+
+Responda:`;
 
         const r = await gerarTexto(prompt);
         if (!r) {
