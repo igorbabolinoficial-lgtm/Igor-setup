@@ -2,6 +2,21 @@ const express = require('express');
 const { db, uid, nowIso, registrarLog } = require('../db');
 const googleLib = require('../lib/google');
 
+// Notifica WA agent para pausar cadência (best-effort, silencioso se falhar)
+async function pausarCadenciaWaAgent(telefone) {
+    if (!telefone) return;
+    const url   = process.env.WA_AGENT_URL;
+    const token = process.env.WA_AGENT_TOKEN;
+    if (!url || !token) return;
+    const digits = String(telefone).replace(/\D/g, '');
+    try {
+        await fetch(`${url}/admin/leads/${digits}/pausar-cadencia`, {
+            method: 'POST',
+            headers: { 'x-webhook-token': token, 'Content-Type': 'application/json' },
+        });
+    } catch { /* silencioso */ }
+}
+
 const router = express.Router();
 
 const STATUS_VALIDOS = ['novo_lead', 'qualificado', 'em_atendimento', 'convertido', 'perdido'];
@@ -245,6 +260,11 @@ router.patch('/:id/status', (req, res) => {
         mensagem: `Lead "${lead.nome}" movido: ${lead.status} → ${status}`,
         contexto: { lead_id: lead.id, de: lead.status, para: status }
     });
+
+    // Lead finalizado → pausa cadência de follow-up no WA agent
+    if ((status === 'convertido' || status === 'perdido') && lead.telefone) {
+        pausarCadenciaWaAgent(lead.telefone).catch(() => {});
+    }
 
     res.json(normalizar(db.prepare('SELECT * FROM leads WHERE id = ?').get(req.params.id)));
 });

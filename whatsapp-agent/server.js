@@ -17,6 +17,7 @@ import {
   sendText,
 } from './lib/baileys.js';
 import { normalizePhone, db, setHumanTakeover, clearHumanTakeover, isHumanTakeover } from './lib/storage.js';
+import { pausarCadencia } from './lib/cadencia.js';
 import { coalesceIncoming } from './lib/coalescer.js';
 import { log } from './lib/logger.js';
 
@@ -243,6 +244,15 @@ app.get('/takeover/status/:phone', requireToken, async (req, res) => {
   if (!normalized) return res.status(400).json({ error: 'phone invalido' });
   const ativo = await isHumanTakeover(normalized);
   res.json({ phone: normalized, human_takeover: ativo });
+});
+
+// --- CADÊNCIA: pausa follow-ups de um lead (ex: quando convertido no pipeline) ---
+app.post('/admin/leads/:phone/pausar-cadencia', requireToken, async (req, res) => {
+  const normalized = normalizePhone(req.params.phone);
+  if (!normalized) return res.status(400).json({ error: 'phone invalido' });
+  pausarCadencia(normalized);
+  log.info('Cadencia pausada manualmente', { phone: normalized });
+  res.json({ ok: true, phone: normalized, message: 'Cadência de follow-up pausada' });
 });
 
 // --- ERROR HANDLER ---
