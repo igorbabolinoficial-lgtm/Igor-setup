@@ -89,11 +89,17 @@ router.get('/', async (_req, res) => {
                 const ins = await m.metricas(ativa.id, preset).catch(() => null);
                 const rows = ins?.data || [];
                 if (rows.length && rows.some(r => parseFloat(r.impressions || 0) > 0)) {
-                    // soma todos os ads do retorno
-                    metaAds.impressoes = rows.reduce((s, r) => s + parseInt(r.impressions || 0, 10), 0);
-                    metaAds.cliques    = rows.reduce((s, r) => s + parseInt(r.clicks      || 0, 10), 0);
-                    metaAds.spend      = rows.reduce((s, r) => s + parseFloat(r.spend     || 0), 0);
-                    metaAds.periodo    = preset === 'today' ? 'hoje' : '7 dias';
+                    metaAds.impressoes  = rows.reduce((s, r) => s + parseInt(r.impressions || 0, 10), 0);
+                    metaAds.cliques     = rows.reduce((s, r) => s + parseInt(r.clicks      || 0, 10), 0);
+                    metaAds.spend       = rows.reduce((s, r) => s + parseFloat(r.spend     || 0), 0);
+                    metaAds.periodo     = preset === 'today' ? 'hoje' : '7 dias';
+                    // conversas WA iniciadas (métrica real do CTWA)
+                    metaAds.conversas_wa = rows.reduce((s, r) => {
+                        const acao = (r.actions || []).find(a =>
+                            a.action_type === 'onsite_conversion.messaging_conversation_started_7d'
+                        );
+                        return s + parseInt(acao?.value || 0, 10);
+                    }, 0);
                     insData = rows;
                     break;
                 }
