@@ -46,6 +46,21 @@ function montarContextoLeads() {
     ).join('\n');
 }
 
+// Contexto com IDs para o chat poder agir
+function montarContextoChat() {
+    const leads = db.prepare(`
+        SELECT id, nome, interesse, status, score_ia, telefone
+        FROM leads
+        WHERE origem != 'treino' AND (arquivado IS NULL OR arquivado = 0)
+        ORDER BY score_ia DESC
+        LIMIT 25
+    `).all();
+    if (!leads.length) return 'Base de leads vazia.';
+    return leads.map(l =>
+        `[${l.id}] ${l.nome} | ${l.interesse || '-'} | ${l.status} | score ${l.score_ia}${l.telefone ? ' | ' + l.telefone : ''}`
+    ).join('\n');
+}
+
 function montarContextoCerebro() {
     try {
         const { carregarNotas, notasConectadas } = require('./cerebro');
@@ -210,6 +225,112 @@ router.post('/publica', rateLimit, async (req, res, next) => {
 
         res.json({ resposta, modo: r ? r.modelo : 'fallback', lead_criado });
     } catch (err) { next(err); }
+});
+
+// ── Chat agêntico — entende intenção e executa ações ──────────────────────────
+const STATUS_VALIDOS_CHAT = ['novo_lead', 'em_atendimento', 'qualificado', 'convertido', 'perdido'];
+
+router.post('/chat', async (req, res, next) => {
+    try {
+        const { mensagem, historico = [] } = req.body || {};
+        if (!mensagem) return res.status(400).json({ erro: 'mensagem é obrigatória' });
+
+        const { gerarTexto, temAlgumLLM, extrairJson } = require('../agentes/ia');
+        if (!temAlgumLLM()) {
+            return res.json({ resposta: 'Nenhuma chave de IA configurada.', acao: null, modo: 'fallback' });
+        }
+
+        const leads = montarContextoChat();
+        const histTxt = historico.slice(-6).map(h =>
+            `${h.de === 'user' ? 'Operador' : 'Igor'}: ${h.texto}`
+        ).join('\n');
+        const hoje = new Date().toLocaleDateString('pt-BR');
+
+        const prompt = `Você é o assistente interno Igor da imobiliária Igor Babolin (Praia do Rosa - SC).
+Você pode responder perguntas E executar ações reais no sistema.
+
+RESPONDA SEMPRE EM JSON PURO (sem markdown, sem texto fora do JSON):
+
+Só responder:
+{"acao":"responder","texto":"resposta em pt-BR, 1-3 frases"}
+
+Follow-up em lead (enfileira tarefa):
+{"acao":"follow_up","lead_id":"ID_EXATO","texto":"confirmação curta"}
+
+Atualizar status do lead:
+{"acao":"atualizar_status","lead_id":"ID_EXATO","status":"em_atendimento|qualificado|convertido|perdido","texto":"confirmação"}
+
+Qualificar lead com IA (recalcula score):
+{"acao":"qualificar_lead","lead_id":"ID_EXATO","texto":"confirmação"}
+
+Criar evento na agenda:
+{"acao":"agendar","titulo":"...","inicio":"YYYY-MM-DDTHH:MM","tipo":"ligacao|reuniao","texto":"confirmação"}
+
+REGRAS:
+- Nunca invente lead_id — use exatamente os IDs da lista abaixo
+- Se não sabe qual lead, peça o nome ({"acao":"responder","texto":"..."})
+- Campo "texto": 1-2 frases, direto, pt-BR
+- Hoje: ${hoje}
+
+LEADS (top 25 por score):
+${leads}
+
+HISTÓRICO:
+${histTxt || '(início)'}
+
+MENSAGEM DO OPERADOR: ${mensagem}`;
+
+        const r = await gerarTexto(prompt);
+        if (!r) return res.json({ resposta: 'Falha temporária. Tente em instantes.', acao: null, modo: 'fallback' });
+
+        // Parse JSON da resposta do LLM
+        let json = null;
+        try { json = JSON.parse(r.texto.trim()); } catch { json = extrairJson(r.texto); }
+
+        // Se não veio JSON válido, trata como texto puro
+        if (!json || !json.acao) {
+            return res.json({ resposta: r.texto.trim(), acao: null, modo: r.modelo });
+        }
+
+        const { acao, texto, lead_id, status, titulo, inicio, tipo: tipoEvt } = json;
+        let acaoExecutada = null;
+
+        if (acao === 'follow_up' && lead_id) {
+            const lead = db.prepare('SELECT * FROM leads WHERE id = ?').get(lead_id);
+            if (lead) {
+                const maestro = require('../agentes/maestro');
+                maestro.enfileirar({ agente_destino: 'sdr', tipo: 'follow_up', payload: { lead_id }, prioridade: 3 });
+                acaoExecutada = { tipo: 'follow_up', lead: lead.nome, lead_id };
+                registrarLog({ agente: 'sdr', nivel: 'info', mensagem: `Chat: follow_up → ${lead.nome}`, contexto: { lead_id } });
+            }
+        } else if (acao === 'atualizar_status' && lead_id && STATUS_VALIDOS_CHAT.includes(status)) {
+            const lead = db.prepare('SELECT * FROM leads WHERE id = ?').get(lead_id);
+            if (lead) {
+                db.prepare('UPDATE leads SET status = ?, atualizado_em = ? WHERE id = ?').run(status, nowIso(), lead_id);
+                acaoExecutada = { tipo: 'atualizar_status', lead: lead.nome, status, lead_id };
+                registrarLog({ agente: 'sdr', nivel: 'sucesso', mensagem: `Chat: ${lead.nome} → ${status}`, contexto: { lead_id, status } });
+            }
+        } else if (acao === 'qualificar_lead' && lead_id) {
+            const lead = db.prepare('SELECT * FROM leads WHERE id = ?').get(lead_id);
+            if (lead) {
+                const maestro = require('../agentes/maestro');
+                maestro.enfileirar({ agente_destino: 'sdr', tipo: 'qualificar_lead', payload: { lead_id }, prioridade: 2 });
+                acaoExecutada = { tipo: 'qualificar_lead', lead: lead.nome, lead_id };
+                registrarLog({ agente: 'sdr', nivel: 'info', mensagem: `Chat: qualificar → ${lead.nome}`, contexto: { lead_id } });
+            }
+        } else if (acao === 'agendar' && titulo && inicio) {
+            const id = uid('evt');
+            db.prepare(`INSERT INTO agenda (id, titulo, inicio, tipo, status) VALUES (?, ?, ?, ?, 'agendado')`)
+                .run(id, titulo, inicio, tipoEvt || 'reuniao');
+            acaoExecutada = { tipo: 'agendar', titulo, inicio, id };
+            registrarLog({ agente: 'maestro', nivel: 'sucesso', mensagem: `Chat: agenda → ${titulo}`, contexto: { id, inicio } });
+        }
+
+        registrarLog({ agente: 'sdr', nivel: 'sucesso', mensagem: `Chat: "${mensagem.slice(0, 60)}"`, contexto: { acao, modo: r.modelo } });
+        res.json({ resposta: texto || r.texto, acao: acaoExecutada, modo: r.modelo });
+    } catch (err) {
+        next(err);
+    }
 });
 
 module.exports = router;

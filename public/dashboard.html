@@ -393,16 +393,29 @@
         .modal-row > div { flex: 1; }
         .modal-actions { display: flex; gap: 10px; margin-top: 22px; justify-content: flex-end; }
 
-        .console-panel { position: fixed; bottom: 100px; right: 30px; width: 420px; max-height: 70vh; background: var(--surface); border: 1px solid var(--accent); border-radius: 8px; display: none; flex-direction: column; box-shadow: 0 30px 60px rgba(0,0,0,0.7); z-index: 998; overflow: hidden; }
+        .console-panel { position: fixed; bottom: 100px; right: 30px; width: 440px; max-height: 72vh; background: var(--surface); border: 1px solid var(--accent); border-radius: 12px; display: none; flex-direction: column; box-shadow: 0 30px 60px rgba(0,0,0,0.7); z-index: 998; overflow: hidden; }
         .console-panel.aberto { display: flex; animation: slideUp 0.3s ease; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .console-header { padding: 14px 18px; background: var(--surface-light); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .console-header span { font-family: 'Playfair Display', serif; font-size: 0.95rem; color: var(--accent); letter-spacing: 0.05em; }
-        .console-header button { background: transparent; color: var(--text-muted); border: none; cursor: pointer; font-size: 1.1rem; }
-        .console-body { padding: 14px; overflow-y: auto; flex: 1; min-height: 280px; max-height: 50vh; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
-        .console-input { display: flex; padding: 12px; gap: 8px; background: #000; border-top: 1px solid var(--border); }
-        .console-input input { flex: 1; background: transparent; border: none; color: var(--accent); outline: none; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
-        .console-input button { background: var(--accent); color: #000; border: none; padding: 6px 14px; cursor: pointer; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; }
+        .console-header { padding: 12px 16px; background: var(--surface-light); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .console-header span { font-family: 'Playfair Display', serif; font-size: 0.92rem; color: var(--accent); letter-spacing: 0.05em; }
+        .console-header-acts { display: flex; gap: 6px; align-items: center; }
+        .console-header button { background: transparent; color: var(--text-muted); border: none; cursor: pointer; font-size: 1rem; padding: 2px 6px; }
+        .chat-msgs { padding: 14px; overflow-y: auto; flex: 1; min-height: 260px; display: flex; flex-direction: column; gap: 10px; }
+        .chat-msg { display: flex; flex-direction: column; max-width: 86%; }
+        .chat-msg.user { align-self: flex-end; align-items: flex-end; }
+        .chat-msg.agent { align-self: flex-start; align-items: flex-start; }
+        .chat-bubble { padding: 9px 13px; border-radius: 14px; font-size: 0.82rem; line-height: 1.55; word-break: break-word; }
+        .chat-msg.user  .chat-bubble { background: var(--accent); color: #000; border-radius: 14px 14px 2px 14px; }
+        .chat-msg.agent .chat-bubble { background: var(--surface-light); color: var(--text); border: 1px solid var(--border); border-radius: 14px 14px 14px 2px; }
+        .chat-acao { margin-top: 5px; padding: 3px 9px; background: rgba(212,175,55,0.12); color: var(--accent); border-radius: 4px; font-size: 0.63rem; letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid rgba(212,175,55,0.2); }
+        .chat-hora { font-size: 0.6rem; color: var(--text-muted); margin-top: 3px; padding: 0 2px; }
+        .chat-logs-toggle { padding: 4px 14px; background: rgba(0,0,0,0.3); border-top: 1px solid var(--border); font-size: 0.65rem; color: var(--text-muted); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .chat-logs { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: var(--text-muted); padding: 8px 14px; max-height: 90px; overflow-y: auto; background: rgba(0,0,0,0.25); display: none; }
+        .chat-logs.visivel { display: block; }
+        .console-input { display: flex; padding: 10px 12px; gap: 8px; background: rgba(0,0,0,0.4); border-top: 1px solid var(--border); }
+        .console-input input { flex: 1; background: transparent; border: none; color: var(--text); outline: none; font-size: 0.84rem; }
+        .console-input input::placeholder { color: var(--text-muted); }
+        .console-input button { background: var(--accent); color: #000; border: none; padding: 6px 14px; cursor: pointer; font-size: 0.7rem; border-radius: 6px; letter-spacing: 0.05em; font-weight: 600; }
 
         /* ── Notificações ── */
         .notif-wrap { position: relative; }
@@ -1826,19 +1839,24 @@
         </div>
     </div>
 
-    <!-- Bolinha flutuante: Console Neural -->
-    <button class="fab" id="fab" title="Console Neural" onclick="alternarConsole()">⚡</button>
+    <!-- Bolinha flutuante: Igor Neural Chat -->
+    <button class="fab" id="fab" title="Igor Neural" onclick="alternarConsole()">⚡</button>
     <div class="console-panel" id="consolePanel">
         <div class="console-header">
-            <span>Console Neural</span>
-            <button onclick="alternarConsole()">×</button>
+            <span>Igor Neural</span>
+            <div class="console-header-acts">
+                <button onclick="limparChat()" title="Limpar conversa">↺</button>
+                <button onclick="alternarConsole()">×</button>
+            </div>
         </div>
-        <div class="console-body" id="consoleBody">
-            <div class="log-entry log-info">› Console pronto. Pergunte algo, ou veja a atividade dos agentes.</div>
+        <div class="chat-msgs" id="chatMsgs"></div>
+        <div class="chat-logs-toggle" onclick="toggleChatLogs()">
+            <span>Atividade dos agentes</span><span id="chatLogsArrow">›</span>
         </div>
+        <div class="chat-logs" id="chatLogs"></div>
         <div class="console-input">
-            <input id="consoleInput" placeholder="Pergunte ao agente SDR..." onkeydown="if(event.key==='Enter') enviarConsulta()">
-            <button onclick="enviarConsulta()">↵</button>
+            <input id="consoleInput" placeholder="Pergunte ou dê um comando..." onkeydown="if(event.key==='Enter')enviarChat()">
+            <button onclick="enviarChat()">Enviar</button>
         </div>
     </div>
 
@@ -3153,43 +3171,102 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // Console Neural (bolinha flutuante)
+        // Igor Neural Chat (bolinha flutuante)
         // ═══════════════════════════════════════════════════════════════
+        let _chatHistorico = [];
+
         function alternarConsole() {
-            document.getElementById('consolePanel').classList.toggle('aberto');
-        }
-
-        function adicionarLogConsole(msg, nivel = 'info') {
-            const body = document.getElementById('consoleBody');
-            const div = document.createElement('div');
-            div.className = `log-entry log-${nivel}`;
-            div.textContent = `› ${msg}`;
-            body.appendChild(div);
-            body.scrollTop = body.scrollHeight;
-        }
-
-        async function enviarConsulta() {
-            const input = document.getElementById('consoleInput');
-            const pergunta = input.value.trim();
-            if (!pergunta) return;
-            input.value = '';
-            adicionarLogConsole(pergunta, 'info');
-            adicionarLogConsole('processando...', 'alerta');
-            try {
-                const r = await api('POST', '/ai/consulta', { pergunta });
-                adicionarLogConsole(r.resposta, 'sucesso');
-            } catch (e) {
-                adicionarLogConsole(`Erro: ${e.message}`, 'erro');
+            const p = document.getElementById('consolePanel');
+            p.classList.toggle('aberto');
+            if (p.classList.contains('aberto') && !document.getElementById('chatMsgs').children.length) {
+                adicionarMsgAgent('Olá! Posso responder perguntas sobre os leads, enfileirar follow-ups, atualizar status ou agendar eventos. Como posso ajudar?');
             }
         }
 
-        // Polling: traz últimos logs pro console flutuante a cada 6s
+        function toggleChatLogs() {
+            const logs = document.getElementById('chatLogs');
+            const arrow = document.getElementById('chatLogsArrow');
+            logs.classList.toggle('visivel');
+            arrow.textContent = logs.classList.contains('visivel') ? '↓' : '›';
+        }
+
+        function limparChat() {
+            _chatHistorico = [];
+            document.getElementById('chatMsgs').innerHTML = '';
+            adicionarMsgAgent('Conversa reiniciada. Como posso ajudar?');
+        }
+
+        function adicionarMsgUser(texto) {
+            const msgs = document.getElementById('chatMsgs');
+            const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const div = document.createElement('div');
+            div.className = 'chat-msg user';
+            div.innerHTML = `<div class="chat-bubble">${texto}</div><div class="chat-hora">${hora}</div>`;
+            msgs.appendChild(div);
+            msgs.scrollTop = msgs.scrollHeight;
+        }
+
+        function adicionarMsgAgent(texto, acao = null) {
+            const msgs = document.getElementById('chatMsgs');
+            const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const acaoLabels = {
+                follow_up:       'follow-up enfileirado',
+                atualizar_status: 'status atualizado',
+                qualificar_lead:  'qualificação enfileirada',
+                agendar:         'evento agendado',
+            };
+            const acaoHtml = acao ? `<div class="chat-acao">&#9889; ${acaoLabels[acao.tipo] || acao.tipo}${acao.lead ? ': ' + acao.lead : acao.titulo ? ': ' + acao.titulo : ''}</div>` : '';
+            const div = document.createElement('div');
+            div.className = 'chat-msg agent';
+            div.innerHTML = `<div class="chat-bubble">${texto.replace(/\n/g,'<br>')}</div>${acaoHtml}<div class="chat-hora">${hora}</div>`;
+            msgs.appendChild(div);
+            msgs.scrollTop = msgs.scrollHeight;
+        }
+
+        function adicionarMsgTyping() {
+            const msgs = document.getElementById('chatMsgs');
+            const div = document.createElement('div');
+            div.className = 'chat-msg agent'; div.id = 'chatTyping';
+            div.innerHTML = `<div class="chat-bubble" style="color:var(--text-muted)">digitando…</div>`;
+            msgs.appendChild(div); msgs.scrollTop = msgs.scrollHeight;
+        }
+
+        async function enviarChat() {
+            const input = document.getElementById('consoleInput');
+            const mensagem = input.value.trim();
+            if (!mensagem) return;
+            input.value = '';
+            adicionarMsgUser(mensagem);
+            adicionarMsgTyping();
+            try {
+                const r = await api('POST', '/ai/chat', { mensagem, historico: _chatHistorico });
+                document.getElementById('chatTyping')?.remove();
+                adicionarMsgAgent(r.resposta || '…', r.acao || null);
+                _chatHistorico.push({ de: 'user', texto: mensagem });
+                _chatHistorico.push({ de: 'agent', texto: r.resposta || '' });
+                if (_chatHistorico.length > 14) _chatHistorico = _chatHistorico.slice(-14);
+            } catch (e) {
+                document.getElementById('chatTyping')?.remove();
+                adicionarMsgAgent('Erro ao processar. Tente novamente.');
+            }
+        }
+
+        // Polling de logs — vai pra área de atividade (colapsável), não pro chat
         let ultimoLogId = 0;
         setInterval(async () => {
             try {
                 const data = await api('GET', '/logs?limite=10');
                 const novos = data.logs.filter(l => l.id > ultimoLogId).reverse();
-                novos.forEach(l => adicionarLogConsole(`[${l.agente}] ${l.mensagem}`, l.nivel));
+                if (novos.length) {
+                    const logs = document.getElementById('chatLogs');
+                    novos.forEach(l => {
+                        const span = document.createElement('div');
+                        span.style.cssText = 'padding:1px 0;border-bottom:1px solid rgba(255,255,255,0.04)';
+                        span.textContent = `[${l.agente}] ${l.mensagem}`;
+                        logs.appendChild(span);
+                    });
+                    logs.scrollTop = logs.scrollHeight;
+                }
                 if (data.logs.length) ultimoLogId = Math.max(ultimoLogId, ...data.logs.map(l => l.id));
             } catch (_) {}
         }, 6000);
