@@ -47,10 +47,21 @@ function enfileirar({ agente_destino, tipo, payload, prioridade = 5 }) {
 // Tabela 'aprovacoes' é usada como log de auditoria (o que foi decidido e quando).
 // O humano pode cancelar uma tarefa ainda pendente na fila pelo painel do dashboard.
 
+// Dedup: verifica se já foi criado uma aprovação para esse lead+tipo nas últimas 24h
+function jaAprovouRecente(agente_destino, tipo, leadId = null) {
+    const limite = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const where  = ['agente_destino = ?', 'tipo = ?', "criado_em > ?"];
+    const params = [agente_destino, tipo, limite];
+    if (leadId) { where.push('payload LIKE ?'); params.push(`%${leadId}%`); }
+    return db.prepare(`SELECT COUNT(*) AS n FROM aprovacoes WHERE ${where.join(' AND ')}`).get(...params).n > 0;
+}
+
 function dispararOuAprovar({ agente_destino, tipo, payload, prioridade, descricaoHumana }) {
     const leadId = payload && payload.lead_id;
-    // Dedup: não cria se já tem tarefa pendente/executando pra esse lead+tipo
-    if (leadId && jaTemPendente(agente_destino, tipo, leadId)) return null;
+
+    // Dedup duplo: tarefa ainda na fila OU aprovação já criada nas últimas 24h
+    if (jaTemPendente(agente_destino, tipo, leadId)) return null;
+    if (jaAprovouRecente(agente_destino, tipo, leadId)) return null;
 
     const tarefaId = enfileirar({ agente_destino, tipo, payload, prioridade });
 
