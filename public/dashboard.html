@@ -96,6 +96,31 @@
         .btn-takeover.bot-ativo   { background: rgba(244,67,54,0.15); color: var(--danger); border: 1px solid var(--danger); }
         .btn-takeover.bot-pausado { background: rgba(76,175,80,0.15); color: var(--success); border: 1px solid var(--success); }
         .takeover-badge { display: inline-block; font-size: 0.6rem; padding: 1px 5px; border-radius: 2px; margin-left: 5px; background: rgba(244,67,54,0.18); color: var(--danger); vertical-align: middle; letter-spacing: 0.05em; }
+
+        /* ── Live Ops ── */
+        .liveops-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+        .lo-card { background: var(--surface); border: 1px solid rgba(255,255,255,0.07); border-radius: 6px; padding: 22px 22px 18px; display: flex; flex-direction: column; gap: 0; position: relative; overflow: hidden; }
+        .lo-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(163,150,136,0.04) 0%, transparent 60%); pointer-events: none; }
+        .lo-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+        .lo-card-num { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: var(--text-muted); }
+        .lo-status { display: flex; align-items: center; gap: 5px; font-size: 0.6rem; letter-spacing: 0.15em; font-weight: 700; }
+        .lo-dot { width: 6px; height: 6px; border-radius: 50%; }
+        .lo-dot.ativo   { background: var(--success); box-shadow: 0 0 6px var(--success); }
+        .lo-dot.pausado { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+        .lo-dot.offline { background: var(--danger);  box-shadow: 0 0 6px var(--danger); }
+        .lo-status.ativo   { color: var(--success); }
+        .lo-status.pausado { color: var(--warning); }
+        .lo-status.offline { color: var(--danger); }
+        .lo-title { font-family: 'Playfair Display', serif; font-size: 1.4rem; line-height: 1.2; margin-bottom: 4px; }
+        .lo-sub { font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-bottom: 20px; }
+        .lo-metrics { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+        .lo-metric { display: flex; justify-content: space-between; align-items: baseline; }
+        .lo-metric-label { font-size: 0.75rem; color: var(--text-muted); }
+        .lo-metric-val   { font-size: 1.15rem; font-weight: 700; color: var(--text); font-family: 'JetBrains Mono', monospace; }
+        .lo-metric-val.accent { color: var(--accent); }
+        .lo-bar { height: 2px; background: rgba(163,150,136,0.12); border-radius: 1px; margin: 16px 0 12px; }
+        .lo-bar-fill { height: 100%; background: var(--accent); border-radius: 1px; transition: width 0.8s ease; }
+        .lo-footer { font-size: 0.72rem; color: var(--text-muted); font-style: italic; }
         .wa-msg-audio { display: flex; flex-direction: column; gap: 6px; }
         .wa-msg-audio audio { width: 100%; min-width: 220px; height: 36px; accent-color: var(--accent); }
         .wa-msg-audio-caption { font-size: 0.78rem; opacity: 0.85; font-style: italic; }
@@ -374,6 +399,7 @@
     <aside>
         <div class="logo">Igor Babolin</div>
         <nav>
+            <li data-panel="liveops">Live Ops</li>
             <li class="active" data-panel="operations">Pipeline de Leads</li>
             <li data-panel="imoveis">Catálogo de Imóveis</li>
             <li data-panel="cerebro">Cérebro Neural</li>
@@ -421,6 +447,20 @@
             <h1 id="panelTitle">Pipeline de Leads</h1>
             <div class="clock" id="liveClock">--:--:--</div>
         </header>
+
+        <!-- Live Ops -->
+        <div id="liveops" class="panel">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+                <button class="btn-ghost" style="padding:6px 14px;font-size:0.72rem;margin-left:auto;" onclick="loCarregar()">↺ Atualizar</button>
+                <span id="loGeradoEm" style="font-size:0.65rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace;"></span>
+            </div>
+            <div class="liveops-grid" id="loGrid">
+                <!-- Cards injetados via JS -->
+                <div class="lo-card" style="grid-column:1/-1;display:flex;align-items:center;justify-content:center;min-height:200px;color:var(--text-muted);font-size:0.85rem;">
+                    Carregando dados...
+                </div>
+            </div>
+        </div>
 
         <!-- Pipeline / Kanban -->
         <div id="operations" class="panel active">
@@ -1806,6 +1846,139 @@
         setInterval(() => {
             document.getElementById('liveClock').textContent = new Date().toLocaleTimeString('pt-BR');
         }, 1000);
+
+        // ═══════════════════════════════════════════════════════════════
+        // Live Ops
+        // ═══════════════════════════════════════════════════════════════
+        function loFmt(n, prefix = '') {
+            if (n == null || n === '') return '—';
+            if (typeof n === 'number') {
+                if (n >= 1000) return prefix + n.toLocaleString('pt-BR');
+                return prefix + n;
+            }
+            return prefix + n;
+        }
+
+        function loStatusClass(s) {
+            if (!s) return 'offline';
+            const u = String(s).toUpperCase();
+            if (u === 'ACTIVE' || u === 'ATIVO' || u === 'TRUE') return 'ativo';
+            if (u === 'PAUSED' || u === 'PAUSADO') return 'pausado';
+            return 'offline';
+        }
+
+        function loStatusLabel(s) {
+            if (!s) return 'OFFLINE';
+            const u = String(s).toUpperCase();
+            if (u === 'ACTIVE' || u === 'ATIVO' || u === 'TRUE') return 'ATIVO';
+            if (u === 'PAUSED' || u === 'PAUSADO') return 'PAUSADO';
+            return 'OFFLINE';
+        }
+
+        function loCard({ num, title, sub, statusVal, metrics, barPct, footer }) {
+            const sc = loStatusClass(statusVal);
+            const sl = loStatusLabel(statusVal);
+            const metricsHtml = metrics.map(([label, val, accent]) => `
+                <div class="lo-metric">
+                    <span class="lo-metric-label">${label}</span>
+                    <span class="lo-metric-val${accent ? ' accent' : ''}">${val}</span>
+                </div>`).join('');
+            return `
+            <div class="lo-card">
+                <div class="lo-card-top">
+                    <span class="lo-card-num">${String(num).padStart(2, '0')}</span>
+                    <span class="lo-status ${sc}"><span class="lo-dot ${sc}"></span>${sl}</span>
+                </div>
+                <div class="lo-title">${title}</div>
+                <div class="lo-sub">${sub}</div>
+                <div class="lo-metrics">${metricsHtml}</div>
+                <div class="lo-bar"><div class="lo-bar-fill" style="width:${Math.min(100, barPct || 0)}%"></div></div>
+                <div class="lo-footer">${footer}</div>
+            </div>`;
+        }
+
+        async function loCarregar() {
+            try {
+                const d = await api('GET', '/liveops');
+                if (!d.ok) return;
+
+                const { pipeline, waBot, metaAds, catalogo, geradoEm } = d;
+
+                const cards = [
+                    // Card 1 — Bot SDR
+                    loCard({
+                        num: 1,
+                        title: 'Bot SDR',
+                        sub: 'WhatsApp · Qualificação 24/7',
+                        statusVal: waBot.online ? 'ATIVO' : 'OFFLINE',
+                        metrics: [
+                            ['Leads no sistema',   loFmt(waBot.total)],
+                            ['Conversas hoje',     loFmt(waBot.hoje)],
+                            ['Takeover ativo',     loFmt(waBot.takeover)],
+                        ],
+                        barPct: waBot.total ? Math.round((waBot.hoje / Math.max(waBot.total, 1)) * 100) : 0,
+                        footer: waBot.online ? 'Qualificando intenção' : 'Agente offline',
+                    }),
+                    // Card 2 — Meta Ads
+                    loCard({
+                        num: 2,
+                        title: 'Meta Ads',
+                        sub: 'Click to WhatsApp · Litoral SC',
+                        statusVal: metaAds.status === 'ACTIVE' ? 'ATIVO' : (metaAds.status === 'PAUSED' ? 'PAUSADO' : metaAds.status),
+                        metrics: [
+                            ['Impressões hoje',    loFmt(metaAds.impressoes)],
+                            ['Cliques hoje',       loFmt(metaAds.cliques)],
+                            ['Investido hoje',     loFmt(metaAds.spend, 'R$'), true],
+                            ['Anúncios ativos',    loFmt(metaAds.anuncios_ativos)],
+                        ],
+                        barPct: metaAds.impressoes ? Math.min(100, Math.round(metaAds.cliques / Math.max(metaAds.impressoes, 1) * 5000)) : 0,
+                        footer: metaAds.campanha !== '—' ? metaAds.campanha.slice(0, 38) : 'Sem campanha ativa',
+                    }),
+                    // Card 3 — Pipeline
+                    loCard({
+                        num: 3,
+                        title: 'Pipeline',
+                        sub: 'Leads · Funil de vendas',
+                        statusVal: 'ATIVO',
+                        metrics: [
+                            ['Triagem',            loFmt(pipeline.novo_lead)],
+                            ['Em atendimento',     loFmt(pipeline.em_atendimento)],
+                            ['Qualificados',       loFmt(pipeline.qualificado), true],
+                            ['Convertidos',        loFmt(pipeline.convertido)],
+                        ],
+                        barPct: pipeline.total ? Math.round((pipeline.qualificado + pipeline.convertido) / Math.max(pipeline.total, 1) * 100) : 0,
+                        footer: `${pipeline.hoje} lead${pipeline.hoje !== 1 ? 's' : ''} criado${pipeline.hoje !== 1 ? 's' : ''} hoje`,
+                    }),
+                    // Card 4 — Catálogo
+                    loCard({
+                        num: 4,
+                        title: 'Catálogo',
+                        sub: 'Imóveis · Babolin.tech',
+                        statusVal: catalogo.total > 0 ? 'ATIVO' : 'OFFLINE',
+                        metrics: [
+                            ['Total de imóveis',  loFmt(catalogo.total), true],
+                            ['À venda',           loFmt(catalogo.venda)],
+                            ['Aluguel',           loFmt(catalogo.aluguel)],
+                        ],
+                        barPct: catalogo.total ? Math.round((catalogo.venda / Math.max(catalogo.total, 1)) * 100) : 0,
+                        footer: catalogo.atualizado ? `Atualizado em ${catalogo.atualizado}` : 'Catálogo vazio',
+                    }),
+                ];
+
+                document.getElementById('loGrid').innerHTML = cards.join('');
+                const ts = geradoEm ? new Date(geradoEm).toLocaleTimeString('pt-BR') : '';
+                document.getElementById('loGeradoEm').textContent = ts ? `atualizado às ${ts}` : '';
+            } catch(e) {
+                document.getElementById('loGrid').innerHTML = `<div style="grid-column:1/-1;color:var(--danger);font-size:0.8rem;">Erro ao carregar Live Ops: ${e.message}</div>`;
+            }
+        }
+
+        // Carrega ao abrir o painel
+        document.querySelectorAll('nav li').forEach(li => {
+            if (li.dataset.panel === 'liveops') {
+                li.addEventListener('click', loCarregar);
+            }
+        });
 
         // ═══════════════════════════════════════════════════════════════
         // Pipeline / Kanban

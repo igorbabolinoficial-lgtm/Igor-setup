@@ -24,6 +24,7 @@ const skillsRoutes     = require('./routes/skills');
 const metaAdsRoutes    = require('./routes/meta-ads');
 const whatsappRoutes      = require('./routes/whatsapp');
 const treinamentoRoutes   = require('./routes/treinamento');
+const liveopsRoutes       = require('./routes/liveops');
 const maestro          = require('./agentes/maestro');
 const proativo         = require('./agentes/proativo');
 const briefing         = require('./briefing');
@@ -247,6 +248,7 @@ app.use('/api/sistema',     sistemaRoutes);
 app.use('/api/voz',         vozRoutes);
 app.use('/api/skills',      skillsRoutes);
 app.use('/api/meta-ads',    metaAdsRoutes);
+app.use('/api/liveops',     liveopsRoutes);
 
 app.get('/api/saude', (_req, res) => res.json({ ok: true, projeto: 'igor-neural-system', versao: '0.1.0' }));
 
