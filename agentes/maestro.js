@@ -88,9 +88,11 @@ function pensar() {
     }
 
     // 2) Leads qualificados sem follow_up nas últimas 24h → SDR follow_up (precisa aprovação)
+    // Exclui leads de treino — follow_up de fantasma não faz sentido e polui aprovações
     const qualificados = db.prepare(`
         SELECT id, nome FROM leads
         WHERE status = 'qualificado'
+          AND origem != 'treino'
           AND (ultimo_contato IS NULL OR ultimo_contato < datetime('now', '-1 day'))
         LIMIT 3
     `).all();

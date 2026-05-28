@@ -1909,8 +1909,8 @@
         function loStatusClass(s) {
             if (!s) return 'offline';
             const u = String(s).toUpperCase();
-            if (u === 'ACTIVE' || u === 'ATIVO' || u === 'TRUE') return 'ativo';
-            if (u === 'PAUSED' || u === 'PAUSADO') return 'pausado';
+            if (u === 'ACTIVE' || u === 'ATIVO' || u === 'TRUE' || u === 'OK') return 'ativo';
+            if (u === 'PAUSED' || u === 'PAUSADO' || u === 'PENDENTE') return 'pausado';
             return 'offline';
         }
 

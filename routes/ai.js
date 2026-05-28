@@ -69,26 +69,27 @@ router.post('/consulta', async (req, res, next) => {
         const { pergunta } = req.body || {};
         if (!pergunta) return res.status(400).json({ erro: 'pergunta é obrigatória' });
 
-        const apiKey = getApiKey();
-        if (!apiKey || !GoogleGenerativeAI) {
-            const resposta = `IA indisponível (sem GEMINI_API_KEY). Pergunta recebida: "${pergunta}". Top leads:\n${montarContextoLeads()}`;
+        const { gerarTexto, temAlgumLLM } = require('../agentes/ia');
+
+        if (!temAlgumLLM()) {
+            const resposta = `Nenhuma chave de IA configurada. Pergunta: "${pergunta}"\n\nTop leads:\n${montarContextoLeads()}`;
             registrarLog({ agente: 'sdr', nivel: 'alerta', mensagem: 'Consulta IA sem chave configurada', contexto: { pergunta } });
             return res.json({ resposta, modo: 'fallback' });
         }
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
         const persona = process.env.PERSONA_SDR || 'Corretor de Elite — Igor Babolin';
         const contextoLeads = montarContextoLeads();
         const contextoCerebro = montarContextoCerebro();
         const prompt = `Você é o agente SDR do ${persona}. Responda em pt-BR, direto e acionável.${contextoCerebro ? `\n\n# CÉREBRO (Obsidian)\n${contextoCerebro}` : ''}\n\n# BASE DE LEADS\n${contextoLeads}\n\n# PERGUNTA\n${pergunta}`;
 
-        const r = await model.generateContent(prompt);
-        const resposta = r.response.text();
+        const r = await gerarTexto(prompt);
+        if (!r) {
+            registrarLog({ agente: 'sdr', nivel: 'alerta', mensagem: 'Todos os LLMs falharam na consulta', contexto: { pergunta } });
+            return res.json({ resposta: 'Não consegui responder agora. Tente novamente em instantes.', modo: 'fallback' });
+        }
 
-        registrarLog({ agente: 'sdr', nivel: 'sucesso', mensagem: 'Consulta IA respondida', contexto: { pergunta } });
-        res.json({ resposta, modo: 'gemini' });
+        registrarLog({ agente: 'sdr', nivel: 'sucesso', mensagem: 'Consulta IA respondida', contexto: { pergunta, modelo: r.modelo } });
+        res.json({ resposta: r.texto, modo: r.modelo });
     } catch (err) {
         next(err);
     }
