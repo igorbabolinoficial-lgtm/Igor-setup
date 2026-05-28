@@ -2,6 +2,7 @@
 import { chat } from './llm.js';
 import { resumoCatalogo, linkImovel, imovelPorId, formatarImovelDestaque, buscarPorPreco, buscarPorNome, formatarResultadoBusca } from './catalogo.js';
 import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syncLeadToIgor, setUltimoEventId, getUltimoEventId, setPreferencias, getPreferencias, setHumanTakeover, isHumanTakeover, db } from './storage.js';
+import { pausarCadencia, registrarContatoBot } from './cadencia.js';
 import { sendText, sendVoice, sendImage, resolveLidToPhone, setTyping, downloadMediaFromUrl } from './baileys.js';
 import { transcribeAudio } from './transcribe.js';
 import { gerarAudio, ttsHabilitado } from './tts.js';
@@ -554,6 +555,9 @@ export async function persistIncoming(incoming) {
   // apos processBatch enviar resposta. (CHECK constraint: pendente|enviado|respondido|opt_out)
   await touchLead(lead.id);
 
+  // Lead respondeu — pausa cadência de follow-up
+  pausarCadencia(phone);
+
   // Retorna body atualizado (transcrição) para o coalescer usar no batch
   return { ...incoming, phone, leadId: lead.id, remoteJid: incoming.remoteJid, body, transcribed };
 }
@@ -978,6 +982,9 @@ export async function processBatch(batch) {
 
   await touchLead(leadId, { whatsapp_status: 'respondido' });
 
+  // Registra contato do bot — agenda próximo follow-up se lead não responder
+  registrarContatoBot(phone);
+
   // Auto-progressão de status no pipeline (best-effort, não bloqueia a resposta)
   if (parentReady()) {
     const pontosPreenchidos = [
@@ -1206,6 +1213,12 @@ async function enviarResposta(phone, body, leadId, opts = {}) {
 export async function enviarManual(phone, body, leadId) {
   await setHumanTakeover(phone);
   return enviarResposta(phone, body, leadId, { agent: false, skipReadDelay: true });
+}
+
+// Versao usada pelo sistema de cadência (follow-up automático).
+// NÃO seta human_takeover — o bot continua respondendo normalmente.
+export async function enviarFollowup(phone, body) {
+  return enviarResposta(phone, body, null, { agent: true, skipReadDelay: true });
 }
 
 export { linkImovel };

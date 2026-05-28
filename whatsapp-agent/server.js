@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { existsSync, createReadStream } from 'fs';
 import { join, basename } from 'path';
 import { persistIncoming, processBatch, enviarManual } from './lib/conversation.js';
+import { iniciarFollowupCron } from './lib/followup-runner.js';
 import {
   connect as connectBaileys,
   registerIncomingHandler,
@@ -282,4 +283,7 @@ app.listen(PORT, async () => {
   connectBaileys().catch((err) => {
     log.error('Falha boot baileys', { err: err.message, stack: err.stack });
   });
+
+  // Inicia cron de follow-up (verifica a cada hora, dispara nas janelas 9h e 17h)
+  iniciarFollowupCron();
 });
