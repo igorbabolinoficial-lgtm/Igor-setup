@@ -71,24 +71,35 @@ router.get('/', async (_req, res) => {
     } catch {}
 
     // ── 3. Meta Ads — campanha ativa ──
-    let metaAds = { status: 'DESCONHECIDO', campanha: '—', impressoes: 0, cliques: 0, spend: 0, cpl: 0, anuncios_ativos: 0 };
+    let metaAds = { status: 'DESCONHECIDO', campanha: '—', impressoes: 0, cliques: 0, spend: 0, anuncios_ativos: 0, periodo: 'hoje' };
     try {
         const m = await metaMod();
-        // pega primeira campanha ativa
+
+        // Campanha ativa
         const camps = await m.listarCampanhas();
         const ativa = (camps.data || []).find(c => c.status === 'ACTIVE') || (camps.data || [])[0];
+
         if (ativa) {
             metaAds.campanha = ativa.name;
             metaAds.status   = ativa.status;
-            // métricas de hoje
-            const ins = await m.metricas(ativa.id, 'today').catch(() => null);
-            if (ins?.data?.length) {
-                const d = ins.data[0];
-                metaAds.impressoes = parseInt(d.impressions  || 0, 10);
-                metaAds.cliques    = parseInt(d.clicks       || 0, 10);
-                metaAds.spend      = parseFloat(d.spend      || 0);
+
+            // Tenta 'today' primeiro, cai em 'last_7d' se vazio
+            let insData = null;
+            for (const preset of ['today', 'last_7d']) {
+                const ins = await m.metricas(ativa.id, preset).catch(() => null);
+                const rows = ins?.data || [];
+                if (rows.length && rows.some(r => parseFloat(r.impressions || 0) > 0)) {
+                    // soma todos os ads do retorno
+                    metaAds.impressoes = rows.reduce((s, r) => s + parseInt(r.impressions || 0, 10), 0);
+                    metaAds.cliques    = rows.reduce((s, r) => s + parseInt(r.clicks      || 0, 10), 0);
+                    metaAds.spend      = rows.reduce((s, r) => s + parseFloat(r.spend     || 0), 0);
+                    metaAds.periodo    = preset === 'today' ? 'hoje' : '7 dias';
+                    insData = rows;
+                    break;
+                }
             }
-            // contar anúncios ativos
+
+            // Anúncios ativos
             try {
                 const ads = await m.listarAnuncios(ativa.id);
                 metaAds.anuncios_ativos = (ads.data || []).filter(a => a.status === 'ACTIVE').length;
