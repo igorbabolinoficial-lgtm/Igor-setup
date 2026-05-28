@@ -1,5 +1,5 @@
 // Orquestrador da conversa: recebe mensagem do lead -> monta contexto -> chama Groq -> envia resposta.
-import { chat } from './llm.js';
+import { chat, describeImage } from './llm.js';
 import { resumoCatalogo, linkImovel, imovelPorId, formatarImovelDestaque, buscarPorPreco, buscarPorNome, formatarResultadoBusca } from './catalogo.js';
 import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syncLeadToIgor, setUltimoEventId, getUltimoEventId, setPreferencias, getPreferencias, setHumanTakeover, isHumanTakeover, db } from './storage.js';
 import { pausarCadencia, registrarContatoBot } from './cadencia.js';
@@ -524,6 +524,12 @@ export async function persistIncoming(incoming) {
             log.info('Audio transcrito', { phone, chars: texto.length, preview: texto.slice(0, 80) });
           } else {
             body = body || null; // sem transcrição — body null, arquivo fica disponível
+          }
+        } else if (looksImage) {
+          const descricao = await describeImage(media.buffer, media.mimetype || mediaMimetype);
+          if (descricao) {
+            body = descricao;
+            log.info('Imagem descrita por visao', { phone, preview: descricao.slice(0, 120) });
           }
         }
       }

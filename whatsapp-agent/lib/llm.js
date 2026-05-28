@@ -133,4 +133,68 @@ export async function chat(messages, options = {}) {
   return chatGroq(messages, options);
 }
 
+// === VISÃO — descreve imagem recebida pelo lead ===
+// Tenta Anthropic (claude-haiku) primeiro; fallback Gemini.
+// Retorna texto descritivo em pt-BR ou null se nenhum provider disponível.
+export async function describeImage(buffer, mimetype) {
+  const baseType = ((mimetype || 'image/jpeg').split(';')[0]).trim();
+  const base64 = buffer.toString('base64');
+
+  const PROMPT = 'Descreva esta imagem em 1-2 frases curtas em português. Se for anúncio ou listagem de imóvel, extraia: tipo (casa/apartamento/terreno), localização e preço visíveis. Seja direto e conciso.';
+
+  // Tenta Anthropic primeiro (suporta visão em Haiku)
+  if (process.env.ANTHROPIC_API_KEY) {
+    try {
+      if (!anthropicClient) {
+        const { default: Anthropic } = await import('@anthropic-ai/sdk');
+        anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      }
+      const result = await anthropicClient.messages.create({
+        model: process.env.ANTHROPIC_VISION_MODEL || 'claude-haiku-4-5',
+        max_tokens: 200,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: baseType, data: base64 } },
+            { type: 'text', text: PROMPT },
+          ],
+        }],
+      });
+      const textBlock = result.content?.find((b) => b.type === 'text');
+      const texto = textBlock?.text?.trim() || null;
+      if (texto) {
+        log.info('describeImage Anthropic OK', { chars: texto.length });
+        return texto;
+      }
+    } catch (e) {
+      log.warn('describeImage Anthropic falhou', { err: e.message });
+    }
+  }
+
+  // Fallback: Gemini (também suporta visão, free tier)
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      if (!geminiClient) {
+        const { GoogleGenerativeAI } = await import('@google/generative-ai');
+        geminiClient = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      }
+      const model = geminiClient.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.0-flash' });
+      const result = await model.generateContent([
+        { inlineData: { data: base64, mimeType: baseType } },
+        PROMPT,
+      ]);
+      const texto = result.response.text()?.trim() || null;
+      if (texto) {
+        log.info('describeImage Gemini OK', { chars: texto.length });
+        return texto;
+      }
+    } catch (e) {
+      log.warn('describeImage Gemini falhou', { err: e.message });
+    }
+  }
+
+  log.warn('describeImage: nenhum provider de visao disponivel (set ANTHROPIC_API_KEY ou GEMINI_API_KEY)');
+  return null;
+}
+
 export const providerAtivo = PROVIDER;
