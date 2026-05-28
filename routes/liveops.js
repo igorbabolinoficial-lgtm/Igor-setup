@@ -140,10 +140,11 @@ router.get('/', async (_req, res) => {
     } catch {}
 
     // ── 6. Aprovações pendentes ──
+    // Conta tarefas ainda pendentes na fila (aguardando execução pelo maestro)
     let aprovacoes = { total: 0 };
     try {
         aprovacoes.total = db.prepare(
-            `SELECT COUNT(*) AS n FROM aprovacoes WHERE status = 'pendente'`
+            `SELECT COUNT(*) AS n FROM fila_tarefas WHERE status = 'pendente'`
         ).get().n || 0;
     } catch {}
 

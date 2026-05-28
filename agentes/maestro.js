@@ -43,34 +43,30 @@ function enfileirar({ agente_destino, tipo, payload, prioridade = 5 }) {
     return r.lastInsertRowid;
 }
 
-// Tipos que exigem aprovação humana antes de executar (mensagens p/ cliente real)
-const TIPOS_SENSIVEIS = new Set(['follow_up', 'responder_dm', 'boas_vindas']);
-
-function jaEmAprovacao(agente_destino, tipo, leadId = null) {
-    const where = ["status = 'pendente'", 'agente_destino = ?', 'tipo = ?'];
-    const params = [agente_destino, tipo];
-    if (leadId) { where.push('payload LIKE ?'); params.push(`%${leadId}%`); }
-    const r = db.prepare(`SELECT COUNT(*) AS n FROM aprovacoes WHERE ${where.join(' AND ')}`).get(...params);
-    return r.n > 0;
-}
+// Maestro auto-aprova tudo — não exige intervenção humana pra executar tarefas.
+// Tabela 'aprovacoes' é usada como log de auditoria (o que foi decidido e quando).
+// O humano pode cancelar uma tarefa ainda pendente na fila pelo painel do dashboard.
 
 function dispararOuAprovar({ agente_destino, tipo, payload, prioridade, descricaoHumana }) {
-    if (TIPOS_SENSIVEIS.has(tipo)) {
-        const leadId = payload && payload.lead_id;
-        if (jaEmAprovacao(agente_destino, tipo, leadId)) return null;
-        const r = db.prepare(`
-            INSERT INTO aprovacoes (agente_destino, tipo, payload, descricao)
-            VALUES (?, ?, ?, ?)
-        `).run(agente_destino, tipo, payload ? JSON.stringify(payload) : null, descricaoHumana);
-        registrarLog({
-            agente: 'maestro', nivel: 'alerta',
-            mensagem: `Aguardando aprovação: ${descricaoHumana}`,
-            contexto: { aprovacao_id: r.lastInsertRowid }
-        });
-        return { aprovacao_id: r.lastInsertRowid };
-    }
-    const id = enfileirar({ agente_destino, tipo, payload, prioridade });
-    return { tarefa_id: id };
+    const leadId = payload && payload.lead_id;
+    // Dedup: não cria se já tem tarefa pendente/executando pra esse lead+tipo
+    if (leadId && jaTemPendente(agente_destino, tipo, leadId)) return null;
+
+    const tarefaId = enfileirar({ agente_destino, tipo, payload, prioridade });
+
+    // Registra no histórico para auditoria e possível cancelamento
+    const { nowIso } = require('../db');
+    db.prepare(`
+        INSERT INTO aprovacoes (agente_destino, tipo, payload, descricao, status, decidido_em, tarefa_id)
+        VALUES (?, ?, ?, ?, 'aprovada', ?, ?)
+    `).run(agente_destino, tipo, payload ? JSON.stringify(payload) : null, descricaoHumana, nowIso(), tarefaId);
+
+    registrarLog({
+        agente: 'maestro', nivel: 'info',
+        mensagem: `Auto-aprovado: ${descricaoHumana}`,
+        contexto: { tarefa_id: tarefaId }
+    });
+    return { tarefa_id: tarefaId };
 }
 
 // O Maestro Igor "pensa": escaneia estado e cria tarefas autonomamente

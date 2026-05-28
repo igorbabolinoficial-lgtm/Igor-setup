@@ -320,14 +320,20 @@
         .stat-mini .stat-num b { color: var(--success); }
         .stat-mini.maestro { border-color: var(--accent); }
 
-        /* === Aba Aprovações === */
-        .aprovacao-card { background: var(--surface); border: 1px solid var(--warning); border-radius: 6px; padding: 18px; margin-bottom: 12px; display: flex; align-items: center; gap: 16px; }
-        .aprovacao-card .info { flex: 1; }
-        .aprovacao-card .descricao { font-size: 0.95rem; color: var(--text); margin-bottom: 4px; }
-        .aprovacao-card .meta      { font-size: 0.7rem; color: var(--text-muted); }
-        .aprovacao-card .acoes { display: flex; gap: 8px; }
-        .btn-aprovar  { background: var(--success); color: #fff; border: none; padding: 8px 16px; cursor: pointer; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; }
-        .btn-rejeitar { background: var(--danger);  color: #fff; border: none; padding: 8px 16px; cursor: pointer; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; }
+        /* === Aba Aprovações / Histórico === */
+        .ativo-filtro { border-color: var(--accent) !important; color: var(--accent) !important; }
+        .hist-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 12px; }
+        .hist-table th { text-align: left; padding: 8px 12px; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+        .hist-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+        .hist-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .hist-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+        .hist-badge.aprovada  { background: rgba(76,175,80,0.15);  color: var(--success); }
+        .hist-badge.rejeitada { background: rgba(244,67,54,0.15);  color: var(--danger); }
+        .hist-badge.cancelada { background: rgba(158,158,158,0.15); color: var(--text-muted); }
+        .hist-badge.expirada  { background: rgba(255,152,0,0.15);  color: var(--warning); }
+        .hist-badge.executada { background: rgba(33,150,243,0.15); color: #64b5f6; }
+        .btn-cancelar { background: none; border: 1px solid var(--danger); color: var(--danger); padding: 4px 10px; cursor: pointer; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .btn-cancelar:hover { background: rgba(244,67,54,0.1); }
 
         /* Briefing card */
         .briefing-card { background: linear-gradient(135deg, var(--surface) 0%, rgba(163,150,136,0.08) 100%); border: 1px solid var(--accent); border-radius: 8px; padding: 25px; white-space: pre-wrap; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.7; }
@@ -986,12 +992,15 @@
             }
         </script>
 
-        <!-- Aprovações -->
+        <!-- Aprovações / Histórico de decisões do Maestro -->
         <div id="aprovacoes" class="panel">
-            <div class="controls">
+            <div class="controls" style="gap:8px;flex-wrap:wrap;">
                 <button class="btn-ghost" onclick="carregarAprovacoes()">↻ Atualizar</button>
-                <button class="btn-elite" onclick="aprovarTodas()" style="background: var(--success); color: #fff;">✓✓ Aprovar todas</button>
-                <button class="btn-ghost" onclick="rejeitarTodas()" style="border-color: var(--danger); color: var(--danger);">✕✕ Rejeitar todas</button>
+                <button id="filtroTodas"    class="btn-ghost ativo-filtro" onclick="filtrarAprovacoes('todas')">Todas</button>
+                <button id="filtroAprovada" class="btn-ghost" onclick="filtrarAprovacoes('aprovada')">Aprovadas</button>
+                <button id="filtroRejeitada" class="btn-ghost" onclick="filtrarAprovacoes('rejeitada')">Rejeitadas</button>
+                <button id="filtroCancelada" class="btn-ghost" onclick="filtrarAprovacoes('cancelada')">Canceladas</button>
+                <span id="aprovacoesInfo" style="margin-left:auto;font-size:0.72rem;color:var(--text-muted);align-self:center;"></span>
             </div>
             <div id="aprovacoesLista"></div>
         </div>
@@ -2719,47 +2728,74 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // Aprovações Humanas
+        // Histórico de decisões do Maestro
         // ═══════════════════════════════════════════════════════════════
+        let _filtroAprovacoes = 'todas';
+
+        function filtrarAprovacoes(f) {
+            _filtroAprovacoes = f;
+            document.querySelectorAll('[id^="filtro"]').forEach(b => b.classList.remove('ativo-filtro'));
+            const mapa = { todas: 'filtroTodas', aprovada: 'filtroAprovada', rejeitada: 'filtroRejeitada', cancelada: 'filtroCancelada' };
+            if (mapa[f]) document.getElementById(mapa[f])?.classList.add('ativo-filtro');
+            carregarAprovacoes();
+        }
+
         async function carregarAprovacoes() {
-            const data = await api('GET', '/aprovacoes');
+            const data = await api('GET', `/aprovacoes?status=${_filtroAprovacoes}`);
             const lista = document.getElementById('aprovacoesLista');
-            if (!data.aprovacoes.length) {
-                lista.innerHTML = '<p style="color: var(--text-muted); padding: 30px; text-align: center;">Nenhuma aprovação pendente. ✓</p>';
+            const info  = document.getElementById('aprovacoesInfo');
+            if (info) info.textContent = `${data.total} registros${data.pendentes > 0 ? ` · ${data.pendentes} na fila` : ''}`;
+
+            if (!data.aprovacoes?.length) {
+                lista.innerHTML = '<p style="color:var(--text-muted);padding:30px;text-align:center;">Nenhum registro encontrado.</p>';
                 return;
             }
-            lista.innerHTML = '';
-            data.aprovacoes.forEach(a => {
-                const card = document.createElement('div');
-                card.className = 'aprovacao-card';
-                card.innerHTML = `
-                    <div class="info">
-                        <div class="descricao">${a.descricao}</div>
-                        <div class="meta">${a.agente_destino} · ${a.tipo} · ${a.criado_em}</div>
-                    </div>
-                    <div class="acoes">
-                        <button class="btn-aprovar"  onclick="decidirAprovacao(${a.id}, 'aprovar')">✓ Aprovar</button>
-                        <button class="btn-rejeitar" onclick="decidirAprovacao(${a.id}, 'rejeitar')">✕ Rejeitar</button>
-                    </div>
-                `;
-                lista.appendChild(card);
-            });
+
+            const statusBadge = (a) => {
+                let cls = a.status;
+                if (a.status === 'aprovada' && a.tarefa_status === 'concluida') cls = 'executada';
+                const labels = { aprovada:'auto-aprovada', rejeitada:'rejeitada', cancelada:'cancelada', expirada:'expirada', executada:'executada' };
+                return `<span class="hist-badge ${cls}">${labels[cls] || a.status}</span>`;
+            };
+
+            const cancelavel = (a) => a.tarefa_status === 'pendente';
+
+            lista.innerHTML = `
+                <table class="hist-table">
+                    <thead><tr>
+                        <th>Status</th>
+                        <th>Ação</th>
+                        <th>Agente</th>
+                        <th>Quando</th>
+                        <th></th>
+                    </tr></thead>
+                    <tbody>
+                    ${data.aprovacoes.map(a => `
+                        <tr>
+                            <td>${statusBadge(a)}</td>
+                            <td style="max-width:320px;">${a.descricao || a.tipo}</td>
+                            <td style="color:var(--text-muted)">${a.agente_destino}</td>
+                            <td style="color:var(--text-muted);white-space:nowrap">${(a.criado_em||'').slice(0,16).replace('T',' ')}</td>
+                            <td>${cancelavel(a) ? `<button class="btn-cancelar" onclick="cancelarAprovacao(${a.id})">Cancelar</button>` : ''}</td>
+                        </tr>
+                    `).join('')}
+                    </tbody>
+                </table>`;
         }
-        async function decidirAprovacao(id, decisao) {
-            await api('POST', `/aprovacoes/${id}/${decisao}`);
-            carregarAprovacoes();
+
+        async function cancelarAprovacao(id) {
+            if (!confirm('Cancelar esta tarefa? Ela será removida da fila.')) return;
+            try {
+                await api('POST', `/aprovacoes/${id}/cancelar`);
+                carregarAprovacoes();
+            } catch (e) {
+                alert('Não foi possível cancelar: ' + (e.message || 'tarefa já em execução'));
+            }
         }
-        async function aprovarTodas() {
-            if (!confirm('Aprovar todas as tarefas pendentes? Elas vão pra fila do agente correspondente imediatamente.')) return;
-            const r = await api('POST', '/aprovacoes/aprovar-todas');
-            alert(`✅ ${r.aprovadas} aprovações executadas`);
-            carregarAprovacoes();
-        }
+
+        // Legado — mantido pra compatibilidade com Live Ops que chama verificarAprovacoes
+        async function aprovarTodas() { carregarAprovacoes(); }
         async function rejeitarTodas() {
-            if (!confirm('Rejeitar TODAS as pendentes? Não dá pra desfazer.')) return;
-            const r = await api('POST', '/aprovacoes/rejeitar-todas');
-            alert(`✕ ${r.rejeitadas} rejeitadas`);
-            carregarAprovacoes();
         }
 
         // ═══════════════════════════════════════════════════════════════
