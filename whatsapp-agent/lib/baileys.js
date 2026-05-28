@@ -28,6 +28,9 @@ let _onOutgoing = null;
 let _reconnectTimer = null;
 let _connectInProgress = false;
 
+// Mapa LID (dígitos) -> phone real (dígitos). Populado por contacts.upsert.
+const _lidToPhone = new Map();
+
 export function registerIncomingHandler(handler) {
   _onIncoming = handler;
 }
@@ -61,6 +64,21 @@ export async function connect() {
     _sock = sock;
 
     sock.ev.on('creds.update', saveCreds);
+
+    // Constrói mapa LID -> phone a partir dos contatos sincronizados pelo WhatsApp.
+    // Quando WhatsApp envia um contato com @s.whatsapp.net + campo lid, temos os dois lados.
+    sock.ev.on('contacts.upsert', (contacts) => {
+      for (const c of contacts) {
+        if (c.lid && c.id && c.id.endsWith('@s.whatsapp.net')) {
+          const lid   = c.lid.replace(/@.*$/, '');
+          const phone = c.id.replace(/@.*$/, '');
+          if (lid && phone) {
+            _lidToPhone.set(lid, phone);
+            log.debug('LID mapeado via contacts', { lid, phone });
+          }
+        }
+      }
+    });
 
     sock.ev.on('connection.update', (update) => {
       const { connection, lastDisconnect, qr } = update;
@@ -219,8 +237,36 @@ export async function downloadMediaFromUrl(_url, mimetype, opts = {}) {
   }
 }
 
-// Resolve LID: nao se aplica no baileys (entrega phone real)
-export async function resolveLidToPhone(_lid) { return null; }
+// Resolve LID para número de telefone real.
+// 1. Consulta mapa em memória (populado por contacts.upsert).
+// 2. Fallback: query ao WhatsApp via sock.onWhatsApp.
+export async function resolveLidToPhone(lid) {
+  if (!lid) return null;
+  const digits = String(lid).replace(/\D/g, '');
+
+  // 1. Mapa local
+  if (_lidToPhone.has(digits)) return _lidToPhone.get(digits);
+
+  // 2. Query ao WhatsApp
+  if (_sock) {
+    try {
+      const results = await _sock.onWhatsApp(`${digits}@lid`);
+      if (results?.length) {
+        const jid = results[0]?.jid;
+        if (jid && jid.endsWith('@s.whatsapp.net')) {
+          const phone = jid.replace(/@.*$/, '');
+          _lidToPhone.set(digits, phone);
+          log.info('LID resolvido via onWhatsApp', { lid: digits, phone });
+          return phone;
+        }
+      }
+    } catch (err) {
+      log.debug('resolveLidToPhone onWhatsApp falhou', { lid: digits, err: err.message });
+    }
+  }
+
+  return null;
+}
 
 // --- Envio ---
 function phoneToJid(phoneOrJid) {

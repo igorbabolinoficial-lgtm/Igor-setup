@@ -202,6 +202,18 @@ export async function isHumanTakeover(phone) {
     } catch { return false; }
 }
 
+// Quando um LID é resolvido para o número real, migra o lead e as mensagens no banco.
+// Evita duplicatas: só migra se o número real ainda não existe como lead separado.
+export function migrarLidParaPhone(lid, phone) {
+  if (!lid || !phone || lid === phone) return;
+  const existing = db.prepare('SELECT id FROM leads WHERE phone = ?').get(lid);
+  if (!existing) return; // não tem lead com esse LID, nada a fazer
+  const conflict = db.prepare('SELECT id FROM leads WHERE phone = ?').get(phone);
+  if (conflict) return; // já existe lead com o número real — não sobrescreve
+  db.prepare('UPDATE leads SET phone = ? WHERE phone = ?').run(phone, lid);
+  db.prepare('UPDATE whatsapp_messages SET phone = ? WHERE phone = ?').run(phone, lid);
+}
+
 export async function clearHumanTakeover(phone) {
     if (!phone) return;
     const row = db.prepare('SELECT meta FROM leads WHERE phone = ?').get(phone);

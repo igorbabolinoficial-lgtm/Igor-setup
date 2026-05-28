@@ -4,6 +4,7 @@ import { resumoCatalogo, linkImovel, imovelPorId, formatarImovelDestaque, buscar
 import { getRecentMessages, findOrCreateLeadByPhone, saveMessage, touchLead, syncLeadToIgor, setUltimoEventId, getUltimoEventId, setPreferencias, getPreferencias, setHumanTakeover, isHumanTakeover, db } from './storage.js';
 import { pausarCadencia, registrarContatoBot } from './cadencia.js';
 import { sendText, sendVoice, sendImage, resolveLidToPhone, setTyping, downloadMediaFromUrl } from './baileys.js';
+import { migrarLidParaPhone } from './storage.js';
 import { transcribeAudio } from './transcribe.js';
 import { gerarAudio, ttsHabilitado } from './tts.js';
 import { criarAgenda, parentReady, atualizarStatusLead, fetchContextoTreino } from './parent-api.js';
@@ -493,6 +494,7 @@ export async function persistIncoming(incoming) {
     const realPhone = await resolveLidToPhone(phone);
     if (realPhone) {
       log.info('LID resolvido', { lid: phone, phone: realPhone });
+      migrarLidParaPhone(phone, realPhone); // atualiza lead + mensagens antigas no banco
       phone = realPhone;
     } else {
       log.warn('Nao foi possivel resolver LID, usando LID como phone', { lid: phone });
