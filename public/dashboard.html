@@ -392,6 +392,29 @@
         .console-input { display: flex; padding: 12px; gap: 8px; background: #000; border-top: 1px solid var(--border); }
         .console-input input { flex: 1; background: transparent; border: none; color: var(--accent); outline: none; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
         .console-input button { background: var(--accent); color: #000; border: none; padding: 6px 14px; cursor: pointer; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; }
+
+        /* ── Notificações ── */
+        .notif-wrap { position: relative; }
+        .notif-btn { background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 1rem; transition: var(--transition); position: relative; }
+        .notif-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .notif-badge { position: absolute; top: -5px; right: -5px; background: var(--danger); color: #fff; font-size: 0.6rem; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 3px; font-family: 'JetBrains Mono', monospace; }
+        .notif-panel { position: absolute; top: calc(100% + 8px); right: 0; width: 340px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; z-index: 1000; box-shadow: 0 8px 32px rgba(0,0,0,0.5); overflow: hidden; }
+        .notif-panel-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .notif-panel-header span { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--accent); }
+        .notif-panel-header button { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; }
+        .notif-panel-header button:hover { color: var(--text); }
+        .notif-list { max-height: 320px; overflow-y: auto; }
+        .notif-item { padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: var(--transition); display: flex; gap: 10px; align-items: flex-start; }
+        .notif-item:hover { background: var(--surface-light); }
+        .notif-item.lida { opacity: 0.45; }
+        .notif-item-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+        .notif-item-body { flex: 1; }
+        .notif-item-titulo { font-size: 0.8rem; color: var(--text); margin-bottom: 3px; }
+        .notif-item-ts { font-size: 0.65rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+        .notif-empty { padding: 24px 16px; text-align: center; font-size: 0.8rem; color: var(--text-muted); }
+
+        /* Live ops 6 cards — 3 colunas */
+        .liveops-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
     </style>
 </head>
 <body>
@@ -445,7 +468,24 @@
     <main>
         <header>
             <h1 id="panelTitle">Pipeline de Leads</h1>
-            <div class="clock" id="liveClock">--:--:--</div>
+            <div style="display:flex;align-items:center;gap:14px;">
+                <div class="notif-wrap" id="notifWrap">
+                    <button class="notif-btn" onclick="toggleNotifPanel()" title="Notificações">
+                        🔔
+                        <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+                    </button>
+                    <div class="notif-panel" id="notifPanel" style="display:none">
+                        <div class="notif-panel-header">
+                            <span>Notificações</span>
+                            <button onclick="marcarTodasLidas()">Marcar todas como lidas</button>
+                        </div>
+                        <div class="notif-list" id="notifList">
+                            <div class="notif-empty">Nenhuma notificação</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="clock" id="liveClock">--:--:--</div>
+            </div>
         </header>
 
         <!-- Live Ops -->
@@ -1748,7 +1788,8 @@
             <label>Local / Link</label>
             <input type="text" id="evLocal" placeholder="Ex: https://meet.google.com/... ou Praia do Rosa">
             <div class="modal-actions">
-                <button class="btn-ghost" onclick="fecharModalEvento()">Cancelar</button>
+                <button class="btn-ghost" onclick="fecharModalEvento()">Fechar</button>
+                <button id="btnCancelarEvento" style="display:none;background:rgba(244,67,54,0.12);color:var(--danger);border:1px solid var(--danger);padding:10px 20px;cursor:pointer;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;" onclick="cancelarEvento()">Cancelar Evento</button>
                 <button class="btn-elite" id="btnSalvarEvento" onclick="salvarEvento()">Salvar + Google Calendar</button>
             </div>
         </div>
@@ -1902,7 +1943,7 @@
                 const d = await api('GET', '/liveops');
                 if (!d.ok) return;
 
-                const { pipeline, waBot, metaAds, catalogo, geradoEm } = d;
+                const { pipeline, waBot, metaAds, catalogo, agendaHoje, aprovacoes, geradoEm } = d;
 
                 const cards = [
                     // Card 1 — Bot SDR
@@ -1963,11 +2004,48 @@
                         barPct: catalogo.total ? Math.round((catalogo.venda / Math.max(catalogo.total, 1)) * 100) : 0,
                         footer: catalogo.atualizado ? `Atualizado em ${catalogo.atualizado}` : 'Catálogo vazio',
                     }),
+                    // Card 5 — Agenda hoje
+                    loCard({
+                        num: 5,
+                        title: 'Agenda',
+                        sub: 'Compromissos · Hoje',
+                        statusVal: agendaHoje.total > 0 ? 'ATIVO' : 'LIVRE',
+                        metrics: [
+                            ['Total hoje',  loFmt(agendaHoje.total), agendaHoje.total > 0],
+                            ['Calls',       loFmt(agendaHoje.calls)],
+                            ['Visitas',     loFmt(agendaHoje.visitas)],
+                        ],
+                        barPct: Math.min(100, agendaHoje.total * 20),
+                        footer: agendaHoje.proxima
+                            ? `Próx: ${agendaHoje.proxima.titulo.slice(0,28)} · ${agendaHoje.proxima.inicio.slice(11,16)}`
+                            : 'Dia livre',
+                    }),
+                    // Card 6 — Aprovações
+                    loCard({
+                        num: 6,
+                        title: 'Aprovações',
+                        sub: 'Pendentes · Human-in-the-loop',
+                        statusVal: aprovacoes.total > 0 ? 'PENDENTE' : 'OK',
+                        metrics: [
+                            ['Aguardando aprovação', loFmt(aprovacoes.total), aprovacoes.total > 0],
+                        ],
+                        barPct: 0,
+                        footer: aprovacoes.total > 0 ? 'Ação necessária' : 'Nenhuma pendência',
+                    }),
                 ];
 
                 document.getElementById('loGrid').innerHTML = cards.join('');
                 const ts = geradoEm ? new Date(geradoEm).toLocaleTimeString('pt-BR') : '';
                 document.getElementById('loGeradoEm').textContent = ts ? `atualizado às ${ts}` : '';
+                // Notifica aprovações pendentes ao atualizar Live Ops
+                if (aprovacoes?.total > 0) {
+                    adicionarNotificacao('aprovacao', `${aprovacoes.total} aprovação${aprovacoes.total > 1 ? 'ões' : ''} pendente${aprovacoes.total > 1 ? 's' : ''}`, 'Acesse Aprovações para revisar.');
+                }
+                // Notifica agenda do dia
+                if (agendaHoje?.total > 0 && agendaHoje.proxima) {
+                    const hora = agendaHoje.proxima.inicio.slice(11, 16);
+                    adicionarNotificacao('agenda', `${agendaHoje.total} compromisso${agendaHoje.total > 1 ? 's' : ''} hoje`, `Próximo: ${agendaHoje.proxima.titulo} às ${hora}`);
+                }
             } catch(e) {
                 document.getElementById('loGrid').innerHTML = `<div style="grid-column:1/-1;color:var(--danger);font-size:0.8rem;">Erro ao carregar Live Ops: ${e.message}</div>`;
             }
@@ -2190,6 +2268,7 @@
             document.getElementById('evLocal').value     = '';
             document.getElementById('btnSalvarEvento').textContent = 'Salvar + Google Calendar';
             document.getElementById('btnSalvarEvento').disabled = false;
+            document.getElementById('btnCancelarEvento').style.display = 'none';
             document.getElementById('modalEventoTitulo').textContent =
                 'Novo evento — ' + new Date(dataDia + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
             document.getElementById('modalEvento').classList.add('aberto');
@@ -2206,6 +2285,7 @@
             document.getElementById('evLocal').value     = ds.local     || '';
             document.getElementById('btnSalvarEvento').textContent = 'Salvar alterações';
             document.getElementById('btnSalvarEvento').disabled = false;
+            document.getElementById('btnCancelarEvento').style.display = '';
             document.getElementById('modalEventoTitulo').textContent = 'Editar evento';
             document.getElementById('modalEvento').classList.add('aberto');
             setTimeout(() => document.getElementById('evTitulo').focus(), 80);
@@ -3071,6 +3151,120 @@
                 if (gravata) gravata.style.display = '';
             }
         })();
+
+        // ═══════════════════════════════════════════════════════════════
+        // Cancelar evento da agenda
+        // ═══════════════════════════════════════════════════════════════
+        async function cancelarEvento() {
+            if (!modalEventoId) return;
+            if (!confirm('Cancelar este evento? O compromisso será removido do Google Calendar também.')) return;
+            const btn = document.getElementById('btnCancelarEvento');
+            btn.disabled = true;
+            btn.textContent = 'Cancelando...';
+            try {
+                await api('PATCH', `/agenda/${modalEventoId}`, { status: 'cancelado' });
+                fecharModalEvento();
+                carregarAgenda();
+                adicionarNotificacao('agenda', 'Evento cancelado', 'O compromisso foi removido da agenda.');
+            } catch (e) {
+                alert('Erro ao cancelar: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Cancelar Evento';
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // Sistema de Notificações
+        // ═══════════════════════════════════════════════════════════════
+        const NOTIF_KEY = 'igor_notifs_v1';
+        const NOTIF_ICONS = { aprovacao: '✅', agenda: '📅', lead: '👤', alerta: '⚠️', info: 'ℹ️' };
+
+        function notifCarregar() {
+            try { return JSON.parse(localStorage.getItem(NOTIF_KEY) || '[]'); } catch { return []; }
+        }
+        function notifSalvar(lista) {
+            localStorage.setItem(NOTIF_KEY, JSON.stringify(lista.slice(0, 50)));
+        }
+
+        function adicionarNotificacao(tipo, titulo, detalhe) {
+            const lista = notifCarregar();
+            // Evita duplicata recente (mesmo título nas últimas 2h)
+            const recente = lista.find(n => n.titulo === titulo && Date.now() - n.ts < 2 * 60 * 60 * 1000);
+            if (recente) return;
+            lista.unshift({ id: Date.now(), tipo, titulo, detalhe, ts: Date.now(), lida: false });
+            notifSalvar(lista);
+            renderizarNotificacoes();
+        }
+
+        function renderizarNotificacoes() {
+            const lista = notifCarregar();
+            const naoLidas = lista.filter(n => !n.lida).length;
+            const badge = document.getElementById('notifBadge');
+            badge.style.display = naoLidas > 0 ? 'flex' : 'none';
+            badge.textContent = naoLidas > 99 ? '99+' : naoLidas;
+
+            const ul = document.getElementById('notifList');
+            if (!lista.length) {
+                ul.innerHTML = '<div class="notif-empty">Nenhuma notificação</div>';
+                return;
+            }
+            ul.innerHTML = lista.map(n => {
+                const ts = new Date(n.ts).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                return `<div class="notif-item${n.lida ? ' lida' : ''}" onclick="marcarNotifLida(${n.id})">
+                    <span class="notif-item-icon">${NOTIF_ICONS[n.tipo] || 'ℹ️'}</span>
+                    <div class="notif-item-body">
+                        <div class="notif-item-titulo">${n.titulo}</div>
+                        ${n.detalhe ? `<div class="notif-item-ts">${n.detalhe}</div>` : ''}
+                        <div class="notif-item-ts">${ts}</div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function marcarNotifLida(id) {
+            const lista = notifCarregar().map(n => n.id === id ? { ...n, lida: true } : n);
+            notifSalvar(lista);
+            renderizarNotificacoes();
+        }
+
+        function marcarTodasLidas() {
+            const lista = notifCarregar().map(n => ({ ...n, lida: true }));
+            notifSalvar(lista);
+            renderizarNotificacoes();
+        }
+
+        function toggleNotifPanel() {
+            const panel = document.getElementById('notifPanel');
+            const aberto = panel.style.display !== 'none';
+            panel.style.display = aberto ? 'none' : 'block';
+            if (!aberto) renderizarNotificacoes();
+        }
+
+        // Fecha o painel ao clicar fora
+        document.addEventListener('click', (e) => {
+            if (!document.getElementById('notifWrap').contains(e.target)) {
+                document.getElementById('notifPanel').style.display = 'none';
+            }
+        });
+
+        // Polling: verifica aprovações pendentes a cada 30s e gera notificação
+        let _ultimoTotalAprov = -1;
+        async function verificarAprovacoes() {
+            try {
+                const d = await api('GET', '/aprovacoes');
+                const total = d.aprovacoes?.length || 0;
+                if (total > 0 && total !== _ultimoTotalAprov) {
+                    adicionarNotificacao('aprovacao', `${total} aprovação${total > 1 ? 'ões' : ''} pendente${total > 1 ? 's' : ''}`, 'Acesse Aprovações para revisar.');
+                }
+                _ultimoTotalAprov = total;
+            } catch {}
+        }
+
+        // Inicializa notificações
+        renderizarNotificacoes();
+        verificarAprovacoes();
+        setInterval(verificarAprovacoes, 30000);
 
         // ═══════════════════════════════════════════════════════════════
         // Boot

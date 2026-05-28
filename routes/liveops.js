@@ -123,7 +123,31 @@ router.get('/', async (_req, res) => {
         catalogo.atualizado = ult?.importado_em?.slice(0, 10) || null;
     } catch {}
 
-    res.json({ ok: true, pipeline, waBot, metaAds, catalogo, geradoEm: nowIso() });
+    // ── 5. Agenda (hoje) ──
+    let agendaHoje = { total: 0, calls: 0, visitas: 0, proxima: null };
+    try {
+        const fimHoje = hoje + 'T23:59:59';
+        const inicioHoje = hoje + 'T00:00:00';
+        const evs = db.prepare(`
+            SELECT tipo, titulo, inicio FROM agenda
+            WHERE inicio >= ? AND inicio <= ? AND status != 'cancelado'
+            ORDER BY inicio ASC
+        `).all(inicioHoje, fimHoje);
+        agendaHoje.total   = evs.length;
+        agendaHoje.calls   = evs.filter(e => e.tipo === 'ligacao').length;
+        agendaHoje.visitas = evs.filter(e => e.tipo === 'reuniao').length;
+        agendaHoje.proxima = evs.find(e => e.inicio > nowIso()) || evs[0] || null;
+    } catch {}
+
+    // ── 6. Aprovações pendentes ──
+    let aprovacoes = { total: 0 };
+    try {
+        aprovacoes.total = db.prepare(
+            `SELECT COUNT(*) AS n FROM aprovacoes WHERE status = 'pendente'`
+        ).get().n || 0;
+    } catch {}
+
+    res.json({ ok: true, pipeline, waBot, metaAds, catalogo, agendaHoje, aprovacoes, geradoEm: nowIso() });
 });
 
 module.exports = router;
