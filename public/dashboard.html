@@ -1834,6 +1834,11 @@
         </div>
         <div class="lightbox-body">
             <div class="lightbox-meta" id="lbMeta"></div>
+            <div style="margin-bottom:22px;">
+                <button class="btn-sim" id="btnGerarArtes" onclick="gerarCriativos()">Gerar artes (4 formatos)</button>
+                <span id="criativosStatus" style="margin-left:14px; font-size:0.8rem; color:var(--text-muted);"></span>
+                <div id="lbCriativos" style="display:flex; flex-wrap:wrap; gap:16px; margin-top:18px;"></div>
+            </div>
             <div class="lightbox-galeria" id="lbGaleria"></div>
             <div class="lightbox-desc" id="lbDesc"></div>
         </div>
@@ -2907,7 +2912,64 @@
             const gal = document.getElementById('lbGaleria');
             gal.innerHTML = im.fotos.map(f => `<img src="${f}" loading="lazy" onclick="window.open('${f}','_blank')">`).join('');
             document.getElementById('lbDesc').textContent = im.descricao || '(sem descrição)';
+            // reseta seção de criativos pro imóvel atual
+            _imovelAtual = id;
+            document.getElementById('lbCriativos').innerHTML = '';
+            document.getElementById('criativosStatus').textContent = '';
+            document.getElementById('btnGerarArtes').disabled = false;
             document.getElementById('lightbox').classList.add('show');
+        }
+
+        let _imovelAtual = null;
+        const FORMATOS_ARTE = [
+            { key: 'story',      nome: 'Story 9:16' },
+            { key: 'feed',       nome: 'Feed 4:5' },
+            { key: 'quadrado',   nome: 'Quadrado 1:1' },
+            { key: 'horizontal', nome: 'Horizontal 1.91:1' },
+        ];
+
+        async function gerarCriativos(capa = 0) {
+            if (!_imovelAtual) return;
+            const id = _imovelAtual;
+            const cont = document.getElementById('lbCriativos');
+            const status = document.getElementById('criativosStatus');
+            const btn = document.getElementById('btnGerarArtes');
+            btn.disabled = true;
+            status.textContent = 'Baixando fotos em alta…';
+
+            // 1) garante fotos HD e monta seletor de capa
+            let fotos = [];
+            try {
+                const r = await api('GET', `/criativos/${id}/fotos`);
+                fotos = r.fotos || [];
+            } catch (e) { status.textContent = 'Erro ao carregar fotos.'; btn.disabled = false; return; }
+
+            status.textContent = `Gerando ${FORMATOS_ARTE.length} formatos (capa: foto ${capa})…`;
+            cont.innerHTML = '';
+
+            // 2) seletor de capa (miniaturas clicáveis)
+            if (fotos.length) {
+                const sel = document.createElement('div');
+                sel.style.cssText = 'width:100%; display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;';
+                sel.innerHTML = '<span style="font-size:0.7rem;color:var(--text-muted);width:100%;">Capa (clique pra trocar):</span>' +
+                    fotos.map(f => `<img src="${f.url}" title="foto ${f.idx}" onclick="gerarCriativos(${f.idx})"
+                        style="width:54px;height:54px;object-fit:cover;border-radius:4px;cursor:pointer;border:2px solid ${f.idx===capa?'var(--accent)':'transparent'};">`).join('');
+                cont.appendChild(sel);
+            }
+
+            // 3) cada formato: imagem gerada pelo endpoint + botão baixar
+            for (const fmt of FORMATOS_ARTE) {
+                const card = document.createElement('div');
+                card.style.cssText = 'display:flex;flex-direction:column;gap:6px;align-items:center;';
+                const url = `/api/criativos/${id}/arte.png?formato=${fmt.key}&capa=${capa}&_t=${Date.now()}`;
+                card.innerHTML = `
+                    <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">${fmt.nome}</div>
+                    <img src="${url}" style="height:300px;border-radius:6px;background:#0a0a0a;border:1px solid var(--border);" loading="lazy">
+                    <a href="${url}" download="${id}-${fmt.key}.png" style="font-size:0.7rem;color:var(--accent);">baixar PNG ↓</a>`;
+                cont.appendChild(card);
+            }
+            status.textContent = `Pronto — ${FORMATOS_ARTE.length} artes (capa: foto ${capa}).`;
+            btn.disabled = false;
         }
 
         function fecharLightbox() {

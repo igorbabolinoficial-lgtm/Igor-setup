@@ -47,3 +47,8 @@ Thumbs.db
 .idea/
 .coolify-token
 .coolify-token.txt
+
+# Criativos: fotos HD baixadas + PNGs gerados (vão pro volume em prod, não pro git)
+assets/imoveis/*-hd/
+criativo/*.png
+criativo/_tmp/

@@ -6,6 +6,13 @@ WORKDIR /app
 RUN apk add --no-cache --virtual .build-deps python3 make g++ \
     && ln -sf python3 /usr/bin/python
 
+# Chromium + libs pro puppeteer (geração de criativos). Ficam no runtime.
+RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont font-noto
+
+# Puppeteer usa o Chromium do sistema (não baixa o próprio no npm install)
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
 # Instala deps do server principal — força --omit=dev mesmo se NODE_ENV vier setado
 COPY package.json package-lock.json* ./
 RUN npm install --omit=dev --no-audit --no-fund
