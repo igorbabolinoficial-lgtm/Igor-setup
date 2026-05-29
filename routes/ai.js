@@ -229,6 +229,16 @@ router.post('/publica', rateLimit, async (req, res, next) => {
 
 // ── Chat agêntico — entende intenção e executa ações ──────────────────────────
 const STATUS_VALIDOS_CHAT = ['novo_lead', 'em_atendimento', 'qualificado', 'convertido', 'perdido'];
+// Aliases que o LLM usa coloquialmente → valor real no banco
+const STATUS_ALIAS_CHAT = {
+    'triagem':        'novo_lead',
+    'novo':           'novo_lead',
+    'atendimento':    'em_atendimento',
+    'em atendimento': 'em_atendimento',
+    'convertido':     'convertido',
+    'perdido':        'perdido',
+    'qualificado':    'qualificado',
+};
 
 router.post('/chat', async (req, res, next) => {
     try {
@@ -249,25 +259,26 @@ router.post('/chat', async (req, res, next) => {
         const prompt = `Você é o assistente interno Igor da imobiliária Igor Babolin (Praia do Rosa - SC).
 Você pode responder perguntas E executar ações reais no sistema.
 
-RESPONDA SEMPRE EM JSON PURO (sem markdown, sem texto fora do JSON):
+RESPONDA SEMPRE EM JSON PURO — SEM markdown, SEM texto antes ou depois, SEM \`\`\`json:
 
 Só responder:
 {"acao":"responder","texto":"resposta em pt-BR, 1-3 frases"}
 
-Follow-up em lead (enfileira tarefa):
+Follow-up em lead:
 {"acao":"follow_up","lead_id":"ID_EXATO","texto":"confirmação curta"}
 
-Atualizar status do lead:
-{"acao":"atualizar_status","lead_id":"ID_EXATO","status":"em_atendimento|qualificado|convertido|perdido","texto":"confirmação"}
+Atualizar status do lead (use EXATAMENTE um desses valores):
+{"acao":"atualizar_status","lead_id":"ID_EXATO","status":"novo_lead|em_atendimento|qualificado|convertido|perdido","texto":"confirmação"}
+STATUS: "novo_lead"=triagem/novo, "em_atendimento"=atendimento/em atendimento, "qualificado", "convertido", "perdido"
 
-Qualificar lead com IA (recalcula score):
+Qualificar lead com IA:
 {"acao":"qualificar_lead","lead_id":"ID_EXATO","texto":"confirmação"}
 
 Criar evento na agenda:
 {"acao":"agendar","titulo":"...","inicio":"YYYY-MM-DDTHH:MM","tipo":"ligacao|reuniao","texto":"confirmação"}
 
-REGRAS:
-- Nunca invente lead_id — use exatamente os IDs da lista abaixo
+REGRAS CRÍTICAS:
+- Nunca invente lead_id — use EXATAMENTE o ID entre colchetes da lista abaixo
 - Se não sabe qual lead, peça o nome ({"acao":"responder","texto":"..."})
 - Campo "texto": 1-2 frases, direto, pt-BR
 - Hoje: ${hoje}
@@ -280,19 +291,24 @@ ${histTxt || '(início)'}
 
 MENSAGEM DO OPERADOR: ${mensagem}`;
 
-        const r = await gerarTexto(prompt);
+        // Chat precisa de JSON estrito — usa modelo maior se disponível
+        const r = await gerarTexto(prompt, { modelo: 'llama-3.3-70b-versatile' });
         if (!r) return res.json({ resposta: 'Falha temporária. Tente em instantes.', acao: null, modo: 'fallback' });
 
-        // Parse JSON da resposta do LLM
+        // Parse JSON — tenta direto, depois extração por regex
         let json = null;
-        try { json = JSON.parse(r.texto.trim()); } catch { json = extrairJson(r.texto); }
+        const textoLimpo = r.texto.trim().replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+        try { json = JSON.parse(textoLimpo); } catch { json = extrairJson(r.texto); }
 
         // Se não veio JSON válido, trata como texto puro
         if (!json || !json.acao) {
             return res.json({ resposta: r.texto.trim(), acao: null, modo: r.modelo });
         }
 
-        const { acao, texto, lead_id, status, titulo, inicio, tipo: tipoEvt } = json;
+        const { acao, texto, lead_id, titulo, inicio, tipo: tipoEvt } = json;
+        // Normaliza status: aceita "atendimento", "triagem", etc.
+        const statusRaw = (json.status || '').toLowerCase().trim();
+        const status = STATUS_ALIAS_CHAT[statusRaw] || statusRaw;
         let acaoExecutada = null;
 
         if (acao === 'follow_up' && lead_id) {

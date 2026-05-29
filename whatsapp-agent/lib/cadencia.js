@@ -17,13 +17,14 @@ import { log } from './logger.js';
 // ── Intervalos de cada passo (em ms) ─────────────────────────────────────────
 const PASSOS = [
   null,                         // passo 0 = ainda não houve followup
-  24  * 60 * 60 * 1000,        // passo 1: 24h
-  48  * 60 * 60 * 1000,        // passo 2: +48h
-  5   * 24 * 60 * 60 * 1000,  // passo 3: +5 dias
-  15  * 24 * 60 * 60 * 1000,  // passo 4: +15 dias
-  30  * 24 * 60 * 60 * 1000,  // passo 5: +30 dias → arquiva depois
+  30  * 60 * 1000,              // passo 1: 30 min  ← toque rápido se não viu
+  24  * 60 * 60 * 1000,        // passo 2: 24h
+  48  * 60 * 60 * 1000,        // passo 3: +48h
+  5   * 24 * 60 * 60 * 1000,  // passo 4: +5 dias
+  15  * 24 * 60 * 60 * 1000,  // passo 5: +15 dias
+  30  * 24 * 60 * 60 * 1000,  // passo 6: +30 dias → arquiva depois
 ];
-const TOTAL_PASSOS = 5;
+const TOTAL_PASSOS = 6;
 
 // ── Helpers de meta JSON ──────────────────────────────────────────────────────
 function getMeta(phone) {
@@ -137,6 +138,7 @@ export function avancarPasso(phone) {
 
 const TOM_POR_PASSO = [
   '', // 0 — não usado
+  'Toque leve de 30 minutos — só checar se o lead viu. Algo tipo "oi, viu minha mensagem ali?" ou "ficou alguma dúvida?". Máximo 1 frase, zero pressão.',
   'Retome o assunto de forma natural e leve, como se fosse uma continuação casual da conversa. Pergunte se ainda tem interesse ou se surgiu alguma dúvida.',
   'Mude o ângulo: destaque um benefício diferente do que já foi falado, ou mencione algo sobre a região/oportunidade. Feche pedindo a opinião do lead.',
   'Use prova social ou contexto de mercado (ex: "outros clientes que visitaram gostaram de X"). Pergunte diretamente o que faria o lead tomar uma decisão.',
