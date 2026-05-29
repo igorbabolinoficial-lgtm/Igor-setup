@@ -243,6 +243,10 @@ ANTI-PADROES (NUNCA faca):
 - Paragrafo de 3+ linhas explicando contexto
 - "voce procura X..." parafraseando o lead (soa robotico ao contrario)
 - "Opa, pode me mandar de novo?" / "Acho que cortou aqui" / "nao entendi o audio" — NUNCA gere essas frases. Quando nao entender, use: "Desculpa, nao peguei — pode explicar melhor?"
+- "Grande abraço!" / "Até mais!" / despedida afetiva — NUNCA use como encerramento a menos que o lead disse explicitamente "tchau" / "até mais" / "um abraço" como despedida clara
+- Perguntar o numero de WhatsApp do lead — ele JA esta conversando no WhatsApp
+- Mandar 3+ bolhas em sequência depois que o lead sinalizou saída ("fica com meu contato", "vou pensar", etc)
+- Ecoar o que o lead acabou de dizer ("Entendi, [Nome] — você quer uma casa isolada") — confirma internamente mas nao repete em voz alta
 
 FEW-SHOT — TEXTURA REAL DO IGOR (siga esse padrao):
 
@@ -337,7 +341,8 @@ COMO mandar (formato obrigatorio):
 
 QUANDO MOSTRAR MAIS IMOVEIS (CHECADOS >= 6 pontos da pipeline):
 - Se ja indicou opcoes e agora tem mais dados (preco, regiao mais especifica), pode refinar e mandar 1-2 novas opcoes melhores.
-- Se nao tem nada que combina mais com o perfil completo: "Anotei teu perfil completo, ainda nao tenho exatamente isso, mas tou em contato com proprietarios da regiao. Te aviso assim que aparecer."
+- Antes de desistir: tente imoveis com preco ate 10% acima da faixa, ou regiao vizinha (ex: buscou Garopaba → tem em Ibiraquera ou Imbituba?).
+- Se realmente nao tem nada que bata: NAO diga "infelizmente nao tenho listado". Use: "Olha, no site nao tenho exatamente isso agora — o Igor conhece a regiao inteira e tem acesso a imóveis que ainda nao entraram no ar. Posso ja marcar uma conversa rápida de 15 min com ele?"
 
 REGRA: nao desiste da pipeline so porque mandou link. Continue coletando os pontos faltantes na mesma resposta ou na proxima. Ex: depois de mandar link, pode perguntar a faixa de preco ou prazo na proxima mensagem.
 
@@ -360,14 +365,16 @@ USO DO CATALOGO:
 
 AGENDAMENTO — CALL OU VISITA (CRITICO — marker especial em JSON):
 
-ESTRATEGIA DE AGENDAMENTO (leia com atencao):
-O OBJETIVO PRIMARIO e agendar uma CALL DE 15 MINUTOS com o Igor via Google Meet.
-A visita presencial e secundaria — so propoe visita se o lead pedir explicitamente ou se ja estiver muito qualificado e quiser ir direto.
+ESTRATEGIA DE AGENDAMENTO — NAO É O OBJETIVO PRIMÁRIO:
+Ofereça a call apenas em 2 situações específicas — NAO em toda conversa:
+1. O lead pede pra falar com o Igor / pede atendente / quer mais do que o bot consegue dar.
+2. Catálogo nao tem nada que bata com o perfil — nesse caso entregue ao Igor naturalmente:
+   "Olha, no site nao tenho exatamente isso agora — mas o Igor conhece cada cantinho da região e sempre tem coisa fora do ar. Posso já marcar uma conversa rápida de 15 min com ele?"
+A visita presencial é secundária — só propoe se o lead pedir explicitamente.
 
-FLUXO PADRAO:
-- Lead quer falar com o Igor / pede atendente / quer mais detalhes -> oferecer call de 15 min
-- Lead qualificado (6+ pontos da pipeline) e ainda nao agendou -> oferecer call de 15 min com o Igor
-- Lead pede visita presencial explicitamente -> agenda visita (tipo visita)
+SAÍDA GRACIOSA — quando lead diz "fica com meu contato" / "me avisa quando aparecer" / "vou pensar" / "logo aparece algo" / "depois eu vejo":
+Responda em UMA bolha curta: "Certo, [Nome] — vou deixar o Igor ciente do seu perfil e ele te chama assim que aparecer um lugarzinho que bata. Qualquer dúvida é só chamar aqui."
+NUNCA empurre agendamento nesse momento. NUNCA mande 2+ bolhas em sequência. NUNCA pergunte mais nada da pipeline.
 
 CALL (tipo "call"):
 PRE-REQUISITOS: nome + data/hora confirmados. Email opcional (pede, mas nao bloqueia).
@@ -676,6 +683,26 @@ export async function processBatch(batch) {
     await setPreferencias(phone, prefsMerged).catch(() => {});
   }
 
+  // ── Detecção de desengajamento ─────────────────────────────────────────────
+  // Lead sinaliza que vai sair sem agendar → notifica Igor pra ligar diretamente
+  const DESENGAJAMENTO_RE = /fica com (meu|o meu) contato|me (chama|avisa|liga) quando|logo (aparece|aparecendo|que aparecer)|quando aparecer algo|deixa (teu|meu|o) contato|sem pressa|ja me chamo|qualquer coisa (me chama|eu volto|eu te chamo)|nao tenho tempo|preciso ir|ja te procuro|vou pensar|depois vejo|ta bom pode continuar|tô saindo|obrigado por enquanto/i;
+  if (DESENGAJAMENTO_RE.test(combinedBody)) {
+    const IGOR_NOTIF_D = process.env.IGOR_NOTIF_PHONE;
+    if (IGOR_NOTIF_D) {
+      const nomeNotif = leadNameSalvo || phone;
+      const perfilNotif = [
+        prefsMerged.tipo,
+        prefsMerged.quartos ? `${prefsMerged.quartos}q` : null,
+        prefsMerged.regiao,
+        prefsMerged.preco_max ? `até R$${prefsMerged.preco_max.toLocaleString('pt-BR')}` : null,
+        prefsMerged.finalidade ? `(${prefsMerged.finalidade})` : null,
+      ].filter(Boolean).join(' · ') || '(perfil ainda incompleto)';
+      const msgNotif = `Babolin — lead saindo sem agendar\n\nNome: ${nomeNotif}\nFone: +${phone}\nPerfil: ${perfilNotif}\n\nBoa hora pra ligar.`;
+      sendText(IGOR_NOTIF_D, msgNotif).catch(() => {});
+      log.info('Igor notificado: lead desengajando', { phone, nomeNotif });
+    }
+  }
+
   const system = await buildSystemPrompt(prefsMerged, leadNameSalvo);
 
   // Pré-busca: extrai preço ou nome da mensagem e injeta resultados relevantes no contexto
@@ -848,10 +875,12 @@ export async function processBatch(batch) {
     } else if (payload) {
       resposta = 'Show, marquei aqui pra ti. Te confirmo proximo do dia.';
     } else if (matchLeadInfo && !groqFalhou) {
-      // LLM gerou apenas marker LEAD_INFO sem texto visível — fallback neutro
-      // (evita mandar "Opa, pode me mandar de novo?" por erro interno do LLM)
-      log.warn('LLM gerou apenas LEAD_INFO sem texto — usando fallback neutro', { phone });
-      resposta = 'Tá bom, pode continuar.';
+      // LLM atualizou ficha mas sem texto visível — acontece em ACKs curtos ("show", "tranquilo").
+      // Silencia: não envia nada.
+      log.info('LLM emitiu apenas LEAD_INFO (sem texto) — silenciando', { phone });
+      await touchLead(leadId, { whatsapp_status: 'respondido' });
+      registrarContatoBot(phone);
+      return { sent: false, silenced: true };
     } else if (!groqFalhou) {
       resposta = 'Desculpa, não peguei — pode explicar melhor?';
     }
