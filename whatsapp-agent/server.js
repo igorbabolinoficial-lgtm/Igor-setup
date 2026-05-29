@@ -221,6 +221,21 @@ app.post('/send/test', requireToken, async (req, res) => {
   }
 });
 
+// Dispara notificação de teste pro IGOR_NOTIF_PHONE — valida se o sistema está funcionando
+app.post('/admin/test-notif-igor', requireToken, async (req, res) => {
+  const notifPhone = process.env.IGOR_NOTIF_PHONE;
+  if (!notifPhone) {
+    return res.status(400).json({ ok: false, error: 'IGOR_NOTIF_PHONE não configurado — adicione no Coolify' });
+  }
+  try {
+    const msg = `[TESTE] Babolin aqui — sistema de alertas funcionando.\n\nQuando um lead sair sem agendar, você recebe uma mensagem assim com o nome, telefone e perfil do cara.`;
+    await sendText(notifPhone, msg);
+    res.json({ ok: true, phone: notifPhone, message: 'Notificação de teste enviada' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // --- HUMAN TAKEOVER ---
 // Para o bot manualmente nessa conversa (ativa takeover por 24h)
 app.post('/takeover/set/:phone', requireToken, async (req, res) => {

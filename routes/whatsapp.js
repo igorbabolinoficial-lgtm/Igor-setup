@@ -229,4 +229,14 @@ router.get('/media/:filename', async (req, res) => {
     }
 });
 
+// POST /api/whatsapp/test-notif — dispara notificação de teste pro IGOR_NOTIF_PHONE via WA agent
+router.post('/test-notif', async (req, res) => {
+    try {
+        const data = await wa('/admin/test-notif-igor', { method: 'POST', body: '{}' });
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ ok: false, error: e.message });
+    }
+});
+
 module.exports = router;
