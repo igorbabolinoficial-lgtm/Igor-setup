@@ -256,32 +256,45 @@ router.post('/chat', async (req, res, next) => {
         ).join('\n');
         const hoje = new Date().toLocaleDateString('pt-BR');
 
-        const prompt = `Você é o assistente interno Igor da imobiliária Igor Babolin (Praia do Rosa - SC).
-Você pode responder perguntas E executar ações reais no sistema.
+        const agendaHoje = db.prepare(`
+            SELECT titulo, inicio, tipo FROM agenda
+            WHERE DATE(inicio) = DATE('now') AND status != 'cancelado'
+            ORDER BY inicio ASC LIMIT 10
+        `).all().map(e => `${e.inicio.slice(11,16)} ${e.tipo} — ${e.titulo}`).join('\n') || '(vazia)';
+
+        const prompt = `Você é o Igor, assistente interno da imobiliária Igor Babolin (Praia do Rosa - SC).
+Você executa ações REAIS no sistema. O operador fala em linguagem natural e você age.
 
 RESPONDA SEMPRE EM JSON PURO — SEM markdown, SEM texto antes ou depois, SEM \`\`\`json:
 
-Só responder:
-{"acao":"responder","texto":"resposta em pt-BR, 1-3 frases"}
+1. Só responder / consultar:
+{"acao":"responder","texto":"resposta direta, 1-3 frases"}
 
-Follow-up em lead:
-{"acao":"follow_up","lead_id":"ID_EXATO","texto":"confirmação curta"}
+2. Follow-up num lead (enfileira tarefa pro SDR):
+{"acao":"follow_up","lead_id":"ID_EXATO","texto":"confirmação"}
 
-Atualizar status do lead (use EXATAMENTE um desses valores):
+3. Mudar status do lead:
 {"acao":"atualizar_status","lead_id":"ID_EXATO","status":"novo_lead|em_atendimento|qualificado|convertido|perdido","texto":"confirmação"}
-STATUS: "novo_lead"=triagem/novo, "em_atendimento"=atendimento/em atendimento, "qualificado", "convertido", "perdido"
+   → "triagem"/"novo" = novo_lead | "atendimento" = em_atendimento
 
-Qualificar lead com IA:
+4. Recalcular score do lead com IA:
 {"acao":"qualificar_lead","lead_id":"ID_EXATO","texto":"confirmação"}
 
-Criar evento na agenda:
-{"acao":"agendar","titulo":"...","inicio":"YYYY-MM-DDTHH:MM","tipo":"ligacao|reuniao","texto":"confirmação"}
+5. Criar evento na agenda:
+{"acao":"agendar","titulo":"...","inicio":"YYYY-MM-DDTHH:MM","tipo":"ligacao|reuniao","lead_id":"ID_OU_VAZIO","texto":"confirmação"}
 
-REGRAS CRÍTICAS:
-- Nunca invente lead_id — use EXATAMENTE o ID entre colchetes da lista abaixo
-- Se não sabe qual lead, peça o nome ({"acao":"responder","texto":"..."})
-- Campo "texto": 1-2 frases, direto, pt-BR
+6. Adicionar nota num lead:
+{"acao":"adicionar_nota","lead_id":"ID_EXATO","nota":"texto da nota","texto":"confirmação"}
+
+7. Mandar mensagem no WhatsApp do lead:
+{"acao":"mandar_whatsapp","lead_id":"ID_EXATO","mensagem":"texto a enviar","texto":"confirmação"}
+
+REGRAS:
+- Nunca invente lead_id — use EXATAMENTE o ID entre colchetes da lista
+- Se não identificar o lead, pergunte o nome: {"acao":"responder","texto":"Qual lead?"}
+- "texto": confirmação curta em pt-BR do que foi feito
 - Hoje: ${hoje}
+- Agenda de hoje: ${agendaHoje}
 
 LEADS (top 25 por score):
 ${leads}
@@ -340,6 +353,36 @@ MENSAGEM DO OPERADOR: ${mensagem}`;
                 .run(id, titulo, inicio, tipoEvt || 'reuniao');
             acaoExecutada = { tipo: 'agendar', titulo, inicio, id };
             registrarLog({ agente: 'maestro', nivel: 'sucesso', mensagem: `Chat: agenda → ${titulo}`, contexto: { id, inicio } });
+
+        } else if (acao === 'adicionar_nota' && lead_id && json.nota) {
+            const lead = db.prepare('SELECT * FROM leads WHERE id = ?').get(lead_id);
+            if (lead) {
+                const notaAtual = lead.notas || '';
+                const novaNotas = notaAtual ? `${notaAtual}\n[${nowIso().slice(0,10)}] ${json.nota}` : `[${nowIso().slice(0,10)}] ${json.nota}`;
+                db.prepare('UPDATE leads SET notas = ?, atualizado_em = ? WHERE id = ?').run(novaNotas, nowIso(), lead_id);
+                acaoExecutada = { tipo: 'adicionar_nota', lead: lead.nome, lead_id };
+                registrarLog({ agente: 'sdr', nivel: 'sucesso', mensagem: `Chat: nota → ${lead.nome}`, contexto: { lead_id } });
+            }
+
+        } else if (acao === 'mandar_whatsapp' && lead_id && json.mensagem) {
+            const lead = db.prepare('SELECT * FROM leads WHERE id = ?').get(lead_id);
+            if (lead && lead.telefone) {
+                try {
+                    const waUrl   = process.env.WA_AGENT_URL;
+                    const waToken = process.env.WA_AGENT_TOKEN;
+                    if (waUrl && waToken) {
+                        await fetch(`${waUrl}/send`, {
+                            method: 'POST',
+                            headers: { 'x-webhook-token': waToken, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ phone: lead.telefone, text: json.mensagem }),
+                        });
+                        acaoExecutada = { tipo: 'mandar_whatsapp', lead: lead.nome, lead_id };
+                        registrarLog({ agente: 'sdr', nivel: 'sucesso', mensagem: `Chat: WA → ${lead.nome}`, contexto: { lead_id } });
+                    }
+                } catch (e) {
+                    registrarLog({ agente: 'sdr', nivel: 'alerta', mensagem: `Chat: falha WA → ${lead?.nome}: ${e.message}` });
+                }
+            }
         }
 
         registrarLog({ agente: 'sdr', nivel: 'sucesso', mensagem: `Chat: "${mensagem.slice(0, 60)}"`, contexto: { acao, modo: r.modelo } });
