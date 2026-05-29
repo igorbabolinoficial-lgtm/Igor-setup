@@ -22,10 +22,10 @@ function getGeminiKey()    { return getKey('gemini_api_key', 'GEMINI_API_KEY'); 
 function getAnthropicKey() { return getKey('anthropic_api_key', 'ANTHROPIC_API_KEY'); }
 
 // Groq via API OpenAI-compatible — sem SDK pra evitar dependência extra.
-async function tentarGroq(prompt) {
+async function tentarGroq(prompt, modeloOverride) {
     const apiKey = getGroqKey();
     if (!apiKey) throw new Error('groq_indisponivel');
-    const modelo = process.env.GROQ_MODEL_TEXT || 'llama-3.1-8b-instant';
+    const modelo = modeloOverride || process.env.GROQ_MODEL_TEXT || 'llama-3.1-8b-instant';
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -72,15 +72,17 @@ async function tentarAnthropic(prompt) {
 }
 
 // Ordem padrão: Groq → Gemini → Anthropic. opts.preferirAnthropic inverte pra Anthropic primeiro.
+// opts.modelo: força modelo específico no Groq (ex: 'llama-3.3-70b-versatile')
 async function gerarTexto(prompt, opts = {}) {
     const erros = [];
+    const modeloGroq = opts.modelo || null;
     const tentativas = opts.preferirAnthropic
-        ? [['anthropic', tentarAnthropic], ['groq', tentarGroq], ['gemini', tentarGemini]]
-        : [['groq', tentarGroq], ['gemini', tentarGemini], ['anthropic', tentarAnthropic]];
+        ? [['anthropic', () => tentarAnthropic(prompt)], ['groq', () => tentarGroq(prompt, modeloGroq)], ['gemini', () => tentarGemini(prompt)]]
+        : [['groq', () => tentarGroq(prompt, modeloGroq)], ['gemini', () => tentarGemini(prompt)], ['anthropic', () => tentarAnthropic(prompt)]];
 
     for (const [modelo, fn] of tentativas) {
         try {
-            const texto = await fn(prompt);
+            const texto = await fn();
             if (texto && texto.trim()) return { texto: texto.trim(), modelo };
         } catch (err) {
             erros.push(`${modelo}: ${err.message}`);
