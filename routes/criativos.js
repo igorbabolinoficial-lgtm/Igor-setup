@@ -4,7 +4,8 @@
 const express = require('express');
 const router  = express.Router();
 const { db }  = require('../db');
-const { gerarArte, baixarFotosHD, listarFotosHD, FORMATOS } = require('../lib/criativos');
+const { gerarArte, baixarFotosHD, listarFotosHD, ressincronizarImovel, FORMATOS } = require('../lib/criativos');
+const { registrarLog } = require('../db');
 
 function decodeImovel(linha) {
     if (!linha) return null;
@@ -59,5 +60,61 @@ router.get('/:id/arte.png', async (req, res, next) => {
         res.send(png);
     } catch (err) { next(err); }
 });
+
+// ── Re-sincronização de fotos (corrige embaralhamento da exportação antiga) ────
+
+// POST /api/criativos/:id/resync — re-baixa as fotos do site original e atualiza o banco
+router.post('/:id/resync', async (req, res, next) => {
+    try {
+        const imovel = pegarImovel(req.params.id);
+        if (!imovel) return res.status(404).json({ erro: 'Imóvel não encontrado' });
+
+        const r = await ressincronizarImovel(imovel);
+        if (r.ok) {
+            db.prepare('UPDATE imoveis SET fotos = ? WHERE id = ?').run(JSON.stringify(r.fotos), imovel.id);
+            registrarLog({ agente: 'sistema', nivel: 'sucesso', mensagem: `Fotos re-sincronizadas: ${imovel.titulo} (${r.total})`, contexto: { id: imovel.id } });
+        }
+        res.json(r);
+    } catch (err) { next(err); }
+});
+
+// Estado do resync em massa (em memória)
+let _resync = { rodando: false, total: 0, feitos: 0, ok: 0, falhas: 0, atual: '', erros: [] };
+
+// POST /api/criativos/resync-todos — corrige TODOS os imóveis em background
+router.post('/resync-todos', (req, res) => {
+    if (_resync.rodando) return res.status(409).json({ erro: 'Já está rodando', estado: _resync });
+
+    const imoveis = db.prepare('SELECT * FROM imoveis WHERE url_origem IS NOT NULL').all().map(decodeImovel);
+    _resync = { rodando: true, total: imoveis.length, feitos: 0, ok: 0, falhas: 0, atual: '', erros: [] };
+    res.json({ iniciado: true, total: imoveis.length });
+
+    // processa serial em background (não bloqueia a resposta)
+    (async () => {
+        for (const imovel of imoveis) {
+            _resync.atual = imovel.titulo;
+            try {
+                const r = await ressincronizarImovel(imovel);
+                if (r.ok) {
+                    db.prepare('UPDATE imoveis SET fotos = ? WHERE id = ?').run(JSON.stringify(r.fotos), imovel.id);
+                    _resync.ok++;
+                } else {
+                    _resync.falhas++;
+                    _resync.erros.push(`${imovel.titulo}: ${r.motivo}`);
+                }
+            } catch (e) {
+                _resync.falhas++;
+                _resync.erros.push(`${imovel.titulo}: ${e.message}`);
+            }
+            _resync.feitos++;
+        }
+        _resync.rodando = false;
+        _resync.atual = '';
+        registrarLog({ agente: 'sistema', nivel: 'sucesso', mensagem: `Resync de fotos concluído: ${_resync.ok} ok, ${_resync.falhas} falhas` });
+    })();
+});
+
+// GET /api/criativos/resync-status — progresso do resync em massa
+router.get('/resync-status', (_req, res) => res.json(_resync));
 
 module.exports = router;

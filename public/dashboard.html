@@ -919,6 +919,7 @@
                 <button class="btn-elite" id="btnMigrar" onclick="dispararMigracao()" title="Importa imóveis do site da imobiliária + baixa fotos">↻ Migrar catálogo do site</button>
                 <button class="btn-elite" id="btnSanitizar" onclick="sanitizarDescricoes()" style="margin-left: 8px;" title="Substitui telefones/emails da concorrência nas descrições dos imóveis">🧹 Limpar contatos antigos</button>
                 <button class="btn-elite" id="btnReDesc" onclick="reDescricoes()" style="margin-left: 8px;" title="Re-baixa descrições preservando parágrafos (sem mexer em fotos)">📝 Re-baixar descrições</button>
+                <button class="btn-elite" id="btnResyncFotos" onclick="resyncFotosTodos()" style="margin-left: 8px;" title="Corrige fotos embaralhadas: re-baixa a galeria certa do site original pra cada imóvel">🖼️ Corrigir fotos de todos</button>
                 <span id="migrarStatus" style="font-size: 0.8rem; color: var(--text-muted); margin-left: 12px;"></span>
             </div>
             <div class="filtros-imoveis">
@@ -932,6 +933,36 @@
             <div class="galeria-imoveis" id="galeriaImoveis"></div>
         </div>
         <script>
+            async function resyncFotosTodos() {
+                const btn = document.getElementById('btnResyncFotos');
+                const status = document.getElementById('migrarStatus');
+                if (!confirm('Vai re-baixar a galeria certa do site original pra TODOS os imóveis, corrigindo as fotos embaralhadas. Demora ~20-30min em background. Continuar?')) return;
+                btn.disabled = true;
+                btn.textContent = 'Corrigindo em background…';
+                try {
+                    const r = await fetch('/api/criativos/resync-todos', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                    const ini = await r.json();
+                    if (!r.ok && !ini.iniciado) throw new Error(ini.erro || 'falhou');
+                    const id = setInterval(async () => {
+                        try {
+                            const s = await (await fetch('/api/criativos/resync-status')).json();
+                            status.textContent = `Corrigindo: ${s.feitos}/${s.total} · ${s.ok} ok, ${s.falhas} falhas · atual: ${(s.atual||'').slice(0,40)}`;
+                            if (!s.rodando) {
+                                clearInterval(id);
+                                btn.disabled = false;
+                                btn.textContent = '🖼️ Corrigir fotos de todos';
+                                status.textContent = `✓ Concluído: ${s.ok} corrigidos, ${s.falhas} falhas. Recarregando…`;
+                                setTimeout(() => carregarImoveis(), 1500);
+                            }
+                        } catch {}
+                    }, 5000);
+                } catch (e) {
+                    btn.disabled = false;
+                    btn.textContent = '🖼️ Corrigir fotos de todos';
+                    status.textContent = 'Erro: ' + e.message;
+                }
+            }
+
             async function dispararMigracao() {
                 const btn = document.getElementById('btnMigrar');
                 const status = document.getElementById('migrarStatus');
@@ -1836,6 +1867,7 @@
             <div class="lightbox-meta" id="lbMeta"></div>
             <div style="margin-bottom:22px;">
                 <button class="btn-sim" id="btnGerarArtes" onclick="gerarCriativos()">Gerar artes (4 formatos)</button>
+                <button class="btn-sim" id="btnCorrigirFotos" onclick="corrigirFotos()" style="background:#2563eb;margin-left:8px;">Corrigir fotos (do site original)</button>
                 <span id="criativosStatus" style="margin-left:14px; font-size:0.8rem; color:var(--text-muted);"></span>
                 <div id="lbCriativos" style="display:flex; flex-wrap:wrap; gap:16px; margin-top:18px;"></div>
             </div>
@@ -2917,6 +2949,7 @@
             document.getElementById('lbCriativos').innerHTML = '';
             document.getElementById('criativosStatus').textContent = '';
             document.getElementById('btnGerarArtes').disabled = false;
+            document.getElementById('btnCorrigirFotos').disabled = false;
             document.getElementById('lightbox').classList.add('show');
         }
 
@@ -2927,6 +2960,27 @@
             { key: 'quadrado',   nome: 'Quadrado 1:1' },
             { key: 'horizontal', nome: 'Horizontal 1.91:1' },
         ];
+
+        async function corrigirFotos() {
+            if (!_imovelAtual) return;
+            const status = document.getElementById('criativosStatus');
+            const btn = document.getElementById('btnCorrigirFotos');
+            btn.disabled = true;
+            status.textContent = 'Baixando fotos certas do site original…';
+            try {
+                const r = await api('POST', `/criativos/${_imovelAtual}/resync`);
+                if (r.ok) {
+                    status.textContent = `✓ ${r.total} fotos corrigidas. Recarregando…`;
+                    setTimeout(() => abrirImovel(_imovelAtual), 1000);
+                } else {
+                    status.textContent = `Não corrigiu: ${r.motivo || 'erro'}`;
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                status.textContent = 'Erro ao corrigir fotos.';
+                btn.disabled = false;
+            }
+        }
 
         async function gerarCriativos(capa = 0) {
             if (!_imovelAtual) return;
