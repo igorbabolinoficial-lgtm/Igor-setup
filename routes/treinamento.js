@@ -26,6 +26,7 @@ const CATEGORIAS = [
     { id: 'contratos',  nome: 'Contratos',           descricao: 'Modelos de contrato, cláusulas padrão' },
     { id: 'regiao',     nome: 'Região',              descricao: 'Praia do Rosa, Garopaba, Imbituba — conhecimento local' },
     { id: 'pipeline',   nome: 'Pipeline',            descricao: 'Qualificação, processo de atendimento' },
+    { id: 'regras',     nome: 'Correções aprendidas', descricao: 'Regras aprovadas das análises de conversa (auto-melhoria do bot)' },
     { id: 'outros',     nome: 'Outros',              descricao: 'Conteúdo geral' },
 ];
 
