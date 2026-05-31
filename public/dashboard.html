@@ -920,6 +920,7 @@
                 <button class="btn-elite" id="btnSanitizar" onclick="sanitizarDescricoes()" style="margin-left: 8px;" title="Substitui telefones/emails da concorrência nas descrições dos imóveis">🧹 Limpar contatos antigos</button>
                 <button class="btn-elite" id="btnReDesc" onclick="reDescricoes()" style="margin-left: 8px;" title="Re-baixa descrições preservando parágrafos (sem mexer em fotos)">📝 Re-baixar descrições</button>
                 <button class="btn-elite" id="btnResyncFotos" onclick="resyncFotosTodos()" style="margin-left: 8px;" title="Corrige fotos embaralhadas: re-baixa a galeria certa do site original pra cada imóvel">🖼️ Corrigir fotos de todos</button>
+                <button class="btn-elite" id="btnEnriquecer" onclick="enriquecerTodos()" style="margin-left: 8px;" title="Preenche campos vazios (bairro, quartos, banheiros, área, características) lendo a descrição com IA">🧠 Completar dados (IA)</button>
                 <span id="migrarStatus" style="font-size: 0.8rem; color: var(--text-muted); margin-left: 12px;"></span>
             </div>
             <div class="filtros-imoveis">
@@ -933,6 +934,36 @@
             <div class="galeria-imoveis" id="galeriaImoveis"></div>
         </div>
         <script>
+            async function enriquecerTodos() {
+                const btn = document.getElementById('btnEnriquecer');
+                const status = document.getElementById('migrarStatus');
+                if (!confirm('Vai ler a descrição de TODOS os imóveis com IA e preencher os campos vazios (bairro, quartos, banheiros, área, características). Não sobrescreve o que já existe. Demora ~5-10min. Continuar?')) return;
+                btn.disabled = true;
+                btn.textContent = 'Completando em background…';
+                try {
+                    const r = await fetch('/api/imoveis/enriquecer-todos', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                    const ini = await r.json();
+                    if (!r.ok && !ini.iniciado) throw new Error(ini.erro || 'falhou');
+                    const id = setInterval(async () => {
+                        try {
+                            const s = await (await fetch('/api/imoveis/enriquecer-status')).json();
+                            status.textContent = `Completando: ${s.feitos}/${s.total} · ${s.preenchidos} preenchidos · atual: ${(s.atual||'').slice(0,40)}`;
+                            if (!s.rodando) {
+                                clearInterval(id);
+                                btn.disabled = false;
+                                btn.textContent = '🧠 Completar dados (IA)';
+                                status.textContent = `✓ Concluído: ${s.preenchidos} imóveis completados. Recarregando…`;
+                                setTimeout(() => carregarImoveis(), 1500);
+                            }
+                        } catch {}
+                    }, 5000);
+                } catch (e) {
+                    btn.disabled = false;
+                    btn.textContent = '🧠 Completar dados (IA)';
+                    status.textContent = 'Erro: ' + e.message;
+                }
+            }
+
             async function resyncFotosTodos() {
                 const btn = document.getElementById('btnResyncFotos');
                 const status = document.getElementById('migrarStatus');

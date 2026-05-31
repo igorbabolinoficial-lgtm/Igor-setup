@@ -1,5 +1,6 @@
 const express = require('express');
-const { db } = require('../db');
+const { db, registrarLog } = require('../db');
+const { enriquecerImovel } = require('../lib/enriquecer-imoveis');
 
 const router = express.Router();
 
@@ -44,6 +45,49 @@ router.get('/stats', (_req, res) => {
     const stats       = db.prepare("SELECT MIN(preco) AS minimo, MAX(preco) AS maximo, AVG(preco) AS media FROM imoveis WHERE preco > 0").get();
     res.json({ total, por_tipo: porTipo, por_bairro: porBairro, preco: stats });
 });
+
+// ── Enriquecimento de dados (preenche campos vazios a partir da descrição) ─────
+
+// POST /api/imoveis/:id/enriquecer — completa 1 imóvel
+router.post('/:id/enriquecer', async (req, res, next) => {
+    try {
+        const imovel = decode(db.prepare('SELECT * FROM imoveis WHERE id = ?').get(req.params.id));
+        if (!imovel) return res.status(404).json({ erro: 'Imóvel não encontrado' });
+        const r = await enriquecerImovel(imovel);
+        if (r.ok && Object.keys(r.mudou || {}).length) {
+            registrarLog({ agente: 'sistema', nivel: 'sucesso', mensagem: `Dados completados: ${imovel.titulo}`, contexto: { id: imovel.id, mudou: r.mudou } });
+        }
+        res.json(r);
+    } catch (err) { next(err); }
+});
+
+// Estado do enriquecimento em massa (memória)
+let _enriq = { rodando: false, total: 0, feitos: 0, preenchidos: 0, atual: '' };
+
+// POST /api/imoveis/enriquecer-todos — completa TODOS em background
+router.post('/enriquecer-todos', (req, res) => {
+    if (_enriq.rodando) return res.status(409).json({ erro: 'Já está rodando', estado: _enriq });
+    const imoveis = db.prepare('SELECT * FROM imoveis').all().map(decode);
+    _enriq = { rodando: true, total: imoveis.length, feitos: 0, preenchidos: 0, atual: '' };
+    res.json({ iniciado: true, total: imoveis.length });
+
+    (async () => {
+        for (const imovel of imoveis) {
+            _enriq.atual = imovel.titulo;
+            try {
+                const r = await enriquecerImovel(imovel);
+                if (r.ok && Object.keys(r.mudou || {}).length) _enriq.preenchidos++;
+            } catch (e) { /* segue */ }
+            _enriq.feitos++;
+        }
+        _enriq.rodando = false;
+        _enriq.atual = '';
+        registrarLog({ agente: 'sistema', nivel: 'sucesso', mensagem: `Enriquecimento concluído: ${_enriq.preenchidos}/${_enriq.total} imóveis completados` });
+    })();
+});
+
+// GET /api/imoveis/enriquecer-status — progresso
+router.get('/enriquecer-status', (_req, res) => res.json(_enriq));
 
 router.get('/:id', (req, res) => {
     const imovel = db.prepare('SELECT * FROM imoveis WHERE id = ?').get(req.params.id);
