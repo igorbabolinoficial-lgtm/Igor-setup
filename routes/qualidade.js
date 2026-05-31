@@ -37,6 +37,14 @@ router.get('/regras', (req, res) => {
 router.post('/regras/:id/aprovar',  (req, res) => res.json(aprovarRegra(parseInt(req.params.id, 10))));
 router.post('/regras/:id/rejeitar', (req, res) => res.json(rejeitarRegra(parseInt(req.params.id, 10))));
 
+// Aprova todas as regras pendentes de uma vez
+router.post('/regras/aprovar-todas', (_req, res) => {
+    const pendentes = db.prepare("SELECT id FROM regras_propostas WHERE status = 'proposta'").all();
+    let aprovadas = 0;
+    for (const r of pendentes) { try { if (aprovarRegra(r.id).ok) aprovadas++; } catch {} }
+    res.json({ ok: true, aprovadas });
+});
+
 // POST /api/qualidade/analisar/:phone — analisa uma conversa sob demanda
 router.post('/analisar/:phone', async (req, res, next) => {
     try { res.json(await analisarConversa(req.params.phone)); }

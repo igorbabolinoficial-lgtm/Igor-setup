@@ -1529,7 +1529,10 @@
                 <button class="btn-elite" onclick="analisarAgora()" style="margin-left:8px;" title="Audita só as conversas que esfriaram recentemente">🔍 Analisar recentes</button>
                 <span id="qualResumo" style="font-size:0.8rem;color:var(--text-muted);margin-left:12px;"></span>
             </div>
-            <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--accent);margin:8px 0 12px;">Regras aprendidas (aguardando seu OK)</h3>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin:8px 0 12px;">
+                <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--accent);margin:0;">Regras aprendidas (aguardando seu OK)</h3>
+                <button class="btn-sim" id="btnAprovarTodas" onclick="aprovarTodasRegras()">Aprovar todas</button>
+            </div>
             <div id="qualRegras" style="display:flex;flex-direction:column;gap:10px;margin-bottom:30px;">Carregando…</div>
             <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--accent);margin:8px 0 12px;">Análises recentes</h3>
             <div id="qualAnalises" style="display:flex;flex-direction:column;gap:10px;"></div>
@@ -1608,6 +1611,12 @@
             }
             async function aprovarRegra(id) { await api('POST', `/qualidade/regras/${id}/aprovar`); carregarQualidade(); }
             async function rejeitarRegra(id) { await api('POST', `/qualidade/regras/${id}/rejeitar`); carregarQualidade(); }
+            async function aprovarTodasRegras() {
+                const btn = document.getElementById('btnAprovarTodas');
+                btn.disabled = true; btn.textContent = 'Aprovando…';
+                try { const r = await api('POST', '/qualidade/regras/aprovar-todas'); document.getElementById('qualResumo').textContent = `${r.aprovadas} regra(s) aprovada(s) e ativada(s) no bot.`; }
+                finally { btn.disabled = false; btn.textContent = 'Aprovar todas'; carregarQualidade(); }
+            }
         </script>
 
         <!-- Treinamento -->
