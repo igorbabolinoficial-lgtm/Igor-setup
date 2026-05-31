@@ -4,7 +4,7 @@
 const express = require('express');
 const router  = express.Router();
 const { db }  = require('../db');
-const { analisarConversa, analisarEsfriadas, aprovarRegra, rejeitarRegra, TIPOS_ERRO } = require('../lib/analista-conversas');
+const { analisarConversa, analisarEsfriadas, listarLeadsWa, aprovarRegra, rejeitarRegra, TIPOS_ERRO } = require('../lib/analista-conversas');
 
 // GET /api/qualidade/resumo — visão geral
 router.get('/resumo', (_req, res) => {
@@ -48,5 +48,31 @@ router.post('/analisar-esfriadas', async (_req, res, next) => {
     try { res.json(await analisarEsfriadas({ limite: 10 })); }
     catch (err) { next(err); }
 });
+
+// Análise retroativa de TODO o histórico (background com progresso)
+let _hist = { rodando: false, total: 0, feitos: 0, ok: 0, atual: '' };
+
+// POST /api/qualidade/analisar-todas — audita todas as conversas existentes
+router.post('/analisar-todas', async (_req, res, next) => {
+    try {
+        if (_hist.rodando) return res.status(409).json({ erro: 'Já está rodando', estado: _hist });
+        const leads = await listarLeadsWa();
+        _hist = { rodando: true, total: leads.length, feitos: 0, ok: 0, atual: '' };
+        res.json({ iniciado: true, total: leads.length });
+
+        (async () => {
+            for (const l of leads) {
+                _hist.atual = l.name || l.phone;
+                try { const r = await analisarConversa(l.phone); if (r.ok) _hist.ok++; } catch {}
+                _hist.feitos++;
+            }
+            _hist.rodando = false;
+            _hist.atual = '';
+        })();
+    } catch (err) { next(err); }
+});
+
+// GET /api/qualidade/analisar-todas/status
+router.get('/analisar-todas/status', (_req, res) => res.json(_hist));
 
 module.exports = router;

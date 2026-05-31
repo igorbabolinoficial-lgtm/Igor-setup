@@ -1525,7 +1525,8 @@
         <!-- Qualidade do Bot — auto-crítica + regras aprendidas -->
         <div id="qualidade" class="panel">
             <div class="controls" style="margin-bottom:18px;">
-                <button class="btn-elite" onclick="analisarAgora()" title="Audita agora as conversas que esfriaram">🔍 Analisar conversas agora</button>
+                <button class="btn-elite" onclick="analisarHistorico()" title="Audita TODAS as conversas existentes (histórico completo)">📚 Analisar todo o histórico</button>
+                <button class="btn-elite" onclick="analisarAgora()" style="margin-left:8px;" title="Audita só as conversas que esfriaram recentemente">🔍 Analisar recentes</button>
                 <span id="qualResumo" style="font-size:0.8rem;color:var(--text-muted);margin-left:12px;"></span>
             </div>
             <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--accent);margin:8px 0 12px;">Regras aprendidas (aguardando seu OK)</h3>
@@ -1583,6 +1584,27 @@
                 document.getElementById('qualResumo').textContent = 'Analisando conversas encerradas…';
                 try { const r = await api('POST', '/qualidade/analisar-esfriadas'); document.getElementById('qualResumo').textContent = `Analisou ${r.feitas} conversa(s).`; carregarQualidade(); }
                 catch { document.getElementById('qualResumo').textContent = 'Erro.'; }
+            }
+            async function analisarHistorico() {
+                const status = document.getElementById('qualResumo');
+                if (!confirm('Vai analisar TODAS as conversas do bot (histórico completo). Pode levar alguns minutos. Continuar?')) return;
+                status.textContent = 'Iniciando análise do histórico…';
+                try {
+                    const r = await fetch('/api/qualidade/analisar-todas', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                    const ini = await r.json();
+                    if (!r.ok && !ini.iniciado) throw new Error(ini.erro || 'falhou');
+                    const id = setInterval(async () => {
+                        try {
+                            const s = await (await fetch('/api/qualidade/analisar-todas/status')).json();
+                            status.textContent = `Analisando histórico: ${s.feitos}/${s.total} · ${s.ok} ok · ${(s.atual||'').slice(0,30)}`;
+                            if (!s.rodando) {
+                                clearInterval(id);
+                                status.textContent = `✓ Histórico analisado: ${s.ok} conversas.`;
+                                carregarQualidade();
+                            }
+                        } catch {}
+                    }, 4000);
+                } catch (e) { status.textContent = 'Erro: ' + e.message; }
             }
             async function aprovarRegra(id) { await api('POST', `/qualidade/regras/${id}/aprovar`); carregarQualidade(); }
             async function rejeitarRegra(id) { await api('POST', `/qualidade/regras/${id}/rejeitar`); carregarQualidade(); }
