@@ -299,6 +299,13 @@ function iniciar() {
             analisarEsfriadas({ limite: 5 }).catch(() => {});
         } catch (_) {}
     });
+    // Cron diário 4h: sincroniza catálogo com o site (novos imóveis + completa dados). Automático.
+    cron.schedule('0 4 * * *', () => {
+        try {
+            const { sincronizarCatalogo } = require('../lib/sincronizar-catalogo');
+            sincronizarCatalogo({ origem: 'cron-noturno' }).catch(() => {});
+        } catch (_) {}
+    });
     setTimeout(ciclo, 1500);
     registrarLog({ agente: 'maestro', nivel: 'sucesso', mensagem: 'Igor (Maestro) acordou — autopilot ativo (heurístico 15s + IA 5min + analista 10min)' });
     heartbeat('maestro');

@@ -917,12 +917,19 @@
         <!-- Catálogo de Imóveis -->
         <div id="imoveis" class="panel">
             <div class="controls" style="margin-bottom: 18px;">
-                <button class="btn-elite" id="btnMigrar" onclick="dispararMigracao()" title="Importa imóveis do site da imobiliária + baixa fotos">↻ Migrar catálogo do site</button>
-                <button class="btn-elite" id="btnSanitizar" onclick="sanitizarDescricoes()" style="margin-left: 8px;" title="Substitui telefones/emails da concorrência nas descrições dos imóveis">🧹 Limpar contatos antigos</button>
-                <button class="btn-elite" id="btnReDesc" onclick="reDescricoes()" style="margin-left: 8px;" title="Re-baixa descrições preservando parágrafos (sem mexer em fotos)">📝 Re-baixar descrições</button>
-                <button class="btn-elite" id="btnResyncFotos" onclick="resyncFotosTodos()" style="margin-left: 8px;" title="Corrige fotos embaralhadas: re-baixa a galeria certa do site original pra cada imóvel">🖼️ Corrigir fotos de todos</button>
-                <button class="btn-elite" id="btnEnriquecer" onclick="enriquecerTodos()" style="margin-left: 8px;" title="Preenche campos vazios (bairro, quartos, banheiros, área, características) lendo a descrição com IA">🧠 Completar dados (IA)</button>
-                <span id="migrarStatus" style="font-size: 0.8rem; color: var(--text-muted); margin-left: 12px;"></span>
+                <div style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.6;">
+                    O catálogo sincroniza com o site original <b style="color:var(--text);">automaticamente toda madrugada</b> (novos imóveis, fotos e dados).
+                    <a onclick="sincronizarAgora()" style="color: var(--accent); cursor: pointer;">Sincronizar agora</a>
+                    · <a onclick="toggleManutencao()" style="color: var(--text-muted); cursor: pointer; text-decoration: underline;">Manutenção avançada</a>
+                    <span id="migrarStatus" style="margin-left: 8px;"></span>
+                </div>
+                <div id="manutencaoBox" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">
+                    <button class="btn-elite" id="btnMigrar" onclick="dispararMigracao()" title="Importa imóveis do site da imobiliária + baixa fotos">↻ Migrar catálogo</button>
+                    <button class="btn-elite" id="btnSanitizar" onclick="sanitizarDescricoes()" style="margin-left: 8px;" title="Substitui telefones/emails da concorrência nas descrições">🧹 Limpar contatos</button>
+                    <button class="btn-elite" id="btnReDesc" onclick="reDescricoes()" style="margin-left: 8px;" title="Re-baixa descrições preservando parágrafos">📝 Re-baixar descrições</button>
+                    <button class="btn-elite" id="btnResyncFotos" onclick="resyncFotosTodos()" style="margin-left: 8px;" title="Corrige fotos embaralhadas">🖼️ Corrigir fotos de todos</button>
+                    <button class="btn-elite" id="btnEnriquecer" onclick="enriquecerTodos()" style="margin-left: 8px;" title="Preenche campos vazios lendo a descrição com IA">🧠 Completar dados (IA)</button>
+                </div>
             </div>
             <div class="filtros-imoveis">
                 <input type="text" id="imovBusca" placeholder="🔍 Buscar por título ou descrição...">
@@ -935,6 +942,31 @@
             <div class="galeria-imoveis" id="galeriaImoveis"></div>
         </div>
         <script>
+            function toggleManutencao() {
+                const box = document.getElementById('manutencaoBox');
+                box.style.display = box.style.display === 'none' ? 'block' : 'none';
+            }
+
+            async function sincronizarAgora() {
+                const status = document.getElementById('migrarStatus');
+                status.textContent = 'Sincronizando com o site…';
+                try {
+                    await fetch('/api/sistema/sincronizar', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                    const id = setInterval(async () => {
+                        try {
+                            const s = await (await fetch('/api/sistema/sincronizar/status')).json();
+                            if (!s.rodando && s.ultimo && s.ultimo.quando) {
+                                clearInterval(id);
+                                status.textContent = `✓ Sincronizado: ${s.ultimo.novos ?? 0} novos, ${s.ultimo.enriquecidos} completados.`;
+                                carregarImoveis();
+                            } else {
+                                status.textContent = 'Sincronizando com o site…';
+                            }
+                        } catch {}
+                    }, 5000);
+                } catch (e) { status.textContent = 'Erro ao sincronizar.'; }
+            }
+
             async function enriquecerTodos() {
                 const btn = document.getElementById('btnEnriquecer');
                 const status = document.getElementById('migrarStatus');

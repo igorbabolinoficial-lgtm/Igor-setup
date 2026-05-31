@@ -246,6 +246,19 @@ router.get('/migrar/status', (_req, res) => {
     });
 });
 
+// POST /api/sistema/sincronizar — força a sincronização do catálogo agora (mesma do cron noturno)
+router.post('/sincronizar', (_req, res) => {
+    const { sincronizarCatalogo } = require('../lib/sincronizar-catalogo');
+    setImmediate(() => { sincronizarCatalogo({ origem: 'manual' }).catch(() => {}); });
+    res.status(202).json({ ok: true, mensagem: 'Sincronização iniciada em background' });
+});
+
+// GET /api/sistema/sincronizar/status — progresso/último resultado da sincronização
+router.get('/sincronizar/status', (_req, res) => {
+    const { statusSync } = require('../lib/sincronizar-catalogo');
+    res.json(statusSync());
+});
+
 // Re-baixa apenas as descricoes (texto) dos imoveis ja importados, preservando paragrafos.
 // Nao mexe em fotos/precos/etc. Util quando o parsing da descricao mudou.
 let _redescRodando = false;
