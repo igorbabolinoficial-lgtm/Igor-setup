@@ -11,6 +11,7 @@ import {
   connect as connectBaileys,
   registerIncomingHandler,
   registerOutgoingHandler,
+  registerCallHandler,
   getState,
   getQrCode,
   resetSession,
@@ -295,6 +296,28 @@ registerOutgoingHandler((parsed) => {
     log.error('Falha ao setar human takeover (outgoing)', { phone, err: err.message });
   });
   log.info('Human takeover ativado (outgoing detectado)', { phone });
+});
+
+// Chamada recebida -> avisa que não atende ligações, pede pro Igor ligar, e pausa o bot.
+registerCallHandler(async (call) => {
+  const phone = normalizePhone(call.from);
+  if (!phone) return;
+  try {
+    await sendText(phone,
+      'Oi! Aqui é o Babolin, assistente do Igor. Esse número não atende ligações, ' +
+      'mas já vou pedir pro Sr. Igor te ligar o quanto antes, tá? Qualquer coisa pode escrever por aqui também.');
+    // Avisa o Igor pra retornar a ligação
+    const notif = process.env.IGOR_NOTIF_PHONE;
+    if (notif) {
+      await sendText(notif, `Babolin — o lead +${phone} tentou LIGAR agora. Retorna a ligação pra ele quando puder.`);
+    }
+    // Pausa o bot nessa conversa (human takeover) até o Igor reativar
+    await setHumanTakeover(phone);
+    pausarCadencia(phone);
+    log.info('Chamada tratada: lead avisado + Igor notificado + bot pausado', { phone });
+  } catch (err) {
+    log.error('Falha ao tratar chamada', { phone, err: err.message });
+  }
 });
 
 app.listen(PORT, async () => {

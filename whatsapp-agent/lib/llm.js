@@ -142,7 +142,38 @@ export async function describeImage(buffer, mimetype) {
 
   const PROMPT = 'Descreva esta imagem em 1-2 frases curtas em português. Se for anúncio ou listagem de imóvel, extraia: tipo (casa/apartamento/terreno), localização e preço visíveis. Seja direto e conciso.';
 
-  // Tenta Anthropic primeiro (suporta visão em Haiku)
+  // Tenta Groq primeiro — a chave já está sempre configurada (visão via llama-4-scout).
+  if (process.env.GROQ_API_KEY) {
+    try {
+      const model = process.env.GROQ_VISION_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          max_tokens: 250,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: PROMPT },
+              { type: 'image_url', image_url: { url: `data:${baseType};base64,${base64}` } },
+            ],
+          }],
+        }),
+      });
+      if (r.ok) {
+        const j = await r.json();
+        const texto = j?.choices?.[0]?.message?.content?.trim() || null;
+        if (texto) { log.info('describeImage Groq OK', { chars: texto.length }); return texto; }
+      } else {
+        log.warn('describeImage Groq HTTP', { status: r.status, body: (await r.text()).slice(0, 150) });
+      }
+    } catch (e) {
+      log.warn('describeImage Groq falhou', { err: e.message });
+    }
+  }
+
+  // Fallback Anthropic (suporta visão em Haiku)
   if (process.env.ANTHROPIC_API_KEY) {
     try {
       if (!anthropicClient) {

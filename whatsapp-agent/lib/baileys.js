@@ -25,6 +25,7 @@ let _qrRaw = null;
 let _state = 'STOPPED'; // STOPPED | STARTING | WORKING | SCAN_QR
 let _onIncoming = null;
 let _onOutgoing = null;
+let _onCall = null;
 let _reconnectTimer = null;
 let _connectInProgress = false;
 
@@ -38,6 +39,16 @@ export function registerIncomingHandler(handler) {
 // Chamado quando o proprio numero envia uma mensagem (Igor enviando do celular diretamente).
 export function registerOutgoingHandler(handler) {
   _onOutgoing = handler;
+}
+
+export function registerCallHandler(handler) {
+  _onCall = handler;
+}
+
+// Rejeita uma chamada (não deixa tocar à toa)
+export async function rejectCall(callId, callFrom) {
+  try { if (_sock) await _sock.rejectCall(callId, callFrom); }
+  catch (err) { log.warn('Falha ao rejeitar chamada', { err: err.message }); }
 }
 
 export async function connect() {
@@ -104,6 +115,20 @@ export async function connect() {
           log.warn('Logged out — auth invalido, precisa novo QR');
           // limpa auth pra forcar QR novo na proxima
           try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); fs.mkdirSync(AUTH_DIR, { recursive: true }); } catch {}
+        }
+      }
+    });
+
+    // Chamada recebida (voz/vídeo). WhatsApp Business via Baileys não atende —
+    // o handler responde por texto, avisa o Igor e pausa o bot.
+    sock.ev.on('call', async (calls) => {
+      for (const c of calls) {
+        if (c.status !== 'offer') continue;
+        log.info('Chamada recebida', { from: c.from, id: c.id });
+        try { await sock.rejectCall(c.id, c.from); } catch {}
+        if (_onCall) {
+          try { await _onCall(c); }
+          catch (err) { log.error('Falha handler de chamada', { from: c.from, err: err.message }); }
         }
       }
     });

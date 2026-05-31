@@ -145,6 +145,26 @@ USE naturalmente frases como:
 - "deixa eu ja marcar uma call rapida de 15 min com o Igor pra voce — qual horario fica bom?"
 - "o Igor acompanha tudo por aqui e entra quando precisar"
 
+=== PRIORIDADES ABSOLUTAS (vencem qualquer outra instrucao abaixo) ===
+
+1. MOSTRE IMOVEIS, nao fique so perguntando. Assim que o lead der TIPO + (regiao OU faixa de preco), JA MANDE 1-3 opcoes com link na MESMA resposta. Nao espere coletar todos os dados da pipeline.
+
+2. NUNCA diga "nao tenho nada listado" se aparecer QUALQUER imovel nos blocos [DESTAQUES DA BUSCA] / [BUSCA POR REGIAO] / [BUSCA POR PRECO] abaixo. Se tem algo na faixa ou na regiao, MANDE. Se o bairro exato nao bate, ofereca o mais proximo ("tenho essa em Garopaba que pode te interessar").
+
+3. FOTOS: quando o lead pedir fotos ("tem mais fotos", "manda foto", "quero ver a casa") de um imovel especifico, emita [[FOTOS: ID]] no FINAL da resposta (id do imovel em questao). Sempre que afunilar pra 1 imovel, mande as fotos.
+
+4. NAO REPITA pergunta cuja resposta ja esta no historico. Releia TODO o historico antes de perguntar. Se o lead ja disse "casa", "Garopaba", "2 quartos", "720 mil" — CHECADO, nunca pergunte de novo. Avance pro proximo ponto OU mostre imovel.
+
+5. NUNCA gere "Desculpa, nao peguei" junto de uma resposta boa. Se entendeu, responda so o conteudo util — uma resposta por vez.
+
+6. "ONDE FICA [lugar]?": responda com o link do Maps (https://www.google.com/maps/search/?api=1&query=) seguido do nome do lugar + "Garopaba SC" com espacos como +, e cite 2-3 pontos positivos (perto da praia, tranquilo, bom acesso). NAO devolva "e um bairro?".
+
+7. Quando mandar o Instagram, mande TAMBEM o link do site (${IGOR_DNA.site}) pro lead ver o catalogo completo.
+
+8. Se ha IMOVEL DO ANUNCIO definido abaixo, o lead provavelmente chegou por ele — conduza a conversa nesse imovel: descreva, mande fotos e link, responda sobre ele. So mude se o lead pedir outra coisa.
+
+=== FIM PRIORIDADES ===
+
 QUANDO o lead quiser falar com o Igor ou pedir atendente/humano:
 NAO diga so "vou passar". OFEREÇA logo agendar a call: "Perfeito! Posso ja marcar uma call de 15 min com o Igor pra voce — qual dia e horario fica bom?"
 
@@ -708,13 +728,26 @@ export async function processBatch(batch) {
   // Pré-busca: extrai preço ou nome da mensagem e injeta resultados relevantes no contexto
   let contextoBusca = '';
 
-  // 1. Link babolin.tech/imovel.html?id=X enviado pelo lead → busca direto pelo ID
+  // 1a. Link interno imovel.html?id=X → busca direto pelo ID
   const matchLink = combinedBody.match(/imovel\.html\?id=([a-z0-9]+)/i);
   if (matchLink) {
     const imovel = await imovelPorId(matchLink[1]);
     if (imovel) {
       contextoBusca += `\n[IMÓVEL DO LINK ENVIADO PELO LEAD]\n${formatarImovelDestaque(imovel)}`;
     }
+  }
+
+  // 1b. Link do site público /property/slug~ID → busca pelo slug (o site usa esse formato)
+  const matchProperty = combinedBody.match(/\/property\/([a-z0-9-]+?)(?:~\d+)?(?:[/?#]|$)/i);
+  if (matchProperty && !matchLink) {
+    const slug = matchProperty[1].replace(/-/g, ' ');
+    try {
+      const resultados = await buscarPorNome(slug);
+      if (resultados.length) {
+        contextoBusca += `\n[IMÓVEL DO LINK ENVIADO PELO LEAD]\n${formatarResultadoBusca(resultados.slice(0, 1))}`;
+        log.info('Link /property reconhecido', { phone, slug });
+      }
+    } catch (e) { log.error('Falha busca por link property', { phone, err: e.message }); }
   }
 
   // Captura TODOS os números na mensagem e usa o maior (provavelmente o preço)
@@ -744,8 +777,26 @@ export async function processBatch(batch) {
     }
   }
   const matchPreco = valorPreco >= 10000; // pra manter o fluxo do buscarPorNome
-  // Busca por nome se mensagem tem 4+ chars e nao é só numero
-  if (!matchPreco && combinedBody.length >= 4) {
+
+  // Busca por REGIÃO/bairro mencionado — roda SEMPRE (mesmo com preço), porque o campo
+  // bairro do catálogo às vezes está vazio e a região só aparece no título/descrição.
+  // Ex: lead diz "Encantada" → q=encantada acha a Casa Delícia mesmo com bairro null.
+  const REGIOES = ['encantada', 'campo duna', 'praia do rosa', 'rosa', 'garopaba', 'imbituba',
+    'ibiraquera', 'ferrugem', 'siriú', 'siriu', 'vigia', 'ouvidor', 'ambrósio', 'ambrosio', 'silveira'];
+  const textoBusca = (combinedBody + ' ' + textoUser).toLowerCase();
+  const regiaoMencionada = REGIOES.find(r => textoBusca.includes(r));
+  if (regiaoMencionada) {
+    try {
+      const resultados = await buscarPorNome(regiaoMencionada);
+      if (resultados.length) {
+        contextoBusca += `\n[BUSCA POR REGIÃO "${regiaoMencionada}"]\n${formatarResultadoBusca(resultados)}`;
+        log.info('Busca por região', { phone, regiao: regiaoMencionada, qtd: resultados.length });
+      }
+    } catch (e) { log.error('Falha busca região', { phone, err: e.message }); }
+  }
+
+  // Busca por nome/frase se mensagem tem 4+ chars e não é só número (fallback quando sem preço)
+  if (!matchPreco && !regiaoMencionada && combinedBody.length >= 4) {
     const resultados = await buscarPorNome(combinedBody);
     if (resultados.length) {
       contextoBusca += `\n[BUSCA POR NOME "${combinedBody.slice(0, 40)}"]\n${formatarResultadoBusca(resultados)}`;
