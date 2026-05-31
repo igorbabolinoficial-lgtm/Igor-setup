@@ -292,8 +292,15 @@ function iniciar() {
     cron.schedule('*/5 * * * *', () => {
         if (getGeminiKey()) pensarComIA();
     });
+    // Cron a cada 10min: Analista audita conversas que esfriaram (auto-crítica do bot)
+    cron.schedule('*/10 * * * *', () => {
+        try {
+            const { analisarEsfriadas } = require('../lib/analista-conversas');
+            analisarEsfriadas({ limite: 5 }).catch(() => {});
+        } catch (_) {}
+    });
     setTimeout(ciclo, 1500);
-    registrarLog({ agente: 'maestro', nivel: 'sucesso', mensagem: 'Igor (Maestro) acordou — autopilot ativo (heurístico 15s + IA 5min)' });
+    registrarLog({ agente: 'maestro', nivel: 'sucesso', mensagem: 'Igor (Maestro) acordou — autopilot ativo (heurístico 15s + IA 5min + analista 10min)' });
     heartbeat('maestro');
 }
 

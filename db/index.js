@@ -88,6 +88,35 @@ db.exec(`
     CREATE INDEX IF NOT EXISTS idx_treino_ativo ON treinamento(ativo);
 `);
 
+// === Analista de Conversas — auto-crítica do bot + regras aprendidas ===
+db.exec(`
+    CREATE TABLE IF NOT EXISTS analises_conversa (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        phone         TEXT NOT NULL,
+        lead_nome     TEXT,
+        score         INTEGER,                  -- 0-10 qualidade geral da condução
+        erros         TEXT,                     -- JSON [{tipo, gravidade, trecho, sugestao}]
+        resumo        TEXT,
+        ultima_msg_at TEXT,                      -- timestamp da última msg analisada (evita reanalisar)
+        analisado_em  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_analise_phone ON analises_conversa(phone);
+    CREATE INDEX IF NOT EXISTS idx_analise_data  ON analises_conversa(analisado_em DESC);
+
+    CREATE TABLE IF NOT EXISTS regras_propostas (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        tipo_erro     TEXT NOT NULL UNIQUE,      -- chave do padrão (ex: repetiu_pergunta)
+        regra         TEXT NOT NULL,             -- regra sugerida pro prompt do bot
+        ocorrencias   INTEGER NOT NULL DEFAULT 1,
+        exemplos      TEXT,                      -- JSON de trechos reais
+        status        TEXT NOT NULL DEFAULT 'proposta', -- proposta | aprovada | rejeitada
+        treino_id     TEXT,                      -- id do item de treinamento criado ao aprovar
+        criado_em     TEXT NOT NULL DEFAULT (datetime('now')),
+        atualizado_em TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_regra_status ON regras_propostas(status);
+`);
+
 // === Skills sob demanda (padrão Hermes — dormem, acordam por palavra-chave) ===
 // Criadas separado do schema.sql pra ser migration idempotente.
 db.exec(`

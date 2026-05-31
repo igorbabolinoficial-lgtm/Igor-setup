@@ -457,6 +457,7 @@
             <li data-panel="logs">Terminal de Automação</li>
             <li data-panel="skills">Skills</li>
             <li data-panel="whatsapp">WhatsApp</li>
+            <li data-panel="qualidade">Qualidade do Bot</li>
             <li data-panel="treinamento">Treinamento</li>
             <li data-panel="config">Configurações API</li>
         </nav>
@@ -1489,6 +1490,72 @@
         // Auto-refresh tratado no handler geral de navegação acima
         </script>
 
+        <!-- Qualidade do Bot — auto-crítica + regras aprendidas -->
+        <div id="qualidade" class="panel">
+            <div class="controls" style="margin-bottom:18px;">
+                <button class="btn-elite" onclick="analisarAgora()" title="Audita agora as conversas que esfriaram">🔍 Analisar conversas agora</button>
+                <span id="qualResumo" style="font-size:0.8rem;color:var(--text-muted);margin-left:12px;"></span>
+            </div>
+            <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--accent);margin:8px 0 12px;">Regras aprendidas (aguardando seu OK)</h3>
+            <div id="qualRegras" style="display:flex;flex-direction:column;gap:10px;margin-bottom:30px;">Carregando…</div>
+            <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--accent);margin:8px 0 12px;">Análises recentes</h3>
+            <div id="qualAnalises" style="display:flex;flex-direction:column;gap:10px;"></div>
+        </div>
+        <script>
+            async function carregarQualidade() {
+                try {
+                    const resumo = await api('GET', '/qualidade/resumo');
+                    document.getElementById('qualResumo').textContent =
+                        `${resumo.total_analises} conversas analisadas · score médio ${resumo.score_medio ?? '—'}/10`;
+
+                    const { regras } = await api('GET', '/qualidade/regras?status=proposta');
+                    const cont = document.getElementById('qualRegras');
+                    if (!regras.length) {
+                        cont.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;">Nenhuma regra proposta ainda. O analista propõe correções conforme detecta erros recorrentes nas conversas.</div>';
+                    } else {
+                        cont.innerHTML = regras.map(r => `
+                            <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;">
+                                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                                    <div style="flex:1;">
+                                        <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent);margin-bottom:5px;">${r.tipo_erro} · ${r.ocorrencias}x</div>
+                                        <div style="font-size:0.9rem;line-height:1.45;">${r.regra}</div>
+                                        <div style="font-size:0.7rem;color:var(--text-muted);margin-top:6px;">${r.descricao_tipo}</div>
+                                    </div>
+                                    <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+                                        <button class="btn-sim" onclick="aprovarRegra(${r.id})">Aprovar</button>
+                                        <button class="btn-sim" style="background:#444;" onclick="rejeitarRegra(${r.id})">Rejeitar</button>
+                                    </div>
+                                </div>
+                            </div>`).join('');
+                    }
+
+                    const { analises } = await api('GET', '/qualidade/analises?limit=15');
+                    const ca = document.getElementById('qualAnalises');
+                    ca.innerHTML = analises.length ? analises.map(a => {
+                        const cor = a.score >= 8 ? '#52d68a' : a.score >= 5 ? '#e0bd5e' : '#ff6b6b';
+                        const errosTxt = (a.erros||[]).map(e => `<span style="display:inline-block;background:rgba(255,107,107,0.1);color:#ff9b9b;border-radius:4px;padding:2px 8px;font-size:0.68rem;margin:2px;">${e.tipo}</span>`).join('');
+                        return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <b style="font-size:0.85rem;">${a.lead_nome || a.phone}</b>
+                                <span style="color:${cor};font-weight:700;">${a.score}/10</span>
+                            </div>
+                            <div style="font-size:0.8rem;color:var(--text-muted);margin:4px 0;">${a.resumo || ''}</div>
+                            <div>${errosTxt}</div>
+                        </div>`;
+                    }).join('') : '<div style="color:var(--text-muted);font-size:0.85rem;">Nenhuma análise ainda.</div>';
+                } catch (e) {
+                    document.getElementById('qualResumo').textContent = 'Erro ao carregar.';
+                }
+            }
+            async function analisarAgora() {
+                document.getElementById('qualResumo').textContent = 'Analisando conversas encerradas…';
+                try { const r = await api('POST', '/qualidade/analisar-esfriadas'); document.getElementById('qualResumo').textContent = `Analisou ${r.feitas} conversa(s).`; carregarQualidade(); }
+                catch { document.getElementById('qualResumo').textContent = 'Erro.'; }
+            }
+            async function aprovarRegra(id) { await api('POST', `/qualidade/regras/${id}/aprovar`); carregarQualidade(); }
+            async function rejeitarRegra(id) { await api('POST', `/qualidade/regras/${id}/rejeitar`); carregarQualidade(); }
+        </script>
+
         <!-- Treinamento -->
         <div id="treinamento" class="panel">
             <!-- Categorias -->
@@ -1980,6 +2047,7 @@
                 if (id === 'imoveis')    carregarImoveis();
                 if (id === 'cerebro')    carregarCerebro();
                 if (id === 'skills')     carregarSkills();
+                if (id === 'qualidade')  carregarQualidade();
                 if (id === 'whatsapp')   { waCarregar(); waAutoRefresh = setInterval(() => { if (document.getElementById('whatsapp').classList.contains('active')) waPollMsgs(); else { clearInterval(waAutoRefresh); waAutoRefresh = null; } }, 3000); }
             });
         });
